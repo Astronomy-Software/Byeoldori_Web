@@ -1,0 +1,101 @@
+import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "@/lib/auth/token";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+async function refreshAccessToken(): Promise<boolean> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return false;
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) return false;
+
+    const data = await res.json();
+    setTokens(data.accessToken, data.refreshToken);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function apiFetch<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const url = `${API_BASE_URL}/${path.replace(/^\//, "")}`;
+
+  const headers = new Headers(options.headers);
+  const token = getAccessToken();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  let res = await fetch(url, { ...options, headers });
+
+  // 401 → 토큰 갱신 시도
+  if (res.status === 401 && token) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      refreshPromise = refreshAccessToken().finally(() => {
+        isRefreshing = false;
+        refreshPromise = null;
+      });
+    }
+
+    const refreshed = await refreshPromise;
+    if (refreshed) {
+      const newToken = getAccessToken();
+      headers.set("Authorization", `Bearer ${newToken}`);
+      res = await fetch(url, { ...options, headers });
+    } else {
+      clearTokens();
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+      throw new Error("Session expired");
+    }
+  }
+
+  if (!res.ok) {
+    const errorBody = await res.text();
+    throw new ApiError(res.status, errorBody);
+  }
+
+  // 204 No Content
+  if (res.status === 204) return undefined as T;
+
+  return res.json();
+}
+
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public body: string,
+  ) {
+    super(`API Error ${status}: ${body}`);
+    this.name = "ApiError";
+  }
+}
+
+// Multipart 파일 업로드 헬퍼
+export async function apiUpload<T>(
+  path: string,
+  formData: FormData,
+): Promise<T> {
+  return apiFetch<T>(path, {
+    method: "POST",
+    body: formData,
+    // Content-Type은 FormData일 때 브라우저가 자동 설정
+  });
+}
