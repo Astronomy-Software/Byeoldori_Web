@@ -1,0 +1,62 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "byeoldori.moc3",
+		"Textures": [
+			"byeoldori.1024/texture_00.png"
+		],
+		"DisplayInfo": "byeoldori.cdi3.json",
+		"Motions": {
+			"Idle": [
+				{
+					"File": "motion/standing.motion3.json"
+				}
+			],
+			"Angry": [
+				{
+					"File": "motion/angry.motion3.json"
+				}
+			],
+			"Happy": [
+				{
+					"File": "motion/happy.motion3.json"
+				}
+			],
+			"Crying": [
+				{
+					"File": "motion/crying.motion3.json"
+				}
+			],
+			"Her": [
+				{
+					"File": "motion/her.motion3.json"
+				}
+			],
+			"Appearance": [
+				{
+					"File": "motion/new dududunga.motion3.json"
+				}
+			],
+			"Exit": [
+				{
+					"File": "motion/bye~.motion3.json"
+				}
+			]
+		}
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"Param"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": []
+		}
+	],
+	"HitAreas": []
+}

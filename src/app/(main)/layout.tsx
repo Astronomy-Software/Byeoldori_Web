@@ -1,5 +1,6 @@
 import { AuthGuard } from "@/components/auth-guard";
 import { NavBar } from "@/components/nav-bar";
+import { Live2DCharacter } from "@/components/live2d-character";
 
 export default function MainLayout({
   children,
@@ -24,6 +25,9 @@ export default function MainLayout({
           <NavBar />
         </div>
       </div>
+
+      {/* Live2D 마스코트 오버레이 */}
+      <Live2DCharacter />
     </AuthGuard>
   );
 }

@@ -12,13 +12,11 @@ import {
 
 const navItems = [
   { href: "/home", label: "홈", icon: Home },
+  { href: "/starmap", label: "별지도", icon: Star },
   { href: "/observatory", label: "관측지", icon: MapPin },
   { href: "/community", label: "커뮤니티", icon: Users },
   { href: "/mypage", label: "마이페이지", icon: User },
 ] as const;
-
-// 별지도는 Phase 4에서 추가 예정
-const starMapItem = { href: "#", label: "별지도", icon: Star };
 
 export function NavBar() {
   const pathname = usePathname();
@@ -26,15 +24,6 @@ export function NavBar() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-purple-800 md:relative md:bottom-auto md:border-t-0 md:border-r">
       <div className="flex items-center justify-around py-2 md:flex-col md:gap-2 md:px-3 md:py-6">
-        {/* 별지도 (비활성) */}
-        <span
-          className="flex flex-col items-center gap-0.5 px-3 py-1 text-muted-foreground opacity-50 cursor-not-allowed"
-          title="��지도 (준비 중)"
-        >
-          <starMapItem.icon className="h-5 w-5" />
-          <span className="text-[10px] font-bold">{starMapItem.label}</span>
-        </span>
-
         {navItems.map(({ href, label, icon: Icon }) => {
           const isActive =
             pathname === href || pathname.startsWith(href + "/");

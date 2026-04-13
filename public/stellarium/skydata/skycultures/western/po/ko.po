@@ -1,0 +1,271 @@
+msgid ""
+msgstr ""
+"Language: ko\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# --- 88 Constellations ---
+
+msgid "Andromeda"
+msgstr "안드로메다자리"
+
+msgid "Antlia"
+msgstr "공기펌프자리"
+
+msgid "Apus"
+msgstr "극락조자리"
+
+msgid "Aquarius"
+msgstr "물병자리"
+
+msgid "Aquila"
+msgstr "독수리자리"
+
+msgid "Ara"
+msgstr "제단자리"
+
+msgid "Aries"
+msgstr "양자리"
+
+msgid "Auriga"
+msgstr "마차부자리"
+
+msgid "Bootes"
+msgstr "목동자리"
+
+msgid "Caelum"
+msgstr "끌자리"
+
+msgid "Camelopardalis"
+msgstr "기린자리"
+
+msgid "Cancer"
+msgstr "게자리"
+
+msgid "Canes Venatici"
+msgstr "사냥개자리"
+
+msgid "Canis Major"
+msgstr "큰개자리"
+
+msgid "Canis Minor"
+msgstr "작은개자리"
+
+msgid "Capricornus"
+msgstr "염소자리"
+
+msgid "Carina"
+msgstr "용골자리"
+
+msgid "Cassiopeia"
+msgstr "카시오페이아자리"
+
+msgid "Centaurus"
+msgstr "켄타우루스자리"
+
+msgid "Cepheus"
+msgstr "세페우스자리"
+
+msgid "Cetus"
+msgstr "고래자리"
+
+msgid "Chamaeleon"
+msgstr "카멜레온자리"
+
+msgid "Circinus"
+msgstr "컴퍼스자리"
+
+msgid "Columba"
+msgstr "비둘기자리"
+
+msgid "Coma Berenices"
+msgstr "머리털자리"
+
+msgid "Corona Australis"
+msgstr "남쪽왕관자리"
+
+msgid "Corona Borealis"
+msgstr "북쪽왕관자리"
+
+msgid "Corvus"
+msgstr "까마귀자리"
+
+msgid "Crater"
+msgstr "컵자리"
+
+msgid "Crux"
+msgstr "남십자자리"
+
+msgid "Cygnus"
+msgstr "백조자리"
+
+msgid "Delphinus"
+msgstr "돌고래자리"
+
+msgid "Dorado"
+msgstr "황새치자리"
+
+msgid "Draco"
+msgstr "용자리"
+
+msgid "Equuleus"
+msgstr "작은말자리"
+
+msgid "Eridanus"
+msgstr "에리다누스자리"
+
+msgid "Fornax"
+msgstr "화로자리"
+
+msgid "Gemini"
+msgstr "쌍둥이자리"
+
+msgid "Grus"
+msgstr "두루미자리"
+
+msgid "Hercules"
+msgstr "헤르쿨레스자리"
+
+msgid "Horologium"
+msgstr "시계자리"
+
+msgid "Hydra"
+msgstr "바다뱀자리"
+
+msgid "Hydrus"
+msgstr "남쪽바다뱀자리"
+
+msgid "Indus"
+msgstr "인디언자리"
+
+msgid "Lacerta"
+msgstr "도마뱀자리"
+
+msgid "Leo"
+msgstr "사자자리"
+
+msgid "Leo Minor"
+msgstr "작은사자자리"
+
+msgid "Lepus"
+msgstr "토끼자리"
+
+msgid "Libra"
+msgstr "천칭자리"
+
+msgid "Lupus"
+msgstr "이리자리"
+
+msgid "Lynx"
+msgstr "스라소니자리"
+
+msgid "Lyra"
+msgstr "거문고자리"
+
+msgid "Mensa"
+msgstr "테이블산자리"
+
+msgid "Microscopium"
+msgstr "현미경자리"
+
+msgid "Monoceros"
+msgstr "외뿔소자리"
+
+msgid "Musca"
+msgstr "파리자리"
+
+msgid "Norma"
+msgstr "자자리"
+
+msgid "Octans"
+msgstr "팔분의자리"
+
+msgid "Ophiuchus"
+msgstr "뱀주인자리"
+
+msgid "Orion"
+msgstr "오리온자리"
+
+msgid "Pavo"
+msgstr "공작자리"
+
+msgid "Pegasus"
+msgstr "페가수스자리"
+
+msgid "Perseus"
+msgstr "페르세우스자리"
+
+msgid "Phoenix"
+msgstr "불사조자리"
+
+msgid "Pictor"
+msgstr "화가자리"
+
+msgid "Pisces"
+msgstr "물고기자리"
+
+msgid "Piscis Austrinus"
+msgstr "남쪽물고기자리"
+
+msgid "Puppis"
+msgstr "고물자리"
+
+msgid "Pyxis"
+msgstr "나침반자리"
+
+msgid "Reticulum"
+msgstr "그물자리"
+
+msgid "Sagitta"
+msgstr "화살자리"
+
+msgid "Sagittarius"
+msgstr "사수자리"
+
+msgid "Scorpius"
+msgstr "전갈자리"
+
+msgid "Sculptor"
+msgstr "조각가자리"
+
+msgid "Scutum"
+msgstr "방패자리"
+
+msgid "Serpens"
+msgstr "뱀자리"
+
+msgid "Sextans"
+msgstr "육분의자리"
+
+msgid "Taurus"
+msgstr "황소자리"
+
+msgid "Telescopium"
+msgstr "망원경자리"
+
+msgid "Triangulum"
+msgstr "삼각형자리"
+
+msgid "Triangulum Australe"
+msgstr "남쪽삼각형자리"
+
+msgid "Tucana"
+msgstr "큰부리새자리"
+
+msgid "Ursa Major"
+msgstr "큰곰자리"
+
+msgid "Ursa Minor"
+msgstr "작은곰자리"
+
+msgid "Vela"
+msgstr "돛자리"
+
+msgid "Virgo"
+msgstr "처녀자리"
+
+msgid "Volans"
+msgstr "날치자리"
+
+msgid "Vulpecula"
+msgstr "여우자리"

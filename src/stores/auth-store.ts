@@ -8,6 +8,7 @@ import {
 } from "@/lib/auth/token";
 import { login as apiLogin } from "@/lib/api/auth";
 import { getMyProfile } from "@/lib/api/user";
+import { ApiError } from "@/lib/api/client";
 import type { UserProfile, LoginRequest } from "@/types/api";
 
 interface AuthState {
@@ -44,7 +45,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (e) {
       set({
         isLoading: false,
-        error: e instanceof Error ? e.message : "로그인에 실패했습니다.",
+        error: e instanceof ApiError ? e.body : "로그인에 실패했습니다.",
       });
       throw e;
     }

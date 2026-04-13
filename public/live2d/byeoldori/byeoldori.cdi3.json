@@ -1,0 +1,283 @@
+{
+	"Version": 3,
+	"Parameters": [
+		{
+			"Id": "Param",
+			"GroupId": "ParamGroup",
+			"Name": "눈깜빡임"
+		},
+		{
+			"Id": "Param2",
+			"GroupId": "ParamGroup",
+			"Name": "눈이동Y"
+		},
+		{
+			"Id": "Param3",
+			"GroupId": "ParamGroup",
+			"Name": "눈이동X"
+		},
+		{
+			"Id": "Param4",
+			"GroupId": "ParamGroup",
+			"Name": "화남"
+		},
+		{
+			"Id": "Param5",
+			"GroupId": "ParamGroup",
+			"Name": "화남부속"
+		},
+		{
+			"Id": "Param6",
+			"GroupId": "ParamGroup",
+			"Name": "슬픔"
+		},
+		{
+			"Id": "Param7",
+			"GroupId": "ParamGroup",
+			"Name": "슬픔묘사"
+		},
+		{
+			"Id": "Param8",
+			"GroupId": "ParamGroup",
+			"Name": "눈물"
+		},
+		{
+			"Id": "Param10",
+			"GroupId": "ParamGroup",
+			"Name": "황당"
+		},
+		{
+			"Id": "Param12",
+			"GroupId": "ParamGroup",
+			"Name": "기쁨"
+		},
+		{
+			"Id": "Param11",
+			"GroupId": "ParamGroup",
+			"Name": "땀"
+		},
+		{
+			"Id": "Param9",
+			"GroupId": "ParamGroup",
+			"Name": "입여닫기"
+		},
+		{
+			"Id": "Param14",
+			"GroupId": "ParamGroup2",
+			"Name": "X"
+		},
+		{
+			"Id": "Param15",
+			"GroupId": "ParamGroup2",
+			"Name": "Y"
+		},
+		{
+			"Id": "Param13",
+			"GroupId": "ParamGroup2",
+			"Name": "Z"
+		},
+		{
+			"Id": "Param16",
+			"GroupId": "ParamGroup3",
+			"Name": "좌우"
+		},
+		{
+			"Id": "Param29",
+			"GroupId": "ParamGroup3",
+			"Name": "상하"
+		},
+		{
+			"Id": "Param28",
+			"GroupId": "ParamGroup3",
+			"Name": "팔z"
+		},
+		{
+			"Id": "Param24",
+			"GroupId": "ParamGroup3",
+			"Name": "팔"
+		},
+		{
+			"Id": "Param31",
+			"GroupId": "ParamGroup3",
+			"Name": "왼팔z"
+		},
+		{
+			"Id": "Param27",
+			"GroupId": "ParamGroup3",
+			"Name": "왼팔"
+		},
+		{
+			"Id": "Param32",
+			"GroupId": "ParamGroup3",
+			"Name": "오른팔z"
+		},
+		{
+			"Id": "Param26",
+			"GroupId": "ParamGroup3",
+			"Name": "오른팔"
+		},
+		{
+			"Id": "Param33",
+			"GroupId": "ParamGroup3",
+			"Name": "발"
+		},
+		{
+			"Id": "Param35",
+			"GroupId": "ParamGroup3",
+			"Name": "귀Y"
+		},
+		{
+			"Id": "Param36",
+			"GroupId": "ParamGroup3",
+			"Name": "귀X"
+		},
+		{
+			"Id": "Param17",
+			"GroupId": "ParamGroup4",
+			"Name": "별"
+		},
+		{
+			"Id": "Param20",
+			"GroupId": "ParamGroup4",
+			"Name": "별"
+		},
+		{
+			"Id": "Param21",
+			"GroupId": "ParamGroup4",
+			"Name": "별"
+		},
+		{
+			"Id": "Param18",
+			"GroupId": "ParamGroup4",
+			"Name": "탈것"
+		},
+		{
+			"Id": "Param19",
+			"GroupId": "ParamGroup4",
+			"Name": "포탈"
+		},
+		{
+			"Id": "Param22",
+			"GroupId": "",
+			"Name": "대기"
+		},
+		{
+			"Id": "Param30",
+			"GroupId": "",
+			"Name": "짬푸"
+		},
+		{
+			"Id": "Param34",
+			"GroupId": "",
+			"Name": "물음표"
+		},
+		{
+			"Id": "Param23",
+			"GroupId": "",
+			"Name": "헬멧 움직임Y"
+		},
+		{
+			"Id": "Param25",
+			"GroupId": "",
+			"Name": "헬멧 움직임x"
+		}
+	],
+	"ParameterGroups": [
+		{
+			"Id": "ParamGroup",
+			"GroupId": "",
+			"Name": "표정"
+		},
+		{
+			"Id": "ParamGroup2",
+			"GroupId": "",
+			"Name": "머리"
+		},
+		{
+			"Id": "ParamGroup3",
+			"GroupId": "",
+			"Name": "몸"
+		},
+		{
+			"Id": "ParamGroup4",
+			"GroupId": "",
+			"Name": "장식"
+		}
+	],
+	"Parts": [
+		{
+			"Id": "Part9",
+			"Name": "일러스트3 2.psd"
+		},
+		{
+			"Id": "Part",
+			"Name": "화남부속품"
+		},
+		{
+			"Id": "Part2",
+			"Name": "포인터"
+		},
+		{
+			"Id": "Part3",
+			"Name": "몸"
+		},
+		{
+			"Id": "Part4",
+			"Name": "얼굴"
+		},
+		{
+			"Id": "Part15",
+			"Name": "폴더 2"
+		},
+		{
+			"Id": "Part5",
+			"Name": "표정"
+		},
+		{
+			"Id": "Part11",
+			"Name": "얼굴"
+		},
+		{
+			"Id": "Part13",
+			"Name": "볼"
+		},
+		{
+			"Id": "Part14",
+			"Name": "귀"
+		},
+		{
+			"Id": "Part6",
+			"Name": "기쁩"
+		},
+		{
+			"Id": "Part7",
+			"Name": "황당"
+		},
+		{
+			"Id": "Part8",
+			"Name": "슬픔2"
+		},
+		{
+			"Id": "Part10",
+			"Name": "화남"
+		},
+		{
+			"Id": "Part12",
+			"Name": "눈"
+		}
+	],
+	"CombinedParameters": [
+		[
+			"Param2",
+			"Param3"
+		],
+		[
+			"Param35",
+			"Param36"
+		],
+		[
+			"Param23",
+			"Param25"
+		]
+	]
+}

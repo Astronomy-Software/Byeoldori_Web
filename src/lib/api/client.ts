@@ -1,6 +1,7 @@
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "@/lib/auth/token";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+// Next.js rewrites를 통해 프록시 (/api/* → 백엔드 서버)
+const API_BASE_URL = "/api";
 
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
@@ -60,16 +61,21 @@ export async function apiFetch<T>(
       res = await fetch(url, { ...options, headers });
     } else {
       clearTokens();
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
-      }
-      throw new Error("Session expired");
+      throw new ApiError(401, "Session expired");
     }
   }
 
   if (!res.ok) {
     const errorBody = await res.text();
-    throw new ApiError(res.status, errorBody);
+    // 서버 응답에서 message 필드 추출 시도
+    let message = errorBody;
+    try {
+      const parsed = JSON.parse(errorBody);
+      if (parsed.message) message = parsed.message;
+    } catch {
+      // JSON 파싱 실패 시 원문 사용
+    }
+    throw new ApiError(res.status, message);
   }
 
   // 204 No Content
