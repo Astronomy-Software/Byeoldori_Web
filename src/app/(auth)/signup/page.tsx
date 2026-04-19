@@ -53,6 +53,7 @@ export default function SignUpPage() {
       await signUp({
         email: form.email,
         password: form.password,
+        passwordConfirm: form.passwordConfirm,
         nickname: form.nickname,
         name: form.name,
         consentTerms: form.consentTerms,

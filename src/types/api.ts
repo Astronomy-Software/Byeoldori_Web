@@ -26,6 +26,7 @@ export type LoginResponse = ApiResponse<AuthTokens>;
 export interface SignUpRequest {
   email: string;
   password: string;
+  passwordConfirm: string;
   nickname: string;
   name: string;
   consentTerms: boolean;
