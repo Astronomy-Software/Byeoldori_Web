@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getWeatherSummary } from "@/lib/api/weather";
 import type { WeatherSummary } from "@/types/api";
-import { Cloud, Thermometer, Star } from "lucide-react";
+import { Cloud, Thermometer, Star, AlertCircle } from "lucide-react";
 
 interface WeatherSectionProps {
   lat: number;
@@ -32,6 +32,17 @@ export function WeatherSection({ lat, lon }: WeatherSectionProps) {
     return (
       <div className="rounded-xl bg-purple-100/10 p-4">
         <div className="h-20 animate-pulse rounded bg-purple-500/10" />
+      </div>
+    );
+  }
+
+  // 기상청 API에서 데이터를 못 가져온 경우 (sky가 "정보없음" 또는 temperature null)
+  const hasNoData = data.sky === "정보없음" || data.temperature === null;
+  if (hasNoData) {
+    return (
+      <div className="rounded-xl bg-purple-100/10 p-4 flex items-center gap-2 text-sm text-muted-foreground">
+        <AlertCircle className="h-4 w-4 shrink-0" />
+        <span>현재 위치의 날씨 정보를 가져올 수 없습니다.</span>
       </div>
     );
   }
