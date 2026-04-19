@@ -220,6 +220,12 @@ export interface ObservationSite {
   description: string;
 }
 
+export interface ObservationSitePage {
+  content: ObservationSite[];
+  totalPages: number;
+  totalElements: number;
+}
+
 export interface ObservationSiteRegisterRequest {
   name: string;
   address: string;
