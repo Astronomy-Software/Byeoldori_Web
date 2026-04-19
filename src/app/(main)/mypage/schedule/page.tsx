@@ -60,7 +60,8 @@ export default function SchedulePage() {
 
   const calendarBadges = monthSummary.reduce(
     (acc, item) => {
-      acc[item.date] = item.count > 0 ? "#FFD76B" : "";
+      const total = (item.planned ?? 0) + (item.completed ?? 0) + (item.canceled ?? 0);
+      acc[item.date] = total > 0 ? "#FFD76B" : "";
       return acc;
     },
     {} as Record<string, string>,

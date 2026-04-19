@@ -56,7 +56,8 @@ export default function HomePage() {
 
   const calendarBadges = monthSummary.reduce(
     (acc, item) => {
-      acc[item.date] = item.count > 0 ? "#FFD76B" : "";
+      const total = (item.planned ?? 0) + (item.completed ?? 0) + (item.canceled ?? 0);
+      acc[item.date] = total > 0 ? "#FFD76B" : "";
       return acc;
     },
     {} as Record<string, string>,
@@ -101,11 +102,9 @@ export default function HomePage() {
       </section>
 
       {/* 현재 날씨 */}
-      {location && (
-        <section>
-          <WeatherSection lat={location.lat} lon={location.lon} />
-        </section>
-      )}
+      <section>
+        <WeatherSection />
+      </section>
 
       {/* 최근 리뷰 */}
       <PostSection

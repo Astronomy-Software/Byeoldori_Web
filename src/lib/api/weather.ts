@@ -1,11 +1,17 @@
 import { apiFetch } from "./client";
-import type { ForecastResponse } from "@/types/api";
+import type { WeatherSummary } from "@/types/api";
 
+// GET /weather/summary — 현재 날씨 요약
+export async function getWeatherSummary(): Promise<WeatherSummary> {
+  return apiFetch<WeatherSummary>("weather/summary");
+}
+
+// 기존 위치 기반 예보 — WeatherSection이 summary 방식으로 전환됐으므로 레거시
 export async function getForecastData(
   lat: number,
   lon: number,
-): Promise<ForecastResponse> {
-  return apiFetch<ForecastResponse>(
+): Promise<WeatherSummary> {
+  return apiFetch<WeatherSummary>(
     `weather/ForecastData?lat=${lat}&lon=${lon}`,
   );
 }

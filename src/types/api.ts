@@ -192,22 +192,16 @@ export interface LikeToggleResponse {
   likeCount: number;
 }
 
-// Weather
-export interface ForecastResponse {
-  location: string;
-  forecasts: ForecastItem[];
-  suitabilityScore: number;
+// Weather — GET /weather/summary
+export interface WeatherSummary {
+  suitability: number;   // 관측 적합도 점수
+  sky: string;           // 하늘 상태 (예: "맑음")
+  temperature: number;
+  nextGoodTime?: string; // 다음 좋은 관측 시각
 }
 
-export interface ForecastItem {
-  date: string;
-  time: string;
-  temperature: number;
-  humidity: number;
-  cloudCover: number;
-  precipitation: number;
-  windSpeed: number;
-}
+// 기존 별칭 (호환용)
+export type ForecastResponse = WeatherSummary;
 
 // Observation Sites
 export interface ObservationSite {
@@ -264,9 +258,12 @@ export interface PlanDetailDto {
   createdAt: string;
 }
 
+// GET /calendar/events/month 응답 — docs: DaySummary
 export interface MonthDaySummaryDto {
   date: string;
-  count: number;
+  planned: number;
+  completed: number;
+  canceled: number;
 }
 
 export interface CreatePlanRequest {
