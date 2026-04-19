@@ -14,6 +14,7 @@ import {
   deletePost,
   deleteComment,
   toggleCommentLike,
+  updateComment,
 } from "@/lib/api/community";
 import type {
   PostDetailResponse,
@@ -103,6 +104,17 @@ export default function PostDetailPage() {
       if (post) setPost({ ...post, commentCount: post.commentCount - 1 });
     } catch {
       toast.error("댓글 삭제에 실패했습니다.");
+    }
+  }
+
+  async function handleCommentEdit(commentId: number, content: string) {
+    try {
+      const res = await updateComment(postId, commentId, { content });
+      setComments((prev) =>
+        prev.map((c) => (c.id === commentId ? { ...c, content: res.content } : c)),
+      );
+    } catch {
+      toast.error("댓글 수정에 실패했습니다.");
     }
   }
 
@@ -360,6 +372,7 @@ export default function PostDetailPage() {
               currentUser={user?.nickname}
               onReply={(id) => setReplyTo(id)}
               onDelete={handleDeleteComment}
+              onEdit={handleCommentEdit}
               onLike={handleCommentLike}
             />
           ))}
@@ -374,6 +387,7 @@ function CommentItem({
   currentUser,
   onReply,
   onDelete,
+  onEdit,
   onLike,
   depth = 0,
 }: {
@@ -381,10 +395,22 @@ function CommentItem({
   currentUser?: string;
   onReply: (id: number) => void;
   onDelete: (id: number) => void;
+  onEdit: (id: number, content: string) => Promise<void>;
   onLike: (id: number) => void;
   depth?: number;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(comment.content);
+  const [isSaving, setIsSaving] = useState(false);
   const isAuthor = currentUser === comment.authorNickname;
+
+  async function handleSaveEdit() {
+    if (!editContent.trim()) return;
+    setIsSaving(true);
+    await onEdit(comment.id, editContent);
+    setIsSaving(false);
+    setIsEditing(false);
+  }
 
   return (
     <div style={{ marginLeft: depth * 24 }}>
@@ -417,23 +443,60 @@ function CommentItem({
             </span>
           </div>
         </div>
-        <p className="mt-1 text-sm text-foreground">{comment.content}</p>
-        <div className="mt-1 flex gap-2 text-xs">
-          <button
-            onClick={() => onReply(comment.id)}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            답글
-          </button>
-          {isAuthor && (
+
+        {isEditing ? (
+          <div className="mt-2 space-y-1">
+            <Textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="min-h-[60px] text-sm"
+            />
+            <div className="flex gap-2 text-xs">
+              <button
+                onClick={handleSaveEdit}
+                disabled={isSaving}
+                className="text-purple-400 hover:text-purple-300 disabled:opacity-50"
+              >
+                {isSaving ? "저장 중..." : "저장"}
+              </button>
+              <button
+                onClick={() => { setIsEditing(false); setEditContent(comment.content); }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-1 text-sm text-foreground">{comment.content}</p>
+        )}
+
+        {!isEditing && (
+          <div className="mt-1 flex gap-2 text-xs">
             <button
-              onClick={() => onDelete(comment.id)}
-              className="text-muted-foreground hover:text-error"
+              onClick={() => onReply(comment.id)}
+              className="text-muted-foreground hover:text-foreground"
             >
-              삭제
+              답글
             </button>
-          )}
-        </div>
+            {isAuthor && (
+              <>
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  수정
+                </button>
+                <button
+                  onClick={() => onDelete(comment.id)}
+                  className="text-muted-foreground hover:text-error"
+                >
+                  삭제
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
       {comment.children?.map((child) => (
         <CommentItem
@@ -442,6 +505,7 @@ function CommentItem({
           currentUser={currentUser}
           onReply={onReply}
           onDelete={onDelete}
+          onEdit={onEdit}
           onLike={onLike}
           depth={depth + 1}
         />
