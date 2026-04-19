@@ -114,6 +114,24 @@ export interface EducationPostResponse {
   number: number;
 }
 
+export interface ReviewDto {
+  location?: string;
+  observationSiteId?: number;
+  targets?: string[];
+  equipment?: string;
+  observationDate?: string;
+  score?: number;
+}
+
+export interface EducationDto {
+  difficulty?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+  targets?: string[];
+  tags?: string;
+  status?: "DRAFT" | "PUBLISHED";
+  averageScore?: number;
+  contentUrl?: string;
+}
+
 export interface PostDetailResponse {
   id: number;
   type: string;
@@ -127,14 +145,26 @@ export interface PostDetailResponse {
   likeCount: number;
   commentCount: number;
   liked: boolean;
-  images?: string[];      // 서버 실제 필드명
-  imageUrls?: string[];   // 레거시 별칭 (호환용)
-  // Review-specific
-  siteName?: string;
-  rating?: number;
-  // Education-specific
-  objectName?: string;
-  difficulty?: string;
+  images?: string[];
+  imageUrls?: string[];
+  review?: ReviewDto;
+  education?: EducationDto;
+}
+
+// Notification
+export type NotificationType = "NEW_COMMENT" | "COMMENT_LIKED" | "SYSTEM";
+
+export interface NotificationItem {
+  id: number;
+  type: NotificationType;
+  title: string;
+  body: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface NotificationUnreadCount {
+  count: number;
 }
 
 export interface CreateFreeRequest {

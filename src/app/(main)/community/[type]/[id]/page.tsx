@@ -28,6 +28,12 @@ import {
   Star,
   Send,
   Trash2,
+  Pencil,
+  MapPin,
+  Calendar,
+  Target,
+  Telescope,
+  BookOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth-store";
@@ -151,9 +157,18 @@ export default function PostDetailPage() {
             <h1 className="text-xl font-bold text-foreground">{post.title}</h1>
           </div>
           {isAuthor && (
-            <Button variant="ghost" size="icon" onClick={handleDeletePost}>
-              <Trash2 className="h-4 w-4 text-error" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push(`/community/${params.type}/${postId}/edit`)}
+              >
+                <Pencil className="h-4 w-4 text-muted-foreground" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={handleDeletePost}>
+                <Trash2 className="h-4 w-4 text-error" />
+              </Button>
+            </div>
           )}
         </div>
 
@@ -167,15 +182,99 @@ export default function PostDetailPage() {
           <span>{new Date(post.createdAt).toLocaleDateString("ko-KR")}</span>
         </div>
 
-        {/* 리뷰 전용 정보 */}
-        {post.siteName && (
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">관측지:</span>
-            <span className="text-foreground">{post.siteName}</span>
-            {post.rating && (
-              <span className="flex items-center gap-0.5 text-warning">
-                <Star className="h-3 w-3" /> {post.rating}
-              </span>
+        {/* 관측 리뷰 전용 정보 */}
+        {post.review && (
+          <div className="rounded-lg bg-purple-900/20 p-3 space-y-2 text-sm">
+            {post.review.location && (
+              <div className="flex items-center gap-2">
+                <MapPin className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                <span className="text-muted-foreground">관측지:</span>
+                <span>{post.review.location}</span>
+              </div>
+            )}
+            {post.review.observationDate && (
+              <div className="flex items-center gap-2">
+                <Calendar className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                <span className="text-muted-foreground">관측일:</span>
+                <span>{post.review.observationDate}</span>
+              </div>
+            )}
+            {post.review.equipment && (
+              <div className="flex items-center gap-2">
+                <Telescope className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                <span className="text-muted-foreground">장비:</span>
+                <span>{post.review.equipment}</span>
+              </div>
+            )}
+            {post.review.score && (
+              <div className="flex items-center gap-1">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star
+                    key={i}
+                    className={`h-3.5 w-3.5 ${i < post.review!.score! ? "text-warning fill-warning" : "text-muted-foreground"}`}
+                  />
+                ))}
+                <span className="ml-1 text-muted-foreground">({post.review.score}/5)</span>
+              </div>
+            )}
+            {post.review.targets && post.review.targets.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Target className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                {post.review.targets.map((t) => (
+                  <span key={t} className="rounded-full bg-purple-800/50 px-2 py-0.5 text-xs">{t}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 교육 프로그램 전용 정보 */}
+        {post.education && (
+          <div className="rounded-lg bg-blue-900/20 p-3 space-y-2 text-sm">
+            <div className="flex items-center gap-3 flex-wrap">
+              {post.education.difficulty && (
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  post.education.difficulty === "BEGINNER" ? "bg-success/20 text-success" :
+                  post.education.difficulty === "INTERMEDIATE" ? "bg-warning/20 text-warning" :
+                  "bg-error/20 text-error"
+                }`}>
+                  {post.education.difficulty === "BEGINNER" ? "입문" :
+                   post.education.difficulty === "INTERMEDIATE" ? "중급" : "고급"}
+                </span>
+              )}
+              {post.education.averageScore && (
+                <span className="flex items-center gap-1 text-warning">
+                  <Star className="h-3 w-3 fill-warning" />
+                  {post.education.averageScore.toFixed(1)}
+                </span>
+              )}
+              {post.education.tags && (
+                <span className="text-muted-foreground text-xs">{post.education.tags}</span>
+              )}
+            </div>
+            {post.education.targets && post.education.targets.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Target className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                {post.education.targets.map((t) => (
+                  <span key={t} className="rounded-full bg-blue-800/50 px-2 py-0.5 text-xs">{t}</span>
+                ))}
+              </div>
+            )}
+            {post.education.contentUrl && (
+              <div className="mt-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <BookOpen className="h-3.5 w-3.5 text-blue-400" />
+                  <span className="text-xs text-muted-foreground font-medium">학습 자료</span>
+                </div>
+                <a
+                  href={post.education.contentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block rounded bg-blue-700/30 px-3 py-1.5 text-xs text-blue-300 hover:bg-blue-700/50 transition-colors"
+                >
+                  콘텐츠 보기 →
+                </a>
+              </div>
             )}
           </div>
         )}
