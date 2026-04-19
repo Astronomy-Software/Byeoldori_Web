@@ -185,10 +185,10 @@ export default function PostDetailPage() {
           {post.content}
         </div>
 
-        {/* 이미지 */}
-        {post.imageUrls.length > 0 && (
+        {/* 이미지 — 서버 필드명: images (imageUrls는 레거시) */}
+        {((post.images ?? post.imageUrls) ?? []).length > 0 && (
           <div className="grid grid-cols-2 gap-2">
-            {post.imageUrls.map((url, i) => (
+            {(post.images ?? post.imageUrls ?? []).map((url, i) => (
               <img
                 key={i}
                 src={url}

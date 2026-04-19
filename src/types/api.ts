@@ -127,7 +127,8 @@ export interface PostDetailResponse {
   likeCount: number;
   commentCount: number;
   liked: boolean;
-  imageUrls: string[];
+  images?: string[];      // 서버 실제 필드명
+  imageUrls?: string[];   // 레거시 별칭 (호환용)
   // Review-specific
   siteName?: string;
   rating?: number;
