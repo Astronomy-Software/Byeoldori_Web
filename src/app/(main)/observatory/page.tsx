@@ -71,7 +71,8 @@ export default function ObservatoryPage() {
 
     const script = document.createElement("script");
     script.id = "naver-map-script";
-    script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}`;
+    // NCP가 2024년부터 ncpClientId → ncpKeyId 전환 중. 둘 다 보내면 호환.
+    script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&ncpClientId=${clientId}`;
     script.onload = initMap;
     document.head.appendChild(script);
   }, []);
