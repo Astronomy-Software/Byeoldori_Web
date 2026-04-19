@@ -13,6 +13,9 @@ import type {
   CommentResponse,
   CreateCommentRequest,
   FeedbackRequest,
+  PostSummary,
+  ReviewPostSummary,
+  EducationPostSummary,
 } from "@/types/api";
 
 // 게시글 목록
@@ -186,6 +189,19 @@ export async function toggleCommentLike(
     `community/posts/${postId}/comments/${commentId}/likes-toggle`,
     { method: "POST" },
   );
+}
+
+// 홈 화면 전용 API (docs: /community/home/*)
+export async function getHomeReviews(): Promise<ReviewPostSummary[]> {
+  return apiFetch<ReviewPostSummary[]>("community/home/reviews");
+}
+
+export async function getHomeEducations(): Promise<EducationPostSummary[]> {
+  return apiFetch<EducationPostSummary[]>("community/home/educations");
+}
+
+export async function getHomeFreePosts(): Promise<PostSummary[]> {
+  return apiFetch<PostSummary[]>("community/home/free-posts");
 }
 
 export async function evaluateEduPost(

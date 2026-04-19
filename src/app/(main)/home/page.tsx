@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { CalendarCard } from "@/components/calendar-card";
 import { WeatherSection } from "@/components/weather-section";
-import { getReviewPosts, getEducationPosts, getPosts } from "@/lib/api/community";
+import { getHomeReviews, getHomeEducations, getHomeFreePosts } from "@/lib/api/community";
 import { getMonthlySummary } from "@/lib/api/calendar";
 import type {
   ReviewPostSummary,
@@ -47,11 +47,11 @@ export default function HomePage() {
       .catch(() => {});
   }, [year, month]);
 
-  // 최근 게시물
+  // 홈 전용 API (docs: /community/home/*)
   useEffect(() => {
-    getReviewPosts(0, 5).then((r) => setReviews(r.content)).catch(() => {});
-    getEducationPosts(0, 5).then((r) => setEduPosts(r.content)).catch(() => {});
-    getPosts("FREE", 0, 5).then((r) => setFreePosts(r.content)).catch(() => {});
+    getHomeReviews().then(setReviews).catch(() => {});
+    getHomeEducations().then(setEduPosts).catch(() => {});
+    getHomeFreePosts().then(setFreePosts).catch(() => {});
   }, []);
 
   const calendarBadges = monthSummary.reduce(
@@ -145,7 +145,7 @@ function PostSection({
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-foreground">{title}</h2>
         <Link
-          href={linkPrefix}
+          href="/community"
           className="text-xs text-muted-foreground hover:text-foreground"
         >
           더보기 &rarr;
