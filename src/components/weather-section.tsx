@@ -5,15 +5,20 @@ import { getWeatherSummary } from "@/lib/api/weather";
 import type { WeatherSummary } from "@/types/api";
 import { Cloud, Thermometer, Star } from "lucide-react";
 
-export function WeatherSection() {
+interface WeatherSectionProps {
+  lat: number;
+  lon: number;
+}
+
+export function WeatherSection({ lat, lon }: WeatherSectionProps) {
   const [data, setData] = useState<WeatherSummary | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    getWeatherSummary()
+    getWeatherSummary(lat, lon)
       .then(setData)
       .catch(() => setError(true));
-  }, []);
+  }, [lat, lon]);
 
   if (error) {
     return (
