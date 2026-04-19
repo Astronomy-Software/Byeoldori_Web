@@ -51,9 +51,9 @@ export default function ObservatoryPage() {
 
   useEffect(() => {
     getAllSites()
-      .then((data) => {
-        setSites(data);
-        setFiltered(data);
+      .then((page) => {
+        setSites(page.content);
+        setFiltered(page.content);
       })
       .catch(() => {});
   }, []);

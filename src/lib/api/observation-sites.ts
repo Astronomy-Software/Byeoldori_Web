@@ -1,13 +1,15 @@
 import { apiFetch } from "./client";
 import type {
   ObservationSite,
+  ObservationSitePage,
   ObservationSiteRegisterRequest,
   ObservationSiteUpdateRequest,
   ObservationSitesRecommendRequest,
 } from "@/types/api";
 
-export async function getAllSites(): Promise<ObservationSite[]> {
-  return apiFetch<ObservationSite[]>("observationsites");
+// 서버가 Page 구조({ content, totalPages, ... })로 반환
+export async function getAllSites(): Promise<ObservationSitePage> {
+  return apiFetch<ObservationSitePage>("observationsites");
 }
 
 export async function getSiteByName(
