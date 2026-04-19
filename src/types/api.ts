@@ -21,7 +21,8 @@ export interface AuthTokens {
   refreshTokenExpiresAt: string;
 }
 
-export type LoginResponse = ApiResponse<AuthTokens>;
+// apiFetch 자동 unwrap 이후 LoginResponse는 AuthTokens 자체
+export type LoginResponse = AuthTokens;
 
 export interface SignUpRequest {
   email: string;

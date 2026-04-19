@@ -90,7 +90,20 @@ export async function apiFetch<T>(
     return (await res.text()) as T;
   }
 
-  return res.json();
+  const json = await res.json();
+
+  // 서버 공통 래퍼 { success, message, data } 자동 unwrap
+  // 모든 엔드포인트가 이 구조를 쓰므로 caller는 항상 실제 데이터 타입 T를 받는다
+  if (
+    json !== null &&
+    typeof json === "object" &&
+    "success" in json &&
+    "data" in json
+  ) {
+    return json.data as T;
+  }
+
+  return json as T;
 }
 
 export class ApiError extends Error {

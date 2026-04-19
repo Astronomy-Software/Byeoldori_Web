@@ -40,7 +40,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const res = await apiLogin(req);
-      setTokens(res.data.accessToken, res.data.refreshToken);
+      setTokens(res.accessToken, res.refreshToken);
       set({ isSignedIn: true, isLoading: false });
     } catch (e) {
       set({
@@ -65,7 +65,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   loadUser: async () => {
     try {
       const res = await getMyProfile();
-      set({ user: res.data, isSignedIn: true });
+      set({ user: res, isSignedIn: true });
     } catch {
       clearTokens();
       set({ user: null, isSignedIn: false });

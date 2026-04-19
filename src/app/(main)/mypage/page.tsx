@@ -40,7 +40,7 @@ export default function MyPageScreen() {
   useEffect(() => {
     loadUser();
     getObservationCount()
-      .then((r) => setObservationCount(r.data))
+      .then((r) => setObservationCount(r))
       .catch(() => {});
   }, [loadUser]);
 
