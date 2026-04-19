@@ -95,9 +95,9 @@ async function notifyDiscord(title, color, extraFields = []) {
 // ─────────────────────────────────────────────
 // Vercel 배포 실행 (execFile 스타일, OS별 실행파일)
 // ─────────────────────────────────────────────
-// Windows는 vercel.cmd, 그 외는 vercel
+// Node 20+ Windows에서 .cmd 파일 spawn 은 shell 옵션이 필요하다.
+// 커맨드/인자가 모두 하드코딩이므로 injection 위험 없음.
 const isWin = process.platform === "win32";
-const vercelCmd = isWin ? "vercel.cmd" : "vercel";
 
 const START = Date.now();
 
@@ -105,8 +105,9 @@ console.log("🚀 Discord: 배포 시작 알림");
 await notifyDiscord("🚀 배포 시작", COLORS.started);
 
 console.log("📦 vercel deploy --prod 실행");
-const deploy = spawn(vercelCmd, ["deploy", "--prod", "--yes"], {
+const deploy = spawn("vercel", ["deploy", "--prod", "--yes"], {
   stdio: ["inherit", "pipe", "pipe"],
+  shell: isWin, // Windows에서만 shell 사용 (vercel.cmd 해석)
 });
 
 let stdoutBuf = "";
