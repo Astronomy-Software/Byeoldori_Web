@@ -35,8 +35,8 @@ export async function findEmail(
 
 export async function resetPasswordToEmail(
   body: ResetPasswordToEmailRequest,
-): Promise<ApiResponse<string>> {
-  return apiFetch<ApiResponse<string>>("auth/password/reset-request", {
+): Promise<string> {
+  return apiFetch<string>("auth/password/reset-request", {
     method: "POST",
     body: JSON.stringify(body),
   });
