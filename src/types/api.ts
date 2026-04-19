@@ -151,21 +151,6 @@ export interface PostDetailResponse {
   education?: EducationDto;
 }
 
-// Notification
-export type NotificationType = "NEW_COMMENT" | "COMMENT_LIKED" | "SYSTEM";
-
-export interface NotificationItem {
-  id: number;
-  type: NotificationType;
-  title: string;
-  body: string;
-  isRead: boolean;
-  createdAt: string;
-}
-
-export interface NotificationUnreadCount {
-  count: number;
-}
 
 export interface CreateFreeRequest {
   title: string;
