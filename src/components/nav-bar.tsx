@@ -1,11 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, MapPin, Users, User, Star, Bell } from "lucide-react";
-import { getUnreadCount } from "@/lib/api/notification";
-import { useAuthStore } from "@/stores/auth-store";
+import { Home, MapPin, Users, User, Star } from "lucide-react";
 
 const navItems = [
   { href: "/home", label: "홈", icon: Home },
@@ -17,23 +14,6 @@ const navItems = [
 
 export function NavBar() {
   const pathname = usePathname();
-  const { isSignedIn } = useAuthStore();
-  const [unread, setUnread] = useState(0);
-
-  // 로그인 상태에서 30초마다 미읽은 알림 수 폴링
-  useEffect(() => {
-    if (!isSignedIn) return;
-
-    function fetchUnread() {
-      getUnreadCount()
-        .then((r) => setUnread(r.count))
-        .catch(() => {});
-    }
-
-    fetchUnread();
-    const timer = setInterval(fetchUnread, 30_000);
-    return () => clearInterval(timer);
-  }, [isSignedIn]);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-purple-800 md:relative md:bottom-auto md:border-t-0 md:border-r">
@@ -56,26 +36,6 @@ export function NavBar() {
             </Link>
           );
         })}
-
-        {/* 알림 벨 (로그인 시) */}
-        {isSignedIn && (
-          <Link
-            href="/notifications"
-            className={`relative flex flex-col items-center gap-0.5 rounded-lg px-3 py-1 transition-colors ${
-              pathname === "/notifications"
-                ? "bg-purple-500 text-white"
-                : "text-gray-300 hover:text-white"
-            }`}
-          >
-            <Bell className="h-5 w-5" />
-            {unread > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-error text-[9px] text-white font-bold">
-                {unread > 9 ? "9+" : unread}
-              </span>
-            )}
-            <span className="text-[10px] font-bold">알림</span>
-          </Link>
-        )}
       </div>
     </nav>
   );
