@@ -102,9 +102,11 @@ export default function HomePage() {
       </section>
 
       {/* 현재 날씨 */}
-      <section>
-        <WeatherSection />
-      </section>
+      {location && (
+        <section>
+          <WeatherSection lat={location.lat} lon={location.lon} />
+        </section>
+      )}
 
       {/* 최근 리뷰 */}
       <PostSection
