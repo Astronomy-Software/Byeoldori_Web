@@ -1,15 +1,12 @@
-// 서버 공통 응답 타입
+// 서버 공통 응답 래퍼 — 모든 엔드포인트가 { success, message, data } 구조
 export interface ApiResponse<T> {
-  status: number;
+  success: boolean;
   message: string;
   data: T;
 }
 
-export interface BaseResponse<T> {
-  status: number;
-  message: string;
-  data: T;
-}
+// 레거시 별칭 (기존 코드 호환용)
+export type BaseResponse<T> = ApiResponse<T>;
 
 // Auth
 export interface LoginRequest {
@@ -17,10 +14,14 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface LoginResponse {
+export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+  accessTokenExpiresAt: string;
+  refreshTokenExpiresAt: string;
 }
+
+export type LoginResponse = ApiResponse<AuthTokens>;
 
 export interface SignUpRequest {
   email: string;
