@@ -59,6 +59,13 @@ export function Live2DCharacter() {
           antialias: true,
         });
 
+        // PIXI v7 + pixi-live2d-display v0.4 호환성:
+        // 스테이지에서 pointer hit-testing을 완전히 끈다.
+        // autoInteract:false만으로는 PIXI 이벤트 시스템이 여전히 동작해
+        // "t.isInteractive is not a function" 에러 발생.
+        app.stage.eventMode = "none";
+        app.stage.interactiveChildren = false;
+
         const model = await Live2DModel.from(
           "/live2d/byeoldori/byeoldori.model3.json",
           { autoInteract: false },
