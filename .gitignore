@@ -61,3 +61,5 @@ vendor/stellarium-web-engine/**/dist/
 **/CubismNativeFramework/
 # 우리 자체 모델 자산은 예외 (.moc3 등은 우리 소유)
 !public/live2d/**
+
+.vercel
