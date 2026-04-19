@@ -43,3 +43,21 @@ next-env.d.ts
 
 # MCP tool artifacts
 .serena/
+
+# Stellarium subtree 빌드 산출물 (소스만 커밋, node_modules/dist는 제외)
+vendor/stellarium-web-engine/**/node_modules/
+vendor/stellarium-web-engine/**/dist/
+
+# === Live2D Cubism SDK — 커밋 금지 (Live2D Inc. 독점 라이선스) ===
+# Cubism Core 런타임 (반드시 CDN 로드: https://cubism.live2d.com/sdk-web/cubismcore/)
+**/live2dcubismcore.min.js
+**/live2dcubismcore.js
+**/Live2DCubismCore.*
+# Cubism Web SDK / Framework 소스 (repo 포함 금지)
+**/CubismSdkForWeb/
+**/CubismSdkForJava/
+**/CubismWebFramework/
+**/CubismWebSamples/
+**/CubismNativeFramework/
+# 우리 자체 모델 자산은 예외 (.moc3 등은 우리 소유)
+!public/live2d/**

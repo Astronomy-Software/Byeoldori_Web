@@ -1,0 +1,50 @@
+#!/usr/bin/env sh
+# Live2D Cubism SDK 콘텐츠가 커밋되지 않도록 차단
+# - Cubism Core / Web Framework / SDK 샘플은 Live2D Inc. 독점 라이선스
+# - 우리 repo 정책: CDN 런타임 로드 + npm(pixi-live2d-display) 만 허용
+
+# staged 파일만 검사 (대용량 repo에서도 빠름)
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+# 1) 파일명 기반 검사 (Cubism SDK 배포 파일들)
+FILENAME_HIT=$(echo "$STAGED" | grep -E \
+  '(^|/)(live2dcubismcore\.|Live2DCubismCore\.|CubismSdkFor|CubismWebFramework|CubismWebSamples|CubismNativeFramework)' \
+  || true)
+
+# 2) 콘텐츠 기반 검사 (Cubism SDK 특유 심볼이 포함된 파일)
+CONTENT_HIT=$(echo "$STAGED" | while read -r f; do
+  [ -f "$f" ] || continue
+  case "$f" in
+    # 우리 모델 자산
+    public/live2d/*) continue ;;
+    # 방어 인프라 자체 (규칙/문서에 심볼 문자열이 포함되는 건 정상)
+    .husky/pre-commit) continue ;;
+    .github/workflows/live2d-license-check.yml) continue ;;
+    .gitignore) continue ;;
+    AGENTS.md|CLAUDE.md|*.md) continue ;;
+  esac
+  if grep -qE '(Live2DCubismCore\.|CubismMoc\.create|CubismFramework\.startUp|CSM_VARIABLE)' "$f" 2>/dev/null; then
+    echo "$f"
+  fi
+done)
+
+if [ -n "$FILENAME_HIT" ] || [ -n "$CONTENT_HIT" ]; then
+  echo ""
+  echo "❌ Live2D Cubism SDK 콘텐츠가 커밋 대상에 포함되어 있다."
+  echo ""
+  [ -n "$FILENAME_HIT" ] && echo "  [파일명 검출]" && echo "$FILENAME_HIT" | sed 's/^/    /'
+  [ -n "$CONTENT_HIT" ] && echo "  [콘텐츠 검출]" && echo "$CONTENT_HIT" | sed 's/^/    /'
+  echo ""
+  echo "📖 규칙:"
+  echo "  - Cubism Core 는 CDN(cubism.live2d.com) 런타임 로드만 허용"
+  echo "  - Cubism Web SDK/Framework 소스는 repo 포함 금지"
+  echo "  - 렌더러는 npm 패키지 pixi-live2d-display 사용"
+  echo "  - 우리 자체 모델 자산(.moc3 등)은 public/live2d/ 에 커밋 가능"
+  echo ""
+  echo "커밋을 중단한다. 문제 파일을 unstage 하고 다시 시도하라."
+  exit 1
+fi

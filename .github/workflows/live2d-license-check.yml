@@ -1,0 +1,70 @@
+name: Live2D SDK License Check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  check-cubism-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Scan for Cubism SDK content
+        run: |
+          set -e
+
+          # 1) 파일명 기반 스캔 (Live2D Cubism SDK 배포 파일)
+          FILES=$(find . -type f \
+            \( -name 'live2dcubismcore*' \
+            -o -name 'Live2DCubismCore.*' \
+            -o -path '*/CubismSdkFor*' \
+            -o -path '*/CubismWebFramework*' \
+            -o -path '*/CubismWebSamples*' \
+            -o -path '*/CubismNativeFramework*' \
+            \) \
+            -not -path './node_modules/*' \
+            -not -path './vendor/*/node_modules/*' \
+            -not -path './.git/*' \
+            2>/dev/null || true)
+
+          # 2) 콘텐츠 기반 스캔 (Cubism SDK 특유 API/심볼)
+          # 제외 대상: 우리 모델 자산, 방어 인프라 자체, 문서 파일
+          CONTENT=$(grep -rEl \
+            'Live2DCubismCore\.|CubismMoc\.create|CubismFramework\.startUp|CSM_VARIABLE' \
+            --include='*.js' --include='*.ts' --include='*.tsx' \
+            --include='*.jsx' --include='*.json' --include='*.cpp' \
+            --include='*.h' --include='*.hpp' \
+            . 2>/dev/null \
+            | grep -v '^\./node_modules/' \
+            | grep -v '^\./vendor/.*/node_modules/' \
+            | grep -v '^\./public/live2d/' \
+            | grep -v '^\./\.git/' \
+            || true)
+
+          if [ -n "$FILES" ] || [ -n "$CONTENT" ]; then
+            echo "::error::Live2D Cubism SDK 콘텐츠 검출됨"
+            echo ""
+            if [ -n "$FILES" ]; then
+              echo "[파일명 검출]"
+              echo "$FILES"
+              echo ""
+            fi
+            if [ -n "$CONTENT" ]; then
+              echo "[콘텐츠 검출]"
+              echo "$CONTENT"
+              echo ""
+            fi
+            echo "정책:"
+            echo "  - Cubism Core 는 CDN(cubism.live2d.com) 런타임 로드만 허용"
+            echo "  - Cubism Web SDK / Framework 소스는 repo 포함 금지"
+            echo "  - 렌더러는 npm 패키지 pixi-live2d-display 를 사용"
+            echo "  - 우리 자체 모델 자산(.moc3 등)은 public/live2d/ 에 커밋 가능"
+            exit 1
+          fi
+
+          echo "✅ Cubism SDK 콘텐츠 없음"
