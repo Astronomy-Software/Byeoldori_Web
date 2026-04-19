@@ -42,8 +42,12 @@ export async function resetPasswordToEmail(
   });
 }
 
-export async function verifyEmail(
-  token: string,
-): Promise<ApiResponse<string>> {
-  return apiFetch<ApiResponse<string>>(`auth/verify-email?token=${token}`);
+/**
+ * 이메일 인증. 서버 응답은 JSON 래퍼가 아니라 원시 HTML 문자열이다.
+ * 성공 시 응답 본문에 "verification-success" 마커가 포함된다.
+ */
+export async function verifyEmail(token: string): Promise<string> {
+  return apiFetch<string>(
+    `auth/verify-email?token=${encodeURIComponent(token)}`,
+  );
 }

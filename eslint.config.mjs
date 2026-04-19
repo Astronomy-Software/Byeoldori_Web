@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Third-party subtree (Stellarium Web 소스) — 우리 코드 아님
+    "vendor/**",
+    // Stellarium 빌드 결과물 (정적 public 자산)
+    "public/stellarium/**",
   ]),
 ]);
 

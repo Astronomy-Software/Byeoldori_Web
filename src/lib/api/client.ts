@@ -19,8 +19,11 @@ async function refreshAccessToken(): Promise<boolean> {
 
     if (!res.ok) return false;
 
-    const data = await res.json();
-    setTokens(data.accessToken, data.refreshToken);
+    const json = await res.json();
+    // 서버 공통 래퍼 {success,message,data} 안에 토큰이 들어있다
+    const tokens = json?.data ?? json;
+    if (!tokens?.accessToken || !tokens?.refreshToken) return false;
+    setTokens(tokens.accessToken, tokens.refreshToken);
     return true;
   } catch {
     return false;
@@ -80,6 +83,12 @@ export async function apiFetch<T>(
 
   // 204 No Content
   if (res.status === 204) return undefined as T;
+
+  // HTML 응답(예: /auth/verify-email) 이나 비-JSON 은 text로 반환
+  const ct = res.headers.get("content-type") ?? "";
+  if (!ct.includes("json")) {
+    return (await res.text()) as T;
+  }
 
   return res.json();
 }
