@@ -6,7 +6,7 @@ import { getForecastData } from "@/lib/api/weather";
 import { WeatherSection } from "@/components/weather-section";
 import type { ObservationSite, ObservationSiteDetail, ForecastData } from "@/types/api";
 import { Input } from "@/components/ui/input";
-import { MapPin, Search, Lamp, X, Star, Heart } from "lucide-react";
+import { MapPin, Search, Lamp, X, Star, Heart, LocateFixed } from "lucide-react";
 
 declare global {
   interface Window {
@@ -17,20 +17,17 @@ declare global {
         LatLngBounds: new (sw: NaverLatLng, ne: NaverLatLng) => NaverLatLngBounds;
         Marker: new (opts: Record<string, unknown>) => NaverMarker;
         Size: new (w: number, h: number) => NaverSize;
-        Point: new (x: number, y: number) => NaverPoint;
-        ImageMapType: new (opts: {
-          name?: string;
-          getTileUrl: (x: number, y: number, z: number) => string;
-          tileSize: NaverSize;
-          opacity?: number;
-          minZoom?: number;
-          maxZoom?: number;
-        }) => NaverImageMapType;
+        GroundOverlay: new (
+          url: string,
+          bounds: NaverLatLngBounds,
+          opts?: { opacity?: number },
+        ) => NaverGroundOverlay;
         InfoWindow: new (opts: {
           content: string;
           borderWidth?: number;
           backgroundColor?: string;
           disableAnchor?: boolean;
+          pixelOffset?: { x: number; y: number };
         }) => NaverInfoWindow;
         Event: {
           addListener: (target: unknown, event: string, handler: () => void) => void;
@@ -45,16 +42,14 @@ declare global {
       minClusterSize?: number;
       icons?: unknown[];
       indexGenerator?: number[];
-      stylingFunction?: (marker: NaverClusterMarker, count: number) => void;
-    }) => NaverClusterer;
+      stylingFunction?: (marker: { getElement(): HTMLElement }, count: number) => void;
+    }) => unknown;
   }
 }
 
 interface NaverMap {
   setCenter(latlng: NaverLatLng): void;
   setZoom(zoom: number): void;
-  mapTypes: { set(id: string, type: NaverImageMapType): void };
-  setLayerTypeIds(ids: string[]): void;
 }
 interface NaverLatLng { lat(): number; lng(): number; }
 interface NaverLatLngBounds { _sw?: NaverLatLng; _ne?: NaverLatLng; }
@@ -63,16 +58,11 @@ interface NaverMarker {
   getPosition(): NaverLatLng;
 }
 interface NaverSize { width: number; height: number; }
-interface NaverPoint { x: number; y: number; }
-interface NaverImageMapType { opacity: number; }
+interface NaverGroundOverlay { setMap(map: NaverMap | null): void; }
 interface NaverInfoWindow {
   open(map: NaverMap, anchor: NaverLatLng | NaverMarker): void;
   close(): void;
 }
-interface NaverClusterMarker { getElement(): HTMLElement; }
-interface NaverClusterer { setMarkers(markers: NaverMarker[]): void; }
-
-const LP_TYPE_ID = "viirs_nightlights";
 
 interface DayForecast {
   label: string;
@@ -88,14 +78,12 @@ function getSkyEmoji(sky: number | string): string {
   if (n <= 3) return "🌤️";
   return "☁️";
 }
-
 function getMidSkyEmoji(sky: string): string {
   if (sky === "WB01") return "☀️";
   if (sky === "WB02") return "🌤️";
   if (sky === "WB03") return "⛅";
   return "☁️";
 }
-
 function suitabilityColor(score: number): string {
   if (score >= 70) return "text-green-400";
   if (score >= 40) return "text-yellow-400";
@@ -119,28 +107,21 @@ export default function ObservatoryPage() {
   const [siteDetail, setSiteDetail] = useState<ObservationSiteDetail | null>(null);
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [lpOn, setLpOn] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [panelLoading, setPanelLoading] = useState(false);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const naverMapRef = useRef<NaverMap | null>(null);
+  const lpOverlayRef = useRef<NaverGroundOverlay | null>(null);
   const rawMarkersRef = useRef<NaverMarker[]>([]);
 
   useEffect(() => {
     getAllSites().then((page) => setSites(page.content)).catch(() => {});
   }, []);
 
-  // 네이버 지도 스크립트 로드
   useEffect(() => {
     const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
     if (!clientId) return;
-
-    function loadClustering(map: NaverMap) {
-      if (typeof window.MarkerClustering !== "undefined") return;
-      const s = document.createElement("script");
-      s.src = "https://navermaps.github.io/maps.js.ncp/docs/js/MarkerClustering.js";
-      s.onload = () => setupMarkers(map);
-      document.head.appendChild(s);
-    }
 
     function initMap() {
       if (!mapRef.current || !window.naver) return;
@@ -150,20 +131,25 @@ export default function ObservatoryPage() {
       });
       naverMapRef.current = map;
 
-      // NASA VIIRS Black Marble — 최신 야간 광도 타일 (연간 갱신)
-      const lpType = new window.naver.maps.ImageMapType({
-        name: "광공해(VIIRS)",
-        minZoom: 1,
-        maxZoom: 14,
-        tileSize: new window.naver.maps.Size(256, 256),
-        // GIBS 타일은 {z}/{y}/{x} 순서 (row 우선)
-        getTileUrl: (x, y, z) =>
-          `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/GoogleMapsCompatible_Level8/${z}/${y}/${x}.png`,
-        opacity: 0.75,
-      });
-      map.mapTypes.set(LP_TYPE_ID, lpType);
+      // 광공해 오버레이 — Android 앱과 동일한 GroundOverlay 방식 (bounds 동일)
+      const sw = new window.naver.maps.LatLng(32.0, 123.5);
+      const ne = new window.naver.maps.LatLng(40.5, 132.5);
+      const overlay = new window.naver.maps.GroundOverlay(
+        "/korea_lightpollution_overlay.png",
+        new window.naver.maps.LatLngBounds(sw, ne),
+        { opacity: 0.7 },
+      );
+      lpOverlayRef.current = overlay;
 
-      loadClustering(map);
+      // MarkerClustering 스크립트 로드
+      if (typeof window.MarkerClustering === "undefined") {
+        const s = document.createElement("script");
+        s.src = "https://navermaps.github.io/maps.js.ncp/docs/js/MarkerClustering.js";
+        s.onload = () => buildMarkers(map);
+        document.head.appendChild(s);
+      } else {
+        buildMarkers(map);
+      }
     }
 
     const existing = document.getElementById("naver-map-script");
@@ -178,17 +164,18 @@ export default function ObservatoryPage() {
     }
   }, []);
 
-  // 사이트 목록이 바뀌면 마커+클러스터 재생성
+  // sites 로드 후 마커 생성
   useEffect(() => {
     const map = naverMapRef.current;
     if (!map || !window.naver || sites.length === 0) return;
-    setupMarkers(map);
+    if (typeof window.MarkerClustering !== "undefined") {
+      buildMarkers(map);
+    }
+    // clustering 스크립트가 아직 로드 중이면 onload 콜백에서 처리됨
   }, [sites]);
 
-  function setupMarkers(map: NaverMap) {
+  function buildMarkers(map: NaverMap) {
     if (!window.naver || sites.length === 0) return;
-
-    // 기존 마커 제거
     rawMarkersRef.current.forEach((m) => m.setMap(null));
     rawMarkersRef.current = [];
 
@@ -198,47 +185,48 @@ export default function ObservatoryPage() {
         title: site.name,
       });
 
-      const infoWindow = new window.naver.maps.InfoWindow({
-        content: `<div style="padding:6px 10px;background:#1e1b4b;color:#e2e8f0;border-radius:8px;font-size:12px;font-weight:500;border:1px solid rgba(139,92,246,0.5);white-space:nowrap;pointer-events:none">${site.name}</div>`,
+      // 호버 깜빡임 방지: mouseout에 딜레이를 주고 mouseover에서 취소
+      const iw = new window.naver.maps.InfoWindow({
+        content: `<div style="padding:5px 10px;background:#1e1b4b;color:#e2e8f0;border-radius:8px;font-size:12px;font-weight:500;border:1px solid rgba(139,92,246,0.5);white-space:nowrap;pointer-events:none">${site.name}</div>`,
         borderWidth: 0,
         backgroundColor: "transparent",
         disableAnchor: true,
+        pixelOffset: { x: 0, y: -5 },
       });
 
-      window.naver.maps.Event.addListener(marker, "mouseover", () =>
-        infoWindow.open(map, marker.getPosition()),
-      );
-      window.naver.maps.Event.addListener(marker, "mouseout", () =>
-        infoWindow.close(),
-      );
-      window.naver.maps.Event.addListener(marker, "click", () =>
-        selectSite(site),
-      );
+      let closeTimer: ReturnType<typeof setTimeout> | null = null;
+
+      window.naver.maps.Event.addListener(marker, "mouseover", () => {
+        if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+        iw.open(map, marker.getPosition());
+      });
+      window.naver.maps.Event.addListener(marker, "mouseout", () => {
+        closeTimer = setTimeout(() => iw.close(), 200);
+      });
+      window.naver.maps.Event.addListener(marker, "click", () => selectSite(site));
 
       return marker;
     });
 
     rawMarkersRef.current = markers;
 
-    if (typeof window.MarkerClustering === "undefined") {
-      // clustering 스크립트 아직 로드 안 됐으면 일반 마커로 표시
+    if (typeof window.MarkerClustering !== "undefined") {
+      new window.MarkerClustering({
+        map,
+        markers,
+        maxZoom: 11,
+        gridSize: 100,
+        minClusterSize: 2,
+        icons: [clusterIcon(36), clusterIcon(44), clusterIcon(54)],
+        indexGenerator: [5, 15, 50],
+        stylingFunction: (clusterMarker, count) => {
+          const el = clusterMarker.getElement().querySelector(".c-cnt");
+          if (el) el.textContent = String(count);
+        },
+      });
+    } else {
       markers.forEach((m) => m.setMap(map));
-      return;
     }
-
-    new window.MarkerClustering({
-      map,
-      markers,
-      maxZoom: 11,
-      gridSize: 100,
-      minClusterSize: 2,
-      icons: [clusterIcon(36), clusterIcon(44), clusterIcon(54)],
-      indexGenerator: [5, 15, 50],
-      stylingFunction: (clusterMarker, count) => {
-        const el = clusterMarker.getElement().querySelector(".c-cnt");
-        if (el) el.textContent = String(count);
-      },
-    });
   }
 
   function selectSite(site: ObservationSite) {
@@ -247,20 +235,12 @@ export default function ObservatoryPage() {
     setForecast(null);
     setSearchResults(null);
     if (naverMapRef.current && window.naver) {
-      naverMapRef.current.setCenter(
-        new window.naver.maps.LatLng(site.latitude, site.longitude),
-      );
+      naverMapRef.current.setCenter(new window.naver.maps.LatLng(site.latitude, site.longitude));
       naverMapRef.current.setZoom(12);
     }
     setPanelLoading(true);
-    Promise.all([
-      getSiteById(site.id),
-      getForecastData(site.latitude, site.longitude),
-    ])
-      .then(([detail, fc]) => {
-        setSiteDetail(detail);
-        setForecast(fc);
-      })
+    Promise.all([getSiteById(site.id), getForecastData(site.latitude, site.longitude)])
+      .then(([detail, fc]) => { setSiteDetail(detail); setForecast(fc); })
       .catch(() => {})
       .finally(() => setPanelLoading(false));
   }
@@ -280,14 +260,32 @@ export default function ObservatoryPage() {
   }
 
   function toggleLightPollution() {
+    const overlay = lpOverlayRef.current;
     const map = naverMapRef.current;
-    if (!map) return;
+    if (!overlay || !map) return;
     if (lpOn) {
-      map.setLayerTypeIds([]);
+      overlay.setMap(null);
     } else {
-      map.setLayerTypeIds([LP_TYPE_ID]);
+      overlay.setMap(map);
     }
     setLpOn((v) => !v);
+  }
+
+  function goToMyLocation() {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const map = naverMapRef.current;
+        if (map && window.naver) {
+          map.setCenter(new window.naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
+          map.setZoom(12);
+        }
+        setLocating(false);
+      },
+      () => setLocating(false),
+      { timeout: 8000 },
+    );
   }
 
   function closeModal() {
@@ -387,18 +385,31 @@ export default function ObservatoryPage() {
         )}
       </div>
 
-      {/* 광공해 토글 */}
-      <button
-        onClick={toggleLightPollution}
-        className={`absolute bottom-6 right-4 z-10 flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors ${
-          lpOn
-            ? "bg-yellow-500/90 text-black"
-            : "bg-background/90 text-foreground hover:bg-background"
-        }`}
-      >
-        <Lamp className="h-4 w-4" />
-        광공해 {lpOn ? "ON" : "OFF"}
-      </button>
+      {/* 우하단 버튼 그룹 */}
+      <div className="absolute bottom-6 right-4 z-10 flex flex-col gap-2">
+        {/* 내 위치 */}
+        <button
+          onClick={goToMyLocation}
+          disabled={locating}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-background/90 shadow-lg backdrop-blur transition-colors hover:bg-background disabled:opacity-60"
+          title="내 위치로 이동"
+        >
+          <LocateFixed className={`h-4 w-4 ${locating ? "animate-pulse text-purple-400" : ""}`} />
+        </button>
+
+        {/* 광공해 토글 */}
+        <button
+          onClick={toggleLightPollution}
+          className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors ${
+            lpOn
+              ? "bg-yellow-500/90 text-black"
+              : "bg-background/90 text-foreground hover:bg-background"
+          }`}
+        >
+          <Lamp className="h-4 w-4" />
+          광공해 {lpOn ? "ON" : "OFF"}
+        </button>
+      </div>
 
       {/* 관측지 상세 모달 */}
       {selected && (
