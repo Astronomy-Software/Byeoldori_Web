@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { getAllSites, getSitesByKeyword, getSiteById } from "@/lib/api/observation-sites";
-import { getForecastData } from "@/lib/api/weather";
-import { WeatherSection } from "@/components/weather-section";
-import type { ObservationSite, ObservationSiteDetail, ForecastData } from "@/types/api";
+import { useRouter } from "next/navigation";
+import { getAllSites, getSitesByKeyword } from "@/lib/api/observation-sites";
+import type { ObservationSite } from "@/types/api";
 import { Input } from "@/components/ui/input";
-import { MapPin, Search, Lamp, X, Star, Heart, LocateFixed } from "lucide-react";
+import { MapPin, Search, Lamp, X, LocateFixed } from "lucide-react";
 
 declare global {
   interface Window {
@@ -31,7 +30,7 @@ declare global {
             cb: (status: string, res: {
               v2: { results: Array<{
                 region: { area1: { name: string }; area2: { name: string }; area3: { name: string } };
-                land?: { name?: string; number1?: string; addition0?: { value?: string } };
+                land?: { addition0?: { value?: string } };
               }> };
             }) => void,
           ): void;
@@ -55,8 +54,6 @@ declare global {
 interface NaverMap {
   setCenter(latlng: NaverLatLng): void;
   setZoom(zoom: number): void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getProjection(): any;
 }
 interface NaverLatLng { lat(): number; lng(): number; }
 interface NaverLatLngBounds { _sw?: NaverLatLng; _ne?: NaverLatLng; }
@@ -67,17 +64,8 @@ interface NaverMarker {
 interface NaverSize { width: number; height: number; }
 interface NaverGroundOverlay { setMap(map: NaverMap | null): void; }
 
-interface DayForecast {
-  label: string;
-  suitability: number;
-  sky: string;
-  minTemp?: number;
-  maxTemp?: number;
-}
-
 const CARD_W = 116;
 const CARD_IMG_H = 74;
-// anchor: 카드 하단 삼각형 끝이 좌표를 가리키도록
 const CARD_ANCHOR = { x: CARD_W / 2, y: CARD_IMG_H + 26 + 6 };
 
 function cardMarkerHtml(name: string, rating?: number | null): string {
@@ -120,24 +108,6 @@ function cardMarkerHtml(name: string, rating?: number | null): string {
   `;
 }
 
-function getSkyEmoji(sky: number | string): string {
-  const n = typeof sky === "string" ? parseInt(sky) : sky;
-  if (n <= 1) return "☀️";
-  if (n <= 3) return "🌤️";
-  return "☁️";
-}
-function getMidSkyEmoji(sky: string): string {
-  if (sky === "WB01") return "☀️";
-  if (sky === "WB02") return "🌤️";
-  if (sky === "WB03") return "⛅";
-  return "☁️";
-}
-function suitabilityColor(score: number): string {
-  if (score >= 70) return "text-green-400";
-  if (score >= 40) return "text-yellow-400";
-  return "text-red-400";
-}
-
 function clusterIcon(size: number) {
   return {
     content: `<div style="width:${size}px;height:${size}px;background:rgba(124,58,237,0.85);border:2px solid rgba(255,255,255,0.6);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:${size > 44 ? 14 : 12}px;box-shadow:0 2px 8px rgba(0,0,0,0.4);cursor:pointer"><span class="c-cnt"></span></div>`,
@@ -147,18 +117,14 @@ function clusterIcon(size: number) {
 }
 
 export default function ObservatoryPage() {
+  const router = useRouter();
   const [sites, setSites] = useState<ObservationSite[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [searchResults, setSearchResults] = useState<ObservationSite[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [selected, setSelected] = useState<ObservationSite | null>(null);
-  const [siteDetail, setSiteDetail] = useState<ObservationSiteDetail | null>(null);
-  const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [lpOn, setLpOn] = useState(false);
   const [locating, setLocating] = useState(false);
-  const [panelLoading, setPanelLoading] = useState(false);
   const [clusterSites, setClusterSites] = useState<ObservationSite[] | null>(null);
-  const [address, setAddress] = useState<string | null>(null);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const naverMapRef = useRef<NaverMap | null>(null);
@@ -267,7 +233,7 @@ export default function ObservatoryPage() {
       });
 
       markerToSiteRef.current.set(marker, site);
-      window.naver.maps.Event.addListener(marker, "click", () => selectSite(site));
+      window.naver.maps.Event.addListener(marker, "click", () => goToDetail(site));
 
       return marker;
     });
@@ -305,39 +271,10 @@ export default function ObservatoryPage() {
     }
   }
 
-  function reverseGeocode(lat: number, lng: number) {
-    if (!window.naver?.maps?.Service) return;
-    window.naver.maps.Service.reverseGeocode(
-      { coords: new window.naver.maps.LatLng(lat, lng) },
-      (status, res) => {
-        if (status === window.naver.maps.Service.Status.ERROR) return;
-        const r = res.v2.results[0];
-        if (!r) return;
-        const { area1, area2, area3 } = r.region;
-        const road = r.land?.addition0?.value;
-        const parts = [area1.name, area2.name, area3.name, road].filter(Boolean);
-        setAddress(parts.join(" "));
-      },
-    );
-  }
-
-  function selectSite(site: ObservationSite) {
-    setSelected(site);
-    setSiteDetail(null);
-    setForecast(null);
+  function goToDetail(site: ObservationSite) {
     setSearchResults(null);
     setClusterSites(null);
-    setAddress(null);
-    reverseGeocode(site.latitude, site.longitude);
-    if (naverMapRef.current && window.naver) {
-      naverMapRef.current.setCenter(new window.naver.maps.LatLng(site.latitude, site.longitude));
-      naverMapRef.current.setZoom(12);
-    }
-    setPanelLoading(true);
-    Promise.all([getSiteById(site.id), getForecastData(site.latitude, site.longitude)])
-      .then(([detail, fc]) => { setSiteDetail(detail); setForecast(fc); })
-      .catch(() => {})
-      .finally(() => setPanelLoading(false));
+    router.push(`/observatory/${site.id}`);
   }
 
   async function handleSearch() {
@@ -380,56 +317,6 @@ export default function ObservatoryPage() {
     );
   }
 
-  function closeModal() {
-    setSelected(null);
-    setSiteDetail(null);
-    setForecast(null);
-    setAddress(null);
-  }
-
-  function buildDayForecasts(): DayForecast[] {
-    if (!forecast) return [];
-    const days: DayForecast[] = [];
-
-    const shortByDate: Record<string, { suitability: number[]; sky: number[]; tmp: number[] }> = {};
-    for (const item of forecast.shortForecastResponse) {
-      const date = item.tmef.slice(0, 8);
-      if (!shortByDate[date]) shortByDate[date] = { suitability: [], sky: [], tmp: [] };
-      shortByDate[date].suitability.push(item.suitability);
-      shortByDate[date].sky.push(item.sky);
-      shortByDate[date].tmp.push(item.tmp);
-    }
-    for (const [date, data] of Object.entries(shortByDate)) {
-      const label = `${date.slice(4, 6)}/${date.slice(6, 8)}`;
-      days.push({
-        label,
-        suitability: Math.max(...data.suitability),
-        sky: getSkyEmoji(Math.round(data.sky.reduce((a, b) => a + b, 0) / data.sky.length)),
-        minTemp: Math.min(...data.tmp),
-        maxTemp: Math.max(...data.tmp),
-      });
-    }
-
-    const existingDates = new Set(days.map((d) => d.label));
-    for (const item of forecast.midCombinedForecastDTO) {
-      const date = item.tmEf.slice(0, 8);
-      const label = `${date.slice(4, 6)}/${date.slice(6, 8)}`;
-      if (!existingDates.has(label)) {
-        existingDates.add(label);
-        days.push({
-          label,
-          suitability: item.suitability,
-          sky: getMidSkyEmoji(item.sky),
-          minTemp: item.min,
-          maxTemp: item.max,
-        });
-      }
-    }
-    return days.slice(0, 14);
-  }
-
-  const dayForecasts = buildDayForecasts();
-
   return (
     <div className="relative h-[calc(100dvh-4rem)] w-full overflow-hidden md:h-full">
       <div ref={mapRef} className="h-full w-full" />
@@ -458,7 +345,7 @@ export default function ObservatoryPage() {
             {searchResults.map((site) => (
               <button
                 key={site.id}
-                onClick={() => selectSite(site)}
+                onClick={() => goToDetail(site)}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-card"
               >
                 <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-400" />
@@ -516,78 +403,16 @@ export default function ObservatoryPage() {
             {clusterSites.map((site) => (
               <button
                 key={site.id}
-                onClick={() => selectSite(site)}
+                onClick={() => goToDetail(site)}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-card"
               >
                 <MapPin className="h-4 w-4 shrink-0 text-purple-400" />
                 <span className="text-sm text-foreground">{site.name}</span>
+                {site.averageScore != null && (
+                  <span className="ml-auto text-xs text-yellow-400">★ {site.averageScore.toFixed(1)}</span>
+                )}
               </button>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* 관측지 상세 모달 */}
-      {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeModal} />
-          <div className="relative z-10 w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl bg-background shadow-2xl">
-            <div className="sticky top-0 flex items-start justify-between bg-background px-5 pb-3 pt-5">
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">{selected.name}</h3>
-                {address && (
-                  <p className="mt-0.5 text-xs text-muted-foreground">{address}</p>
-                )}
-                {siteDetail && (
-                  <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-0.5 text-yellow-400">
-                      <Star className="h-3 w-3 fill-yellow-400" />
-                      {siteDetail.averageScore.toFixed(1)}
-                    </span>
-                    <span>리뷰 {siteDetail.reviewCount}개</span>
-                    <span className="flex items-center gap-0.5">
-                      <Heart className="h-3 w-3" /> {siteDetail.totalLikes}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <button onClick={closeModal} className="rounded-full p-1.5 transition-colors hover:bg-card">
-                <X className="h-5 w-5 text-muted-foreground" />
-              </button>
-            </div>
-
-            <div className="space-y-4 px-5 pb-5">
-              <WeatherSection lat={selected.latitude} lon={selected.longitude} />
-
-              {panelLoading && (
-                <div className="h-24 animate-pulse rounded-xl bg-purple-500/10" />
-              )}
-              {!panelLoading && dayForecasts.length > 0 && (
-                <div>
-                  <p className="mb-2 text-xs font-semibold text-foreground">2주 관측 적합도</p>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {dayForecasts.map((day, i) => (
-                      <div
-                        key={i}
-                        className="flex shrink-0 flex-col items-center rounded-lg bg-card/50 px-2.5 py-2 text-center"
-                        style={{ minWidth: 56 }}
-                      >
-                        <span className="text-xs text-muted-foreground">{day.label}</span>
-                        <span className="my-0.5 text-base">{day.sky}</span>
-                        <span className={`text-sm font-bold ${suitabilityColor(day.suitability)}`}>
-                          {day.suitability}
-                        </span>
-                        {day.minTemp !== undefined && day.maxTemp !== undefined && (
-                          <span className="mt-0.5 text-xs text-muted-foreground">
-                            {day.minTemp}~{day.maxTemp}°
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       )}
