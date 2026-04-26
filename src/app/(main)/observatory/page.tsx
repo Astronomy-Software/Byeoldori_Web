@@ -23,7 +23,7 @@ declare global {
           opts?: { opacity?: number },
         ) => NaverGroundOverlay;
         Event: {
-          addListener: (target: unknown, event: string, handler: () => void) => void;
+          addListener: (target: unknown, event: string, handler: (arg?: unknown) => void) => void;
         };
       };
     };
@@ -108,14 +108,17 @@ export default function ObservatoryPage() {
   const [locating, setLocating] = useState(false);
   const [panelLoading, setPanelLoading] = useState(false);
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
+  const [clusterSites, setClusterSites] = useState<ObservationSite[] | null>(null);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const naverMapRef = useRef<NaverMap | null>(null);
   const lpOverlayRef = useRef<NaverGroundOverlay | null>(null);
   const rawMarkersRef = useRef<NaverMarker[]>([]);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const myLocMarkerRef = useRef<NaverMarker | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  const markerToSiteRef = useRef<Map<NaverMarker, ObservationSite>>(new Map());
 
   useEffect(() => {
     getAllSites().then((page) => setSites(page.content)).catch(() => {});
@@ -212,10 +215,18 @@ export default function ObservatoryPage() {
     }
   }
 
+  function cancelHoverClose() {
+    if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
+  }
+  function startHoverClose() {
+    hoverTimerRef.current = setTimeout(() => setHoverInfo(null), 400);
+  }
+
   function buildMarkers(map: NaverMap) {
     if (!window.naver || sites.length === 0) return;
     rawMarkersRef.current.forEach((m) => m.setMap(null));
     rawMarkersRef.current = [];
+    markerToSiteRef.current.clear();
 
     const markers: NaverMarker[] = sites.map((site) => {
       const marker = new window.naver.maps.Marker({
@@ -223,20 +234,33 @@ export default function ObservatoryPage() {
         title: site.name,
       });
 
+      markerToSiteRef.current.set(marker, site);
+
       window.naver.maps.Event.addListener(marker, "mouseover", () => {
-        if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
-        const pos = getMarkerScreenPos(map, site.latitude, site.longitude);
-        if (!pos) return;
-        setHoverInfo({ site, x: pos.x, y: pos.y, detail: null });
-        // 평점 비동기 로드
-        getSiteById(site.id)
-          .then((detail) => setHoverInfo((prev) => prev?.site.id === site.id ? { ...prev, detail } : prev))
-          .catch(() => {});
+        cancelHoverClose();
+        // 350ms 딜레이: 카드가 즉시 렌더링되어 마커 mouseout을 재발사하는 루프 방지
+        if (showTimerRef.current) clearTimeout(showTimerRef.current);
+        showTimerRef.current = setTimeout(() => {
+          const pos = getMarkerScreenPos(map, site.latitude, site.longitude);
+          if (!pos) return;
+          setHoverInfo({ site, x: pos.x, y: pos.y, detail: null });
+          getSiteById(site.id)
+            .then((detail) =>
+              setHoverInfo((prev) => (prev?.site.id === site.id ? { ...prev, detail } : prev))
+            )
+            .catch(() => {});
+        }, 350);
       });
+
       window.naver.maps.Event.addListener(marker, "mouseout", () => {
-        hoverTimerRef.current = setTimeout(() => setHoverInfo(null), 250);
+        if (showTimerRef.current) { clearTimeout(showTimerRef.current); showTimerRef.current = null; }
+        startHoverClose();
       });
-      window.naver.maps.Event.addListener(marker, "click", () => selectSite(site));
+
+      window.naver.maps.Event.addListener(marker, "click", () => {
+        setHoverInfo(null);
+        selectSite(site);
+      });
 
       return marker;
     });
@@ -244,7 +268,7 @@ export default function ObservatoryPage() {
     rawMarkersRef.current = markers;
 
     if (typeof window.MarkerClustering !== "undefined") {
-      new window.MarkerClustering({
+      const clustering = new window.MarkerClustering({
         map,
         markers,
         maxZoom: 11,
@@ -257,6 +281,19 @@ export default function ObservatoryPage() {
           if (el) el.textContent = String(count);
         },
       });
+
+      // 클러스터 클릭 → 소속 관측지 목록 표시
+      window.naver.maps.Event.addListener(clustering, "clusterclick", (cluster: unknown) => {
+        const clusterMarkers: NaverMarker[] =
+          (cluster as { getMarkers?: () => NaverMarker[]; _clusterMarkers?: NaverMarker[] })
+            .getMarkers?.() ??
+          (cluster as { _clusterMarkers?: NaverMarker[] })._clusterMarkers ??
+          [];
+        const list = clusterMarkers
+          .map((m) => markerToSiteRef.current.get(m))
+          .filter((s): s is ObservationSite => !!s);
+        if (list.length > 0) setClusterSites(list);
+      });
     } else {
       markers.forEach((m) => m.setMap(map));
     }
@@ -264,10 +301,10 @@ export default function ObservatoryPage() {
 
   function selectSite(site: ObservationSite) {
     setSelected(site);
-    setHoverInfo(null);
     setSiteDetail(null);
     setForecast(null);
     setSearchResults(null);
+    setClusterSites(null);
     if (naverMapRef.current && window.naver) {
       naverMapRef.current.setCenter(new window.naver.maps.LatLng(site.latitude, site.longitude));
       naverMapRef.current.setZoom(12);
@@ -297,11 +334,8 @@ export default function ObservatoryPage() {
     const overlay = lpOverlayRef.current;
     const map = naverMapRef.current;
     if (!overlay || !map) return;
-    if (lpOn) {
-      overlay.setMap(null);
-    } else {
-      overlay.setMap(map);
-    }
+    if (lpOn) overlay.setMap(null);
+    else overlay.setMap(map);
     setLpOn((v) => !v);
   }
 
@@ -419,23 +453,25 @@ export default function ObservatoryPage() {
         )}
       </div>
 
-      {/* 핀 호버 카드 — React 오버레이 */}
+      {/* 핀 호버 카드
+          - wrapper의 paddingBottom이 카드~마커 사이 공백을 덮어 mouse가 항상 wrapper 안에 있게 함
+          - show 350ms 딜레이로 즉시 렌더 → mouseout 루프 방지
+      */}
       {hoverInfo && (
         <div
           className="pointer-events-auto absolute z-20"
           style={{
-            left: hoverInfo.x - 64,
-            top: hoverInfo.y - 148,
+            left: hoverInfo.x - 56,
+            top: hoverInfo.y - 220,
+            paddingBottom: 55,
           }}
-          onMouseEnter={() => {
-            if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
-          }}
-          onMouseLeave={() => {
-            hoverTimerRef.current = setTimeout(() => setHoverInfo(null), 250);
-          }}
-          onClick={() => selectSite(hoverInfo.site)}
+          onMouseEnter={cancelHoverClose}
+          onMouseLeave={startHoverClose}
         >
-          <div className="w-32 cursor-pointer overflow-hidden rounded-xl bg-background/95 shadow-xl ring-1 ring-purple-500/30 transition-transform hover:scale-105">
+          <div
+            className="w-28 cursor-pointer overflow-hidden rounded-xl bg-background/95 shadow-xl ring-1 ring-purple-500/30 transition-transform hover:scale-105"
+            onClick={() => selectSite(hoverInfo.site)}
+          >
             <img
               src="/byeoldori.png"
               alt={hoverInfo.site.name}
@@ -448,13 +484,12 @@ export default function ObservatoryPage() {
                 {hoverInfo.detail ? (
                   <span className="text-xs text-yellow-400">{hoverInfo.detail.averageScore.toFixed(1)}</span>
                 ) : (
-                  <span className="text-xs text-muted-foreground">...</span>
+                  <span className="text-xs text-muted-foreground">···</span>
                 )}
               </div>
             </div>
           </div>
-          {/* 카드와 마커를 잇는 작은 꼬리 */}
-          <div className="mx-auto h-2 w-0.5 bg-purple-400/60" />
+          <div className="mx-auto h-3 w-0.5 bg-purple-400/50" />
         </div>
       )}
 
@@ -482,13 +517,42 @@ export default function ObservatoryPage() {
         </button>
       </div>
 
+      {/* 클러스터 클릭 → 관측지 목록 바텀시트 */}
+      {clusterSites && (
+        <div className="absolute bottom-0 left-0 right-0 z-30 rounded-t-2xl bg-background shadow-2xl">
+          <div className="sticky top-0 flex items-center justify-between rounded-t-2xl bg-background px-4 py-3">
+            <span className="font-semibold text-foreground">
+              이 지역 관측지 {clusterSites.length}곳
+            </span>
+            <button
+              onClick={() => setClusterSites(null)}
+              className="rounded-full p-1 transition-colors hover:bg-card"
+            >
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+          <div className="max-h-56 overflow-y-auto pb-4">
+            {clusterSites.map((site) => (
+              <button
+                key={site.id}
+                onClick={() => selectSite(site)}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-card"
+              >
+                <MapPin className="h-4 w-4 shrink-0 text-purple-400" />
+                <span className="text-sm text-foreground">{site.name}</span>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {site.latitude.toFixed(3)}, {site.longitude.toFixed(3)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 관측지 상세 모달 */}
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={closeModal}
-          />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeModal} />
           <div className="relative z-10 w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl bg-background shadow-2xl">
             <div className="sticky top-0 flex items-start justify-between bg-background px-5 pb-3 pt-5">
               <div>
@@ -509,10 +573,7 @@ export default function ObservatoryPage() {
                   </div>
                 )}
               </div>
-              <button
-                onClick={closeModal}
-                className="rounded-full p-1.5 transition-colors hover:bg-card"
-              >
+              <button onClick={closeModal} className="rounded-full p-1.5 transition-colors hover:bg-card">
                 <X className="h-5 w-5 text-muted-foreground" />
               </button>
             </div>
