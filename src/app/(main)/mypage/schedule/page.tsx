@@ -38,9 +38,9 @@ export default function SchedulePage() {
 
   // 새 일정 폼
   const [newTitle, setNewTitle] = useState("");
-  const [newDesc, setNewDesc] = useState("");
-  const [newSite, setNewSite] = useState("");
-  const [newObject, setNewObject] = useState("");
+  const [newMemo, setNewMemo] = useState("");
+  const [newPlaceName, setNewPlaceName] = useState("");
+  const [newTarget, setNewTarget] = useState("");
   const [newStartAt, setNewStartAt] = useState("");
   const [newEndAt, setNewEndAt] = useState("");
 
@@ -82,19 +82,21 @@ export default function SchedulePage() {
     try {
       await createPlan({
         title: newTitle,
-        description: newDesc,
         startAt: newStartAt,
-        endAt: newEndAt,
-        siteName: newSite,
-        objectName: newObject,
+        endAt: newEndAt || undefined,
+        placeName: newPlaceName || undefined,
+        targets: newTarget ? [newTarget] : undefined,
+        memo: newMemo || undefined,
+        status: "PLANNED",
       });
       toast.success("관측 일정이 추가되었습니다.");
       setShowNewPlan(false);
       setNewTitle("");
-      setNewDesc("");
-      setNewSite("");
-      setNewObject("");
-      // 새로고침
+      setNewMemo("");
+      setNewPlaceName("");
+      setNewTarget("");
+      setNewStartAt("");
+      setNewEndAt("");
       if (selectedDate) {
         const r = await getEventsByDate(selectedDate);
         setDayPlans(r);
@@ -156,8 +158,8 @@ export default function SchedulePage() {
                 <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required />
               </div>
               <div>
-                <Label>설명</Label>
-                <Textarea value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
+                <Label>메모</Label>
+                <Textarea value={newMemo} onChange={(e) => setNewMemo(e.target.value)} />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -166,16 +168,16 @@ export default function SchedulePage() {
                 </div>
                 <div>
                   <Label>종료</Label>
-                  <Input type="datetime-local" value={newEndAt} onChange={(e) => setNewEndAt(e.target.value)} required />
+                  <Input type="datetime-local" value={newEndAt} onChange={(e) => setNewEndAt(e.target.value)} />
                 </div>
               </div>
               <div>
                 <Label>관측지</Label>
-                <Input value={newSite} onChange={(e) => setNewSite(e.target.value)} />
+                <Input value={newPlaceName} onChange={(e) => setNewPlaceName(e.target.value)} />
               </div>
               <div>
                 <Label>관측 대상</Label>
-                <Input value={newObject} onChange={(e) => setNewObject(e.target.value)} />
+                <Input value={newTarget} onChange={(e) => setNewTarget(e.target.value)} />
               </div>
               <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700">
                 일정 추가
@@ -195,7 +197,6 @@ export default function SchedulePage() {
         onNext={handleNextMonth}
       />
 
-      {/* 선택된 날짜의 일정 */}
       {selectedDate && (
         <section>
           <h2 className="mb-2 text-sm font-semibold text-foreground">
@@ -206,7 +207,7 @@ export default function SchedulePage() {
           ) : (
             <div className="space-y-2">
               {dayPlans.map((plan) => {
-                const isCompleted = plan.status?.name === "COMPLETED";
+                const isCompleted = plan.status === "COMPLETED";
                 return (
                   <div
                     key={plan.id}
@@ -217,15 +218,15 @@ export default function SchedulePage() {
                         <p className="text-sm font-medium text-foreground">
                           {plan.title}
                         </p>
-                        {plan.siteName && (
+                        {plan.placeName && (
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             <MapPin className="mr-0.5 inline h-3 w-3" />
-                            {plan.siteName}
+                            {plan.placeName}
                           </p>
                         )}
-                        {plan.objectName && (
+                        {plan.targets && plan.targets.length > 0 && (
                           <p className="text-xs text-muted-foreground">
-                            관측 대상: {plan.objectName}
+                            관측 대상: {plan.targets.join(", ")}
                           </p>
                         )}
                       </div>
@@ -251,9 +252,9 @@ export default function SchedulePage() {
                         </Button>
                       </div>
                     </div>
-                    {plan.description && (
+                    {plan.memo && (
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {plan.description}
+                        {plan.memo}
                       </p>
                     )}
                   </div>

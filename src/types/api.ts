@@ -24,22 +24,24 @@ export interface AuthTokens {
 // apiFetch 자동 unwrap 이후 LoginResponse는 AuthTokens 자체
 export type LoginResponse = AuthTokens;
 
+// SignupRequestDto: nickname/birthdate optional, phone required
 export interface SignUpRequest {
   email: string;
   password: string;
   passwordConfirm: string;
-  nickname: string;
   name: string;
-  consentTerms: boolean;
-  consentPrivacy: boolean;
+  phone: string;
+  nickname?: string;
 }
 
 export interface SignUpResponse {
   message: string;
 }
 
+// FindEmailRequestDto: name + phone 필수
 export interface FindEmailRequest {
   name: string;
+  phone: string;
 }
 
 export interface FindEmailResponse {
@@ -50,19 +52,35 @@ export interface ResetPasswordToEmailRequest {
   email: string;
 }
 
-// User
+// ChangePasswordRequest
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}
+
+// UserMeResponseDto
 export interface UserProfile {
   id: number;
   email: string;
-  nickname: string;
   name: string;
-  profileImageUrl: string | null;
-  role: string;
+  phone: string;
+  nickname?: string | null;
+  birthdate?: string | null;
+  emailVerified: boolean;
+  lastLoginAt?: string | null;
+  roles: string[];
+  createdAt: string;
+  updatedAt: string;
+  profileImageUrl?: string | null;
+  onboardingRequired: boolean;
 }
 
+// UserUpdateRequestDto
 export interface UpdateUserProfile {
   nickname?: string;
-  name?: string;
+  birthdate?: string;
+  phone?: string;
 }
 
 export interface ProfileImageResponse {
@@ -151,7 +169,6 @@ export interface PostDetailResponse {
   education?: EducationDto;
 }
 
-
 export interface CreateFreeRequest {
   title: string;
   content: string;
@@ -210,24 +227,31 @@ export interface LikeToggleResponse {
 
 // Weather — GET /weather/summary
 export interface WeatherSummary {
-  suitability: number;   // 관측 적합도 점수
-  sky: string;           // 하늘 상태 (예: "맑음")
+  suitability: number;
+  sky: string;
   temperature: number;
-  nextGoodTime?: string; // 다음 좋은 관측 시각
+  nextGoodTime?: string;
 }
 
-// 기존 별칭 (호환용)
 export type ForecastResponse = WeatherSummary;
 
-// Observation Sites
+// Observation Sites — ObservationSiteResponseDto
 export interface ObservationSite {
+  id: number;
   name: string;
-  address: string;
   latitude: number;
   longitude: number;
-  lightPollution: number;
-  altitude: number;
-  description: string;
+}
+
+// ObservationSiteDetailDto
+export interface ObservationSiteDetail {
+  id: number;
+  name: string;
+  latitude: number;
+  longitude: number;
+  reviewCount: number;
+  totalLikes: number;
+  averageScore: number;
 }
 
 export interface ObservationSitePage {
@@ -236,45 +260,54 @@ export interface ObservationSitePage {
   totalElements: number;
 }
 
+// ObservationSiteDto (ADMIN 전용 등록/수정 바디)
 export interface ObservationSiteRegisterRequest {
   name: string;
-  address: string;
   latitude: number;
   longitude: number;
-  lightPollution: number;
-  altitude: number;
-  description: string;
 }
 
 export interface ObservationSiteUpdateRequest {
-  address?: string;
+  name?: string;
   latitude?: number;
   longitude?: number;
-  lightPollution?: number;
-  altitude?: number;
-  description?: string;
 }
 
-export interface ObservationSitesRecommendRequest {
+// Saved Sites — /me/saved-sites
+export interface SavedSiteResponse {
+  savedSiteId: number;
+  siteId?: number | null;
+  name: string;
   latitude: number;
   longitude: number;
+  isCustom: boolean;
 }
 
-// Calendar / Plan
+// Calendar / Plan — EventResponse
+export interface PhotoResponse {
+  id: number;
+  url: string;
+  contentType?: string;
+}
+
 export interface PlanDetailDto {
   id: number;
   title: string;
-  description: string;
   startAt: string;
-  endAt: string;
-  siteName: string;
-  objectName: string;
-  status: { name: string } | null;
-  observedAt: string | null;
+  endAt?: string | null;
+  targets: string[];
+  observationSiteId?: number | null;
+  observationSiteName?: string | null;
+  lat?: number | null;
+  lon?: number | null;
+  placeName?: string | null;
+  status: string;
+  memo?: string | null;
+  photos: PhotoResponse[];
   createdAt: string;
+  updatedAt: string;
 }
 
-// GET /calendar/events/month 응답 — docs: DaySummary
 export interface MonthDaySummaryDto {
   date: string;
   planned: number;
@@ -282,22 +315,35 @@ export interface MonthDaySummaryDto {
   canceled: number;
 }
 
+// CreateEventRequest
 export interface CreatePlanRequest {
   title: string;
-  description: string;
   startAt: string;
-  endAt: string;
-  siteName: string;
-  objectName: string;
+  endAt?: string;
+  observationSiteId?: number;
+  targets?: string[];
+  lat?: number;
+  lon?: number;
+  placeName?: string;
+  memo?: string;
+  status?: string;
+  imageUrls?: string[];
 }
 
+// UpdateEventRequest
 export interface UpdatePlanRequest {
   title?: string;
-  description?: string;
   startAt?: string;
   endAt?: string;
-  siteName?: string;
-  objectName?: string;
+  targets?: string[];
+  observationSiteId?: number;
+  lat?: number;
+  lon?: number;
+  placeName?: string;
+  memo?: string;
+  status?: string;
+  removeImageIds?: number[];
+  addImageUrls?: string[];
 }
 
 export interface ObservationCountDto {

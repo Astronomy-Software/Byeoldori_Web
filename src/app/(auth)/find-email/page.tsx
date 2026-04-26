@@ -16,6 +16,7 @@ import { findEmail } from "@/lib/api/auth";
 
 export default function FindEmailPage() {
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -26,7 +27,7 @@ export default function FindEmailPage() {
     setResult(null);
     setIsLoading(true);
     try {
-      const res = await findEmail({ name });
+      const res = await findEmail({ name, phone });
       setResult(res.email);
     } catch {
       setError("일치하는 이메일을 찾을 수 없습니다.");
@@ -49,6 +50,17 @@ export default function FindEmailPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="가입 시 입력한 이름"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone">휴대폰 번호</Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="01012345678"
               required
             />
           </div>

@@ -369,7 +369,7 @@ export default function PostDetailPage() {
             <CommentItem
               key={comment.id}
               comment={comment}
-              currentUser={user?.nickname}
+              currentUser={user?.nickname ?? undefined}
               onReply={(id) => setReplyTo(id)}
               onDelete={handleDeleteComment}
               onEdit={handleCommentEdit}

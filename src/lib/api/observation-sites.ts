@@ -1,23 +1,30 @@
 import { apiFetch } from "./client";
 import type {
   ObservationSite,
+  ObservationSiteDetail,
   ObservationSitePage,
   ObservationSiteRegisterRequest,
   ObservationSiteUpdateRequest,
-  ObservationSitesRecommendRequest,
 } from "@/types/api";
 
-// 서버가 Page 구조({ content, totalPages, ... })로 반환
 export async function getAllSites(): Promise<ObservationSitePage> {
   return apiFetch<ObservationSitePage>("observationsites");
 }
 
-export async function getSiteByName(
-  name: string,
+// GET /observationsites/name?keyword= — 이름으로 관측지 검색
+export async function getSitesByKeyword(
+  keyword: string,
 ): Promise<ObservationSite[]> {
   return apiFetch<ObservationSite[]>(
-    `observationsites/${encodeURIComponent(name)}`,
+    `observationsites/name?keyword=${encodeURIComponent(keyword)}`,
   );
+}
+
+// GET /observationsites/{id} — ID로 단건 조회
+export async function getSiteById(
+  id: number,
+): Promise<ObservationSiteDetail> {
+  return apiFetch<ObservationSiteDetail>(`observationsites/${id}`);
 }
 
 export async function registerSite(
@@ -29,27 +36,16 @@ export async function registerSite(
   });
 }
 
-export async function recommendSites(
-  body: ObservationSitesRecommendRequest,
-): Promise<ObservationSite[]> {
-  return apiFetch<ObservationSite[]>("observationsites/recommend", {
-    method: "POST",
+export async function updateSite(
+  id: number,
+  body: ObservationSiteUpdateRequest,
+): Promise<ObservationSite> {
+  return apiFetch<ObservationSite>(`observationsites/${id}`, {
+    method: "PUT",
     body: JSON.stringify(body),
   });
 }
 
-export async function updateSite(
-  name: string,
-  body: ObservationSiteUpdateRequest,
-): Promise<ObservationSite> {
-  return apiFetch<ObservationSite>(
-    `observationsites/${encodeURIComponent(name)}`,
-    { method: "PUT", body: JSON.stringify(body) },
-  );
-}
-
-export async function deleteSite(name: string): Promise<void> {
-  await apiFetch(`observationsites/${encodeURIComponent(name)}`, {
-    method: "DELETE",
-  });
+export async function deleteSite(id: number): Promise<void> {
+  await apiFetch(`observationsites/${id}`, { method: "DELETE" });
 }

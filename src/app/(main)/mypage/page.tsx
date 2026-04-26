@@ -45,7 +45,7 @@ export default function MyPageScreen() {
   }, [loadUser]);
 
   useEffect(() => {
-    if (user) setNickname(user.nickname);
+    if (user) setNickname(user.nickname ?? "");
   }, [user]);
 
   async function handleUpdateProfile() {
@@ -100,7 +100,7 @@ export default function MyPageScreen() {
             <Avatar className="h-16 w-16">
               <AvatarImage src={user.profileImageUrl ?? undefined} />
               <AvatarFallback className="bg-purple-600 text-lg">
-                {user.nickname[0]}
+                {(user.nickname ?? user.name)[0]}
               </AvatarFallback>
             </Avatar>
             <label className="absolute -bottom-1 -right-1 cursor-pointer rounded-full bg-purple-600 p-1">
@@ -138,7 +138,7 @@ export default function MyPageScreen() {
             ) : (
               <>
                 <p className="text-lg font-semibold text-foreground">
-                  {user.nickname}
+                  {user.nickname ?? user.name}
                 </p>
                 <p className="text-sm text-muted-foreground">{user.email}</p>
                 <button
