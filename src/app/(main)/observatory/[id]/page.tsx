@@ -3,7 +3,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Star, Heart, MessageSquare, MapPin, Thermometer } from "lucide-react";
+import {
+  ArrowLeft, Star, Heart, MessageSquare, MapPin,
+  Thermometer, Droplets, Wind, ThumbsUp,
+  Sun, CloudSun, Cloud, CloudMoon, CloudRainWind, Snowflake, Droplet,
+} from "lucide-react";
 import { getSiteById } from "@/lib/api/observation-sites";
 import { getWeatherSummary, getForecastData } from "@/lib/api/weather";
 import { getReviewPosts } from "@/lib/api/community";
@@ -14,29 +18,29 @@ import type {
   PostSummary,
 } from "@/types/api";
 
-
-function skyIcon(sky: number | string, pty: number | string): string {
+// lucide 날씨 아이콘 (피그마 기준: sun / cloud-sun / cloud / cloud-rain-wind / snowflake)
+function WeatherIcon({ sky, pty, className = "h-7 w-7" }: { sky: number | string; pty: number | string; className?: string }) {
   const p = Number(pty);
   const s = Number(sky);
-  if (p === 1 || p === 5) return "🌧";
-  if (p === 2 || p === 6) return "🌨";
-  if (p === 3 || p === 7) return "❄️";
-  if (s === 1) return "☀️";
-  if (s === 3) return "⛅";
-  return "☁️";
+  if (p === 1 || p === 5) return <CloudRainWind className={className} />;
+  if (p === 2 || p === 6) return <CloudRainWind className={className} />;
+  if (p === 3 || p === 7) return <Snowflake className={className} />;
+  if (s === 1) return <Sun className={className} />;
+  if (s === 3) return <CloudSun className={className} />;
+  return <Cloud className={className} />;
 }
 
-function skyIconMid(sky: string, pre: string): string {
-  if (pre.includes("RAIN")) return "🌧";
-  if (pre.includes("SNOW")) return "❄️";
-  if (sky === "WB01") return "☀️";
-  if (sky === "WB02") return "🌤️";
-  if (sky === "WB03") return "⛅";
-  return "☁️";
+function WeatherIconMid({ sky, pre, className = "h-7 w-7" }: { sky: string; pre: string; className?: string }) {
+  if (pre.includes("RAIN")) return <CloudRainWind className={className} />;
+  if (pre.includes("SNOW")) return <Snowflake className={className} />;
+  if (sky === "WB01") return <Sun className={className} />;
+  if (sky === "WB02") return <CloudSun className={className} />;
+  if (sky === "WB03") return <CloudMoon className={className} />;
+  return <Cloud className={className} />;
 }
 
 function suitColor(n: number): string {
-  if (n >= 70) return "#4ade80";
+  if (n >= 70) return "#6effa6";
   if (n >= 40) return "#facc15";
   return "#f87171";
 }
@@ -50,6 +54,19 @@ function formatHour(tmef: string): string {
 function formatDateLabel(s: string): string {
   return `${s.slice(4, 6)}/${s.slice(6, 8)}`;
 }
+
+type HourlyItem = {
+  time: string;
+  sky: number;
+  pty: number;
+  temp: number;
+  pop: number;
+  suit: number;
+};
+
+type DayRow =
+  | { label: string; pop: number; max: number; min: number; suit: number; kind: "short"; sky: number; pty: number }
+  | { label: string; pop: number; max: number; min: number; suit: number; kind: "mid"; skyCode: string; pre: string };
 
 export default function ObservatoryDetailPage() {
   const params = useParams();
@@ -115,28 +132,30 @@ export default function ObservatoryDetailPage() {
       .catch(() => setLoading(false));
   }, [id, doGeocode]);
 
-  // 시간별 예보 아이템 조합
-  const hourlyItems = [
+  // 시간별 예보 (ultra + short 앞 16개)
+  const hourlyItems: HourlyItem[] = [
     ...(forecast?.ultraForecastResponse ?? []).map((u) => ({
       time: formatHour(u.tmef),
-      icon: skyIcon(u.sky, u.pty),
+      sky: u.sky,
+      pty: u.pty,
       temp: u.t1h,
       pop: Math.min(Math.round(u.rn1 * 10), 100),
       suit: u.suitability,
     })),
     ...(forecast?.shortForecastResponse ?? []).slice(0, 16).map((s) => ({
       time: formatHour(s.tmef),
-      icon: skyIcon(s.sky, s.pty),
+      sky: s.sky,
+      pty: s.pty,
       temp: s.tmp,
       pop: s.pop,
       suit: s.suitability,
     })),
   ];
 
-  // 일별 예보 조합
-  const dayRows = (() => {
+  // 일별 예보 (short 날짜그룹 + mid)
+  const dayRows: DayRow[] = (() => {
     if (!forecast) return [];
-    const rows: { label: string; pop: number; icon: string; max: number; min: number; suit: number }[] = [];
+    const rows: DayRow[] = [];
     const seen = new Set<string>();
 
     const byDate: Record<string, { tmp: number[]; pop: number[]; suit: number[]; sky: number[]; pty: number[] }> = {};
@@ -152,12 +171,12 @@ export default function ObservatoryDetailPage() {
     for (const [date, d] of Object.entries(byDate)) {
       const label = formatDateLabel(date);
       seen.add(label);
-      const avgSky = Math.round(d.sky.reduce((a, b) => a + b, 0) / d.sky.length);
-      const maxPty = Math.max(...d.pty);
       rows.push({
+        kind: "short",
         label,
         pop: Math.max(...d.pop),
-        icon: skyIcon(avgSky, maxPty),
+        sky: Math.round(d.sky.reduce((a, b) => a + b, 0) / d.sky.length),
+        pty: Math.max(...d.pty),
         max: Math.max(...d.tmp),
         min: Math.min(...d.tmp),
         suit: Math.round(d.suit.reduce((a, b) => a + b, 0) / d.suit.length),
@@ -169,9 +188,11 @@ export default function ObservatoryDetailPage() {
       if (!seen.has(label)) {
         seen.add(label);
         rows.push({
+          kind: "mid",
           label,
           pop: item.rnSt,
-          icon: skyIconMid(item.sky, item.pre),
+          skyCode: item.sky,
+          pre: item.pre,
           max: item.max,
           min: item.min,
           suit: item.suitability,
@@ -180,6 +201,9 @@ export default function ObservatoryDetailPage() {
     }
     return rows.slice(0, 10);
   })();
+
+  // ultra 첫 번째 항목에서 습도·바람 추출
+  const latestUltra = forecast?.ultraForecastResponse[0];
 
   if (loading) {
     return (
@@ -240,35 +264,44 @@ export default function ObservatoryDetailPage() {
         </div>
       </div>
 
-      {/* 현재 날씨 2×2 그리드 */}
+      {/* 현재 날씨 2×2 (피그마: 기온 / 습도 / 바람 / 관측 적합도) */}
       {weather && (
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-foreground">현재 날씨</h2>
+          <h2 className="mb-2 text-sm font-semibold text-foreground">해당 위치의 현재 날씨</h2>
           <div className="grid grid-cols-2 gap-2">
-            <div className="flex items-center gap-2 rounded-xl bg-card/50 px-3 py-3">
-              <Thermometer className="h-4 w-4 text-orange-400" />
-              <div>
-                <p className="text-xs text-muted-foreground">기온</p>
-                <p className="text-sm font-semibold text-foreground">{weather.temperature}°</p>
+            <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
+              <div className="flex items-center gap-2 text-foreground">
+                <Thermometer className="h-5 w-5 text-orange-400" />
+                <span className="text-sm font-semibold">기온</span>
               </div>
+              <p className="text-lg font-bold text-foreground">{weather.temperature}°</p>
             </div>
-            <div className="flex items-center gap-2 rounded-xl bg-card/50 px-3 py-3">
-              <Star className="h-4 w-4 text-yellow-400" />
-              <div>
-                <p className="text-xs text-muted-foreground">관측 적합도</p>
-                <p className="text-sm font-semibold" style={{ color: suitColor(weather.suitability) }}>
-                  {weather.suitability}점
-                </p>
+            <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
+              <div className="flex items-center gap-2 text-foreground">
+                <Droplets className="h-5 w-5 text-blue-400" />
+                <span className="text-sm font-semibold">습도</span>
               </div>
+              <p className="text-lg font-bold text-foreground">
+                {latestUltra ? `${latestUltra.reh}%` : "—"}
+              </p>
             </div>
-            <div className="col-span-2 flex items-center gap-2 rounded-xl bg-card/50 px-3 py-3">
-              <span className="text-lg">
-                {weather.sky.includes("맑") ? "☀️" : weather.sky.includes("구름") ? "⛅" : "☁️"}
-              </span>
-              <div>
-                <p className="text-xs text-muted-foreground">하늘 상태</p>
-                <p className="text-sm font-semibold text-foreground">{weather.sky}</p>
+            <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
+              <div className="flex items-center gap-2 text-foreground">
+                <Wind className="h-5 w-5 text-cyan-400" />
+                <span className="text-sm font-semibold">바람</span>
               </div>
+              <p className="text-lg font-bold text-foreground">
+                {latestUltra ? `${latestUltra.wsd}m/s` : "—"}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
+              <div className="flex items-center gap-2 text-foreground">
+                <ThumbsUp className="h-5 w-5 text-green-400" />
+                <span className="text-sm font-semibold">관측 적합도</span>
+              </div>
+              <p className="text-lg font-bold" style={{ color: suitColor(weather.suitability) }}>
+                {weather.suitability}점
+              </p>
             </div>
           </div>
         </section>
@@ -282,14 +315,17 @@ export default function ObservatoryDetailPage() {
             {hourlyItems.map((item, i) => (
               <div
                 key={i}
-                className="flex min-w-[60px] shrink-0 flex-col items-center rounded-xl bg-card/50 px-2 py-2.5 text-center"
+                className="flex min-w-[60px] shrink-0 flex-col items-center gap-1.5 rounded-xl bg-card/50 px-2 py-2.5 text-center"
               >
                 <span className="text-xs text-muted-foreground">{item.time}</span>
-                <span className="my-1 text-lg">{item.icon}</span>
+                <WeatherIcon sky={item.sky} pty={item.pty} className="h-6 w-6 text-foreground" />
                 <span className="text-xs font-medium text-foreground">{item.temp}°</span>
-                <span className="text-xs text-blue-400">{item.pop}%</span>
+                <div className="flex items-center gap-0.5 text-xs text-blue-400">
+                  <Droplet className="h-3 w-3" />
+                  {item.pop}%
+                </div>
                 <div
-                  className="mt-1.5 h-1.5 w-8 rounded-full"
+                  className="h-1.5 w-8 rounded-full"
                   style={{ background: suitColor(item.suit) }}
                 />
               </div>
@@ -311,18 +347,23 @@ export default function ObservatoryDetailPage() {
                 }`}
               >
                 <span className="w-10 shrink-0 text-xs text-muted-foreground">{row.label}</span>
-                <span className="w-8 shrink-0 text-xs text-blue-400">{row.pop}%</span>
-                <span className="text-base">{row.icon}</span>
+                <div className="flex w-10 shrink-0 items-center gap-0.5 text-xs text-blue-400">
+                  <Droplet className="h-3 w-3" />
+                  {row.pop}%
+                </div>
+                <div className="shrink-0 text-foreground">
+                  {row.kind === "short"
+                    ? <WeatherIcon sky={row.sky} pty={row.pty} className="h-5 w-5" />
+                    : <WeatherIconMid sky={row.skyCode} pre={row.pre} className="h-5 w-5" />
+                  }
+                </div>
                 <span className="flex-1 text-xs">
                   <span className="text-red-400">{row.max}°</span>
                   <span className="text-muted-foreground"> / </span>
                   <span className="text-blue-400">{row.min}°</span>
                 </span>
                 <div className="flex items-center gap-1.5">
-                  <div
-                    className="h-1.5 w-8 rounded-full"
-                    style={{ background: suitColor(row.suit) }}
-                  />
+                  <div className="h-1.5 w-8 rounded-full" style={{ background: suitColor(row.suit) }} />
                   <span className="text-xs font-medium" style={{ color: suitColor(row.suit) }}>
                     {row.suit}
                   </span>
@@ -335,7 +376,7 @@ export default function ObservatoryDetailPage() {
 
       {/* 관측 리뷰 */}
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-foreground">관측 리뷰</h2>
+        <h2 className="mb-2 text-sm font-semibold text-foreground">해당 관측지에서 진행한 관측후기</h2>
         {reviews.length === 0 ? (
           <p className="text-sm text-muted-foreground">아직 리뷰가 없습니다.</p>
         ) : (
