@@ -63,11 +63,33 @@ interface DayForecast {
   maxTemp?: number;
 }
 
-interface HoverInfo {
-  site: ObservationSite;
-  x: number;
-  y: number;
-  detail: ObservationSiteDetail | null;
+function cardMarkerHtml(name: string): string {
+  return `
+    <div style="cursor:pointer;text-align:center;user-select:none">
+      <div style="
+        max-width:108px;min-width:48px;
+        background:rgba(15,10,50,0.90);
+        border:1px solid rgba(139,92,246,0.65);
+        border-radius:8px;
+        padding:4px 8px;
+        color:#e2e8f0;
+        font-size:11px;
+        font-weight:600;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        box-shadow:0 2px 10px rgba(0,0,0,0.55);
+        backdrop-filter:blur(4px);
+      ">${name}</div>
+      <div style="
+        width:0;height:0;
+        border-left:5px solid transparent;
+        border-right:5px solid transparent;
+        border-top:5px solid rgba(139,92,246,0.75);
+        margin:0 auto;
+      "></div>
+    </div>
+  `;
 }
 
 function getSkyEmoji(sky: number | string): string {
@@ -107,15 +129,12 @@ export default function ObservatoryPage() {
   const [lpOn, setLpOn] = useState(false);
   const [locating, setLocating] = useState(false);
   const [panelLoading, setPanelLoading] = useState(false);
-  const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
   const [clusterSites, setClusterSites] = useState<ObservationSite[] | null>(null);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const naverMapRef = useRef<NaverMap | null>(null);
   const lpOverlayRef = useRef<NaverGroundOverlay | null>(null);
   const rawMarkersRef = useRef<NaverMarker[]>([]);
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const myLocMarkerRef = useRef<NaverMarker | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const markerToSiteRef = useRef<Map<NaverMarker, ObservationSite>>(new Map());
@@ -124,7 +143,7 @@ export default function ObservatoryPage() {
     getAllSites().then((page) => setSites(page.content)).catch(() => {});
   }, []);
 
-  // 현재 위치 블루닷 — watchPosition으로 지속 추적
+  // 현재 위치 블루닷
   useEffect(() => {
     if (!navigator.geolocation) return;
     watchIdRef.current = navigator.geolocation.watchPosition(
@@ -205,23 +224,6 @@ export default function ObservatoryPage() {
     }
   }, [sites]);
 
-  function getMarkerScreenPos(map: NaverMap, lat: number, lng: number): { x: number; y: number } | null {
-    try {
-      const proj = map.getProjection();
-      const offset = proj.fromCoordToOffset(new window.naver.maps.LatLng(lat, lng));
-      return { x: offset.x, y: offset.y };
-    } catch {
-      return null;
-    }
-  }
-
-  function cancelHoverClose() {
-    if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
-  }
-  function startHoverClose() {
-    hoverTimerRef.current = setTimeout(() => setHoverInfo(null), 400);
-  }
-
   function buildMarkers(map: NaverMap) {
     if (!window.naver || sites.length === 0) return;
     rawMarkersRef.current.forEach((m) => m.setMap(null));
@@ -229,38 +231,19 @@ export default function ObservatoryPage() {
     markerToSiteRef.current.clear();
 
     const markers: NaverMarker[] = sites.map((site) => {
+      // 카드 라벨 형태의 커스텀 마커 — 호버 없이 항상 이름이 보임
       const marker = new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(site.latitude, site.longitude),
-        title: site.name,
+        icon: {
+          content: cardMarkerHtml(site.name),
+          // 삼각형 끝(하단 중앙)이 좌표를 가리키도록 anchor 설정
+          anchor: { x: 54, y: 34 },
+        },
+        zIndex: 100,
       });
 
       markerToSiteRef.current.set(marker, site);
-
-      window.naver.maps.Event.addListener(marker, "mouseover", () => {
-        cancelHoverClose();
-        // 350ms 딜레이: 카드가 즉시 렌더링되어 마커 mouseout을 재발사하는 루프 방지
-        if (showTimerRef.current) clearTimeout(showTimerRef.current);
-        showTimerRef.current = setTimeout(() => {
-          const pos = getMarkerScreenPos(map, site.latitude, site.longitude);
-          if (!pos) return;
-          setHoverInfo({ site, x: pos.x, y: pos.y, detail: null });
-          getSiteById(site.id)
-            .then((detail) =>
-              setHoverInfo((prev) => (prev?.site.id === site.id ? { ...prev, detail } : prev))
-            )
-            .catch(() => {});
-        }, 350);
-      });
-
-      window.naver.maps.Event.addListener(marker, "mouseout", () => {
-        if (showTimerRef.current) { clearTimeout(showTimerRef.current); showTimerRef.current = null; }
-        startHoverClose();
-      });
-
-      window.naver.maps.Event.addListener(marker, "click", () => {
-        setHoverInfo(null);
-        selectSite(site);
-      });
+      window.naver.maps.Event.addListener(marker, "click", () => selectSite(site));
 
       return marker;
     });
@@ -282,7 +265,6 @@ export default function ObservatoryPage() {
         },
       });
 
-      // 클러스터 클릭 → 소속 관측지 목록 표시
       window.naver.maps.Event.addListener(clustering, "clusterclick", (cluster: unknown) => {
         const clusterMarkers: NaverMarker[] =
           (cluster as { getMarkers?: () => NaverMarker[]; _clusterMarkers?: NaverMarker[] })
@@ -407,7 +389,6 @@ export default function ObservatoryPage() {
 
   return (
     <div className="relative h-[calc(100dvh-4rem)] w-full overflow-hidden md:h-full">
-      {/* 네이버 지도 */}
       <div ref={mapRef} className="h-full w-full" />
 
       {/* 검색 바 */}
@@ -452,46 +433,6 @@ export default function ObservatoryPage() {
           </div>
         )}
       </div>
-
-      {/* 핀 호버 카드
-          - wrapper의 paddingBottom이 카드~마커 사이 공백을 덮어 mouse가 항상 wrapper 안에 있게 함
-          - show 350ms 딜레이로 즉시 렌더 → mouseout 루프 방지
-      */}
-      {hoverInfo && (
-        <div
-          className="pointer-events-auto absolute z-20"
-          style={{
-            left: hoverInfo.x - 56,
-            top: hoverInfo.y - 220,
-            paddingBottom: 55,
-          }}
-          onMouseEnter={cancelHoverClose}
-          onMouseLeave={startHoverClose}
-        >
-          <div
-            className="w-28 cursor-pointer overflow-hidden rounded-xl bg-background/95 shadow-xl ring-1 ring-purple-500/30 transition-transform hover:scale-105"
-            onClick={() => selectSite(hoverInfo.site)}
-          >
-            <img
-              src="/byeoldori.png"
-              alt={hoverInfo.site.name}
-              className="aspect-square w-full object-cover"
-            />
-            <div className="p-2">
-              <p className="truncate text-xs font-semibold text-foreground">{hoverInfo.site.name}</p>
-              <div className="mt-0.5 flex items-center gap-0.5">
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                {hoverInfo.detail ? (
-                  <span className="text-xs text-yellow-400">{hoverInfo.detail.averageScore.toFixed(1)}</span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">···</span>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="mx-auto h-3 w-0.5 bg-purple-400/50" />
-        </div>
-      )}
 
       {/* 우하단 버튼 그룹 */}
       <div className="absolute bottom-6 right-4 z-10 flex flex-col gap-2">
