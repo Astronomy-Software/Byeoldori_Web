@@ -51,6 +51,7 @@ interface NaverLatLngBounds { _sw?: NaverLatLng; _ne?: NaverLatLng; }
 interface NaverMarker {
   setMap(map: NaverMap | null): void;
   getPosition(): NaverLatLng;
+  setIcon(icon: { content: string; anchor: { x: number; y: number } }): void;
 }
 interface NaverSize { width: number; height: number; }
 interface NaverGroundOverlay { setMap(map: NaverMap | null): void; }
@@ -63,29 +64,45 @@ interface DayForecast {
   maxTemp?: number;
 }
 
-function cardMarkerHtml(name: string): string {
+const CARD_W = 116;
+const CARD_IMG_H = 74;
+// anchor: 카드 하단 삼각형 끝이 좌표를 가리키도록
+const CARD_ANCHOR = { x: CARD_W / 2, y: CARD_IMG_H + 26 + 6 };
+
+function cardMarkerHtml(name: string, rating?: number): string {
+  const ratingStr = rating !== undefined ? rating.toFixed(1) : "··";
   return `
-    <div style="cursor:pointer;text-align:center;user-select:none">
+    <div style="cursor:pointer;user-select:none;width:${CARD_W}px">
       <div style="
-        max-width:108px;min-width:48px;
-        background:rgba(15,10,50,0.90);
-        border:1px solid rgba(139,92,246,0.65);
-        border-radius:8px;
-        padding:4px 8px;
-        color:#e2e8f0;
-        font-size:11px;
-        font-weight:600;
-        white-space:nowrap;
+        background:rgba(12,8,45,0.93);
+        border:1px solid rgba(139,92,246,0.6);
+        border-radius:9px;
         overflow:hidden;
-        text-overflow:ellipsis;
-        box-shadow:0 2px 10px rgba(0,0,0,0.55);
-        backdrop-filter:blur(4px);
-      ">${name}</div>
+        box-shadow:0 3px 12px rgba(0,0,0,0.6);
+        backdrop-filter:blur(6px);
+      ">
+        <img
+          src="/byeoldori.png"
+          style="width:${CARD_W}px;height:${CARD_IMG_H}px;object-fit:cover;display:block;pointer-events:none"
+        />
+        <div style="
+          display:flex;align-items:center;justify-content:space-between;
+          padding:4px 7px;gap:4px;
+        ">
+          <span style="
+            color:#e2e8f0;font-size:10px;font-weight:600;
+            overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;
+          ">${name}</span>
+          <span style="color:#facc15;font-size:10px;font-weight:700;white-space:nowrap;flex-shrink:0">
+            ★ ${ratingStr}
+          </span>
+        </div>
+      </div>
       <div style="
         width:0;height:0;
-        border-left:5px solid transparent;
-        border-right:5px solid transparent;
-        border-top:5px solid rgba(139,92,246,0.75);
+        border-left:6px solid transparent;
+        border-right:6px solid transparent;
+        border-top:6px solid rgba(139,92,246,0.75);
         margin:0 auto;
       "></div>
     </div>
@@ -231,19 +248,24 @@ export default function ObservatoryPage() {
     markerToSiteRef.current.clear();
 
     const markers: NaverMarker[] = sites.map((site) => {
-      // 카드 라벨 형태의 커스텀 마커 — 호버 없이 항상 이름이 보임
       const marker = new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(site.latitude, site.longitude),
-        icon: {
-          content: cardMarkerHtml(site.name),
-          // 삼각형 끝(하단 중앙)이 좌표를 가리키도록 anchor 설정
-          anchor: { x: 54, y: 34 },
-        },
+        icon: { content: cardMarkerHtml(site.name), anchor: CARD_ANCHOR },
         zIndex: 100,
       });
 
       markerToSiteRef.current.set(marker, site);
       window.naver.maps.Event.addListener(marker, "click", () => selectSite(site));
+
+      // 백그라운드에서 rating 로드 후 마커 아이콘 업데이트
+      getSiteById(site.id)
+        .then((detail) => {
+          marker.setIcon({
+            content: cardMarkerHtml(site.name, detail.averageScore),
+            anchor: CARD_ANCHOR,
+          });
+        })
+        .catch(() => {});
 
       return marker;
     });
