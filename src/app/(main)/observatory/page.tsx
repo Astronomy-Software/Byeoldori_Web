@@ -25,6 +25,18 @@ declare global {
         Event: {
           addListener: (target: unknown, event: string, handler: (arg?: unknown) => void) => void;
         };
+        Service: {
+          reverseGeocode(
+            opts: { coords: NaverLatLng },
+            cb: (status: string, res: {
+              v2: { results: Array<{
+                region: { area1: { name: string }; area2: { name: string }; area3: { name: string } };
+                land?: { name?: string; number1?: string; addition0?: { value?: string } };
+              }> };
+            }) => void,
+          ): void;
+          Status: { ERROR: string; OK: string };
+        };
       };
     };
     MarkerClustering: new (opts: {
@@ -146,6 +158,7 @@ export default function ObservatoryPage() {
   const [locating, setLocating] = useState(false);
   const [panelLoading, setPanelLoading] = useState(false);
   const [clusterSites, setClusterSites] = useState<ObservationSite[] | null>(null);
+  const [address, setAddress] = useState<string | null>(null);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const naverMapRef = useRef<NaverMap | null>(null);
@@ -226,7 +239,7 @@ export default function ObservatoryPage() {
     } else if (!existing) {
       const script = document.createElement("script");
       script.id = "naver-map-script";
-      script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&ncpClientId=${clientId}`;
+      script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&ncpClientId=${clientId}&submodules=geocoder`;
       script.onload = initMap;
       document.head.appendChild(script);
     }
@@ -292,12 +305,30 @@ export default function ObservatoryPage() {
     }
   }
 
+  function reverseGeocode(lat: number, lng: number) {
+    if (!window.naver?.maps?.Service) return;
+    window.naver.maps.Service.reverseGeocode(
+      { coords: new window.naver.maps.LatLng(lat, lng) },
+      (status, res) => {
+        if (status === window.naver.maps.Service.Status.ERROR) return;
+        const r = res.v2.results[0];
+        if (!r) return;
+        const { area1, area2, area3 } = r.region;
+        const road = r.land?.addition0?.value;
+        const parts = [area1.name, area2.name, area3.name, road].filter(Boolean);
+        setAddress(parts.join(" "));
+      },
+    );
+  }
+
   function selectSite(site: ObservationSite) {
     setSelected(site);
     setSiteDetail(null);
     setForecast(null);
     setSearchResults(null);
     setClusterSites(null);
+    setAddress(null);
+    reverseGeocode(site.latitude, site.longitude);
     if (naverMapRef.current && window.naver) {
       naverMapRef.current.setCenter(new window.naver.maps.LatLng(site.latitude, site.longitude));
       naverMapRef.current.setZoom(12);
@@ -353,6 +384,7 @@ export default function ObservatoryPage() {
     setSelected(null);
     setSiteDetail(null);
     setForecast(null);
+    setAddress(null);
   }
 
   function buildDayForecasts(): DayForecast[] {
@@ -431,9 +463,6 @@ export default function ObservatoryPage() {
               >
                 <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-400" />
                 <span className="text-foreground">{site.name}</span>
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {site.latitude.toFixed(3)}, {site.longitude.toFixed(3)}
-                </span>
               </button>
             ))}
           </div>
@@ -492,9 +521,6 @@ export default function ObservatoryPage() {
               >
                 <MapPin className="h-4 w-4 shrink-0 text-purple-400" />
                 <span className="text-sm text-foreground">{site.name}</span>
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {site.latitude.toFixed(3)}, {site.longitude.toFixed(3)}
-                </span>
               </button>
             ))}
           </div>
@@ -509,9 +535,9 @@ export default function ObservatoryPage() {
             <div className="sticky top-0 flex items-start justify-between bg-background px-5 pb-3 pt-5">
               <div>
                 <h3 className="text-lg font-semibold text-foreground">{selected.name}</h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {selected.latitude.toFixed(4)}, {selected.longitude.toFixed(4)}
-                </p>
+                {address && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">{address}</p>
+                )}
                 {siteDetail && (
                   <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-0.5 text-yellow-400">
