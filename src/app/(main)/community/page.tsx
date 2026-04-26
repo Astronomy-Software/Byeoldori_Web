@@ -72,7 +72,7 @@ function ReviewBoard() {
   }, [page, keyword]);
 
   return (
-    <BoardLayout
+    <GridBoardLayout
       posts={posts}
       keyword={keyword}
       onSearch={setKeyword}
@@ -82,7 +82,6 @@ function ReviewBoard() {
       linkPrefix="/community/review"
       createHref="/community/review/new"
       showScore
-      showThumbnail
     />
   );
 }
@@ -100,7 +99,7 @@ function ProgramBoard() {
   }, [page, keyword]);
 
   return (
-    <BoardLayout
+    <GridBoardLayout
       posts={posts}
       keyword={keyword}
       onSearch={setKeyword}
@@ -109,8 +108,110 @@ function ProgramBoard() {
       onPageChange={setPage}
       linkPrefix="/community/program"
       createHref="/community/program/new"
-      showThumbnail
     />
+  );
+}
+
+function GridBoardLayout({
+  posts,
+  keyword,
+  onSearch,
+  page,
+  totalPages,
+  onPageChange,
+  linkPrefix,
+  createHref,
+  showScore,
+}: {
+  posts: PostSummary[];
+  keyword: string;
+  onSearch: (k: string) => void;
+  page: number;
+  totalPages: number;
+  onPageChange: (p: number) => void;
+  linkPrefix: string;
+  createHref: string;
+  showScore?: boolean;
+}) {
+  const [searchInput, setSearchInput] = useState(keyword);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Input
+          placeholder="검색..."
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") onSearch(searchInput); }}
+          className="flex-1"
+        />
+        <Link href={createHref}>
+          <Button className="bg-purple-600 hover:bg-purple-700">글쓰기</Button>
+        </Link>
+      </div>
+
+      {posts.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          게시글이 없습니다.
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {posts.map((post) => (
+            <Link
+              key={post.id}
+              href={`${linkPrefix}/${post.id}`}
+              className="overflow-hidden rounded-xl bg-card/50 transition-colors hover:bg-card"
+            >
+              <img
+                src={post.thumbnailUrl ?? "/byeoldori.png"}
+                alt={post.title}
+                className="aspect-square w-full object-cover"
+              />
+              <div className="p-2">
+                <p className="text-xs font-medium text-foreground line-clamp-2">
+                  {post.title}
+                </p>
+                <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                  {showScore && post.score != null ? (
+                    <span className="flex items-center gap-0.5 text-warning">
+                      <Star className="h-3 w-3 fill-warning" />
+                      {post.score.toFixed(1)}
+                    </span>
+                  ) : (
+                    <span />
+                  )}
+                  <span className="truncate">{post.authorNickname}</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={page === 0}
+            onClick={() => onPageChange(page - 1)}
+          >
+            이전
+          </Button>
+          <span className="flex items-center text-sm text-muted-foreground">
+            {page + 1} / {totalPages}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={page >= totalPages - 1}
+            onClick={() => onPageChange(page + 1)}
+          >
+            다음
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -123,8 +224,6 @@ function BoardLayout({
   onPageChange,
   linkPrefix,
   createHref,
-  showScore,
-  showThumbnail,
 }: {
   posts: PostSummary[];
   keyword: string;
@@ -134,8 +233,6 @@ function BoardLayout({
   onPageChange: (p: number) => void;
   linkPrefix: string;
   createHref: string;
-  showScore?: boolean;
-  showThumbnail?: boolean;
 }) {
   const [searchInput, setSearchInput] = useState(keyword);
 
@@ -166,15 +263,6 @@ function BoardLayout({
               href={`${linkPrefix}/${post.id}`}
               className="flex gap-3 rounded-lg bg-card/50 p-3 transition-colors hover:bg-card"
             >
-              {/* 썸네일 */}
-              {showThumbnail && (
-                <img
-                  src={post.thumbnailUrl ?? "/byeoldori.png"}
-                  alt="썸네일"
-                  className="h-20 w-20 shrink-0 rounded-lg object-cover"
-                />
-              )}
-
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground line-clamp-1">
                   {post.title}
@@ -193,12 +281,6 @@ function BoardLayout({
                   <span className="flex items-center gap-0.5">
                     <MessageSquare className="h-3 w-3" /> {post.commentCount}
                   </span>
-                  {showScore && post.score != null && (
-                    <span className="flex items-center gap-0.5 text-warning">
-                      <Star className="h-3 w-3 fill-warning" />
-                      {post.score.toFixed(1)}
-                    </span>
-                  )}
                 </div>
               </div>
             </Link>
