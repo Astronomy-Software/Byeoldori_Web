@@ -76,6 +76,7 @@ export default function ObservatoryDetailPage() {
   const [site, setSite] = useState<ObservationSiteDetail | null>(null);
   const [weather, setWeather] = useState<WeatherSummary | null>(null);
   const [forecast, setForecast] = useState<ForecastData | null>(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
   const [reviews, setReviews] = useState<PostSummary[]>([]);
   const [address, setAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -103,12 +104,14 @@ export default function ObservatoryDetailPage() {
         setSite(data);
         setLoading(false);
 
+        setForecastLoading(true);
         Promise.all([
           getWeatherSummary(data.latitude, data.longitude),
           getForecastData(data.latitude, data.longitude),
         ])
           .then(([w, f]) => { setWeather(w); setForecast(f); })
-          .catch(() => {});
+          .catch(() => {})
+          .finally(() => setForecastLoading(false));
 
         getReviewPosts(0, 20, "LATEST")
           .then((r) => setReviews(r.content.filter((p) => p.observationSiteId === id)))
@@ -308,9 +311,16 @@ export default function ObservatoryDetailPage() {
       )}
 
       {/* 시간별 예보 */}
-      {hourlyItems.length > 0 && (
+      {(forecastLoading || hourlyItems.length > 0) && (
         <section>
           <h2 className="mb-2 text-sm font-semibold text-foreground">시간별 예보</h2>
+          {forecastLoading ? (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-28 min-w-[60px] shrink-0 animate-pulse rounded-xl bg-card/50" />
+              ))}
+            </div>
+          ) : (
           <div className="flex gap-2 overflow-x-auto pb-1">
             {hourlyItems.map((item, i) => (
               <div
@@ -331,13 +341,21 @@ export default function ObservatoryDetailPage() {
               </div>
             ))}
           </div>
+          )}
         </section>
       )}
 
       {/* 일간 예보 */}
-      {dayRows.length > 0 && (
+      {(forecastLoading || dayRows.length > 0) && (
         <section>
           <h2 className="mb-2 text-sm font-semibold text-foreground">일간 예보</h2>
+          {forecastLoading ? (
+            <div className="space-y-1">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-12 animate-pulse rounded-xl bg-card/50" />
+              ))}
+            </div>
+          ) : (
           <div className="overflow-hidden rounded-xl bg-card/50">
             {dayRows.map((row, i) => (
               <div
@@ -371,6 +389,7 @@ export default function ObservatoryDetailPage() {
               </div>
             ))}
           </div>
+          )}
         </section>
       )}
 
