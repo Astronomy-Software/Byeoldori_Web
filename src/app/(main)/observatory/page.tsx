@@ -22,13 +22,6 @@ declare global {
           bounds: NaverLatLngBounds,
           opts?: { opacity?: number },
         ) => NaverGroundOverlay;
-        InfoWindow: new (opts: {
-          content: string;
-          borderWidth?: number;
-          backgroundColor?: string;
-          disableAnchor?: boolean;
-          pixelOffset?: { x: number; y: number };
-        }) => NaverInfoWindow;
         Event: {
           addListener: (target: unknown, event: string, handler: () => void) => void;
         };
@@ -50,6 +43,8 @@ declare global {
 interface NaverMap {
   setCenter(latlng: NaverLatLng): void;
   setZoom(zoom: number): void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getProjection(): any;
 }
 interface NaverLatLng { lat(): number; lng(): number; }
 interface NaverLatLngBounds { _sw?: NaverLatLng; _ne?: NaverLatLng; }
@@ -59,10 +54,6 @@ interface NaverMarker {
 }
 interface NaverSize { width: number; height: number; }
 interface NaverGroundOverlay { setMap(map: NaverMap | null): void; }
-interface NaverInfoWindow {
-  open(map: NaverMap, anchor: NaverLatLng | NaverMarker): void;
-  close(): void;
-}
 
 interface DayForecast {
   label: string;
@@ -70,6 +61,13 @@ interface DayForecast {
   sky: string;
   minTemp?: number;
   maxTemp?: number;
+}
+
+interface HoverInfo {
+  site: ObservationSite;
+  x: number;
+  y: number;
+  detail: ObservationSiteDetail | null;
 }
 
 function getSkyEmoji(sky: number | string): string {
@@ -109,14 +107,48 @@ export default function ObservatoryPage() {
   const [lpOn, setLpOn] = useState(false);
   const [locating, setLocating] = useState(false);
   const [panelLoading, setPanelLoading] = useState(false);
+  const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const naverMapRef = useRef<NaverMap | null>(null);
   const lpOverlayRef = useRef<NaverGroundOverlay | null>(null);
   const rawMarkersRef = useRef<NaverMarker[]>([]);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const myLocMarkerRef = useRef<NaverMarker | null>(null);
+  const watchIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     getAllSites().then((page) => setSites(page.content)).catch(() => {});
+  }, []);
+
+  // 현재 위치 블루닷 — watchPosition으로 지속 추적
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const map = naverMapRef.current;
+        if (!map || !window.naver) return;
+        const latlng = new window.naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+        if (myLocMarkerRef.current) {
+          (myLocMarkerRef.current as unknown as { setPosition(l: NaverLatLng): void }).setPosition(latlng);
+        } else {
+          myLocMarkerRef.current = new window.naver.maps.Marker({
+            position: latlng,
+            map,
+            icon: {
+              content: `<div style="width:16px;height:16px;background:#3b82f6;border:3px solid white;border-radius:50%;box-shadow:0 0 0 4px rgba(59,130,246,0.3)"></div>`,
+              anchor: { x: 8, y: 8 },
+            },
+            zIndex: 200,
+          });
+        }
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 5000 },
+    );
+    return () => {
+      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -131,7 +163,6 @@ export default function ObservatoryPage() {
       });
       naverMapRef.current = map;
 
-      // 광공해 오버레이 — Android 앱과 동일한 GroundOverlay 방식 (bounds 동일)
       const sw = new window.naver.maps.LatLng(32.0, 123.5);
       const ne = new window.naver.maps.LatLng(40.5, 132.5);
       const overlay = new window.naver.maps.GroundOverlay(
@@ -141,7 +172,6 @@ export default function ObservatoryPage() {
       );
       lpOverlayRef.current = overlay;
 
-      // MarkerClustering 스크립트 로드
       if (typeof window.MarkerClustering === "undefined") {
         const s = document.createElement("script");
         s.src = "https://navermaps.github.io/maps.js.ncp/docs/js/MarkerClustering.js";
@@ -164,15 +194,23 @@ export default function ObservatoryPage() {
     }
   }, []);
 
-  // sites 로드 후 마커 생성
   useEffect(() => {
     const map = naverMapRef.current;
     if (!map || !window.naver || sites.length === 0) return;
     if (typeof window.MarkerClustering !== "undefined") {
       buildMarkers(map);
     }
-    // clustering 스크립트가 아직 로드 중이면 onload 콜백에서 처리됨
   }, [sites]);
+
+  function getMarkerScreenPos(map: NaverMap, lat: number, lng: number): { x: number; y: number } | null {
+    try {
+      const proj = map.getProjection();
+      const offset = proj.fromCoordToOffset(new window.naver.maps.LatLng(lat, lng));
+      return { x: offset.x, y: offset.y };
+    } catch {
+      return null;
+    }
+  }
 
   function buildMarkers(map: NaverMap) {
     if (!window.naver || sites.length === 0) return;
@@ -185,23 +223,18 @@ export default function ObservatoryPage() {
         title: site.name,
       });
 
-      // 호버 깜빡임 방지: mouseout에 딜레이를 주고 mouseover에서 취소
-      const iw = new window.naver.maps.InfoWindow({
-        content: `<div style="padding:5px 10px;background:#1e1b4b;color:#e2e8f0;border-radius:8px;font-size:12px;font-weight:500;border:1px solid rgba(139,92,246,0.5);white-space:nowrap;pointer-events:none">${site.name}</div>`,
-        borderWidth: 0,
-        backgroundColor: "transparent",
-        disableAnchor: true,
-        pixelOffset: { x: 0, y: -5 },
-      });
-
-      let closeTimer: ReturnType<typeof setTimeout> | null = null;
-
       window.naver.maps.Event.addListener(marker, "mouseover", () => {
-        if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
-        iw.open(map, marker.getPosition());
+        if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
+        const pos = getMarkerScreenPos(map, site.latitude, site.longitude);
+        if (!pos) return;
+        setHoverInfo({ site, x: pos.x, y: pos.y, detail: null });
+        // 평점 비동기 로드
+        getSiteById(site.id)
+          .then((detail) => setHoverInfo((prev) => prev?.site.id === site.id ? { ...prev, detail } : prev))
+          .catch(() => {});
       });
       window.naver.maps.Event.addListener(marker, "mouseout", () => {
-        closeTimer = setTimeout(() => iw.close(), 200);
+        hoverTimerRef.current = setTimeout(() => setHoverInfo(null), 250);
       });
       window.naver.maps.Event.addListener(marker, "click", () => selectSite(site));
 
@@ -231,6 +264,7 @@ export default function ObservatoryPage() {
 
   function selectSite(site: ObservationSite) {
     setSelected(site);
+    setHoverInfo(null);
     setSiteDetail(null);
     setForecast(null);
     setSearchResults(null);
@@ -279,7 +313,7 @@ export default function ObservatoryPage() {
         const map = naverMapRef.current;
         if (map && window.naver) {
           map.setCenter(new window.naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
-          map.setZoom(12);
+          map.setZoom(14);
         }
         setLocating(false);
       },
@@ -385,9 +419,47 @@ export default function ObservatoryPage() {
         )}
       </div>
 
+      {/* 핀 호버 카드 — React 오버레이 */}
+      {hoverInfo && (
+        <div
+          className="pointer-events-auto absolute z-20"
+          style={{
+            left: hoverInfo.x - 64,
+            top: hoverInfo.y - 148,
+          }}
+          onMouseEnter={() => {
+            if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
+          }}
+          onMouseLeave={() => {
+            hoverTimerRef.current = setTimeout(() => setHoverInfo(null), 250);
+          }}
+          onClick={() => selectSite(hoverInfo.site)}
+        >
+          <div className="w-32 cursor-pointer overflow-hidden rounded-xl bg-background/95 shadow-xl ring-1 ring-purple-500/30 transition-transform hover:scale-105">
+            <img
+              src="/byeoldori.png"
+              alt={hoverInfo.site.name}
+              className="aspect-square w-full object-cover"
+            />
+            <div className="p-2">
+              <p className="truncate text-xs font-semibold text-foreground">{hoverInfo.site.name}</p>
+              <div className="mt-0.5 flex items-center gap-0.5">
+                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                {hoverInfo.detail ? (
+                  <span className="text-xs text-yellow-400">{hoverInfo.detail.averageScore.toFixed(1)}</span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">...</span>
+                )}
+              </div>
+            </div>
+          </div>
+          {/* 카드와 마커를 잇는 작은 꼬리 */}
+          <div className="mx-auto h-2 w-0.5 bg-purple-400/60" />
+        </div>
+      )}
+
       {/* 우하단 버튼 그룹 */}
       <div className="absolute bottom-6 right-4 z-10 flex flex-col gap-2">
-        {/* 내 위치 */}
         <button
           onClick={goToMyLocation}
           disabled={locating}
@@ -397,7 +469,6 @@ export default function ObservatoryPage() {
           <LocateFixed className={`h-4 w-4 ${locating ? "animate-pulse text-purple-400" : ""}`} />
         </button>
 
-        {/* 광공해 토글 */}
         <button
           onClick={toggleLightPollution}
           className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors ${
