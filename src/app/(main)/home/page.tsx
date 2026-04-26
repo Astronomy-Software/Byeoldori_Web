@@ -12,7 +12,7 @@ import type {
   PostSummary,
   MonthDaySummaryDto,
 } from "@/types/api";
-import { Eye, Heart, MessageSquare } from "lucide-react";
+import { Eye, Heart, MessageSquare, Star } from "lucide-react";
 
 export default function HomePage() {
   const now = new Date();
@@ -109,14 +109,15 @@ export default function HomePage() {
       )}
 
       {/* 최근 리뷰 */}
-      <PostSection
+      <CardPostSection
         title="최근 관측 리뷰"
         posts={reviews}
         linkPrefix="/community/review"
+        showScore
       />
 
       {/* 최근 교육 프로그램 */}
-      <PostSection
+      <CardPostSection
         title="교육 프로그램"
         posts={eduPosts}
         linkPrefix="/community/program"
@@ -129,6 +130,67 @@ export default function HomePage() {
         linkPrefix="/community/free"
       />
     </div>
+  );
+}
+
+function CardPostSection({
+  title,
+  posts,
+  linkPrefix,
+  showScore,
+}: {
+  title: string;
+  posts: PostSummary[];
+  linkPrefix: string;
+  showScore?: boolean;
+}) {
+  return (
+    <section>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+        <Link
+          href="/community"
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          더보기 &rarr;
+        </Link>
+      </div>
+      {posts.length === 0 ? (
+        <p className="text-sm text-muted-foreground">게시글이 없습니다.</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {posts.map((post) => (
+            <Link
+              key={post.id}
+              href={`${linkPrefix}/${post.id}`}
+              className="overflow-hidden rounded-xl bg-card/50 transition-colors hover:bg-card"
+            >
+              <img
+                src={post.thumbnailUrl ?? "/byeoldori.png"}
+                alt={post.title}
+                className="aspect-square w-full object-cover"
+              />
+              <div className="p-2">
+                <p className="text-xs font-medium text-foreground line-clamp-2">
+                  {post.title}
+                </p>
+                <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                  {showScore && post.score != null ? (
+                    <span className="flex items-center gap-0.5 text-warning">
+                      <Star className="h-3 w-3 fill-warning" />
+                      {post.score.toFixed(1)}
+                    </span>
+                  ) : (
+                    <span />
+                  )}
+                  <span className="truncate">{post.authorNickname}</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
