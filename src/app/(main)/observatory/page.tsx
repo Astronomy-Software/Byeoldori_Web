@@ -68,8 +68,8 @@ const CARD_IMG_H = 74;
 // anchor: 카드 하단 삼각형 끝이 좌표를 가리키도록
 const CARD_ANCHOR = { x: CARD_W / 2, y: CARD_IMG_H + 26 + 6 };
 
-function cardMarkerHtml(name: string, rating?: number): string {
-  const ratingStr = rating !== undefined ? rating.toFixed(1) : "··";
+function cardMarkerHtml(name: string, rating?: number | null): string {
+  const ratingStr = rating != null ? rating.toFixed(1) : "··";
   return `
     <div style="cursor:pointer;user-select:none;width:${CARD_W}px">
       <div style="
