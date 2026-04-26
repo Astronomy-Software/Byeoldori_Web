@@ -167,9 +167,9 @@ function BoardLayout({
               className="flex gap-3 rounded-lg bg-card/50 p-3 transition-colors hover:bg-card"
             >
               {/* 썸네일 */}
-              {showThumbnail && post.thumbnailUrl && (
+              {showThumbnail && (
                 <img
-                  src={post.thumbnailUrl}
+                  src={post.thumbnailUrl ?? "/byeoldori.png"}
                   alt="썸네일"
                   className="h-20 w-20 shrink-0 rounded-lg object-cover"
                 />
