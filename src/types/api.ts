@@ -223,6 +223,49 @@ export interface WeatherSummary {
 
 export type ForecastResponse = WeatherSummary;
 
+export interface UltraForecastItem {
+  tmef: string;
+  t1h: number;
+  vec: number;
+  wsd: number;
+  pty: number;
+  rn1: number;
+  reh: number;
+  sky: number;
+  suitability: number;
+}
+
+export interface ShortForecastItem {
+  tmef: string;
+  tmp: number;
+  tmx?: number;
+  tmn?: number;
+  vec: number;
+  wsd: number;
+  sky: number;
+  pty: number;
+  pop: number;
+  reh: number;
+  suitability: number;
+}
+
+export interface MidForecastItem {
+  tmFc: string;
+  tmEf: string;
+  sky: string;
+  pre: string;
+  rnSt: number;
+  min: number;
+  max: number;
+  suitability: number;
+}
+
+export interface ForecastData {
+  ultraForecastResponse: UltraForecastItem[];
+  shortForecastResponse: ShortForecastItem[];
+  midCombinedForecastDTO: MidForecastItem[];
+}
+
 // Observation Sites — ObservationSiteResponseDto
 export interface ObservationSite {
   id: number;
