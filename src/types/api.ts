@@ -87,18 +87,28 @@ export interface ProfileImageResponse {
   imageUrl: string;
 }
 
-// Community
+// Community — PostSummaryResponse (통합 목록 응답)
 export interface PostSummary {
   id: number;
+  type: string;
   title: string;
-  content: string;
+  contentSummary: string;
+  authorId: number;
   authorNickname: string;
-  createdAt: string;
+  authorProfileImageUrl?: string | null;
+  observationSiteId?: number | null;
   viewCount: number;
   likeCount: number;
   commentCount: number;
-  thumbnailUrl?: string;
+  createdAt: string;
+  liked: boolean;
+  score?: number | null;
+  thumbnailUrl?: string | null;
 }
+
+// 타입별 별칭 (API는 통합 스키마 사용)
+export type ReviewPostSummary = PostSummary;
+export type EducationPostSummary = PostSummary;
 
 export interface PostResponse {
   content: PostSummary[];
@@ -107,30 +117,8 @@ export interface PostResponse {
   number: number;
 }
 
-export interface ReviewPostSummary extends PostSummary {
-  siteName: string;
-  rating: number;
-  imageUrls: string[];
-}
-
-export interface ReviewPostResponse {
-  content: ReviewPostSummary[];
-  totalPages: number;
-  totalElements: number;
-  number: number;
-}
-
-export interface EducationPostSummary extends PostSummary {
-  objectName: string;
-  difficulty: string;
-}
-
-export interface EducationPostResponse {
-  content: EducationPostSummary[];
-  totalPages: number;
-  totalElements: number;
-  number: number;
-}
+export type ReviewPostResponse = PostResponse;
+export type EducationPostResponse = PostResponse;
 
 export interface ReviewDto {
   location?: string;
@@ -155,16 +143,16 @@ export interface PostDetailResponse {
   type: string;
   title: string;
   content: string;
+  authorId: number;
   authorNickname: string;
-  authorProfileImageUrl: string | null;
+  authorProfileImageUrl?: string | null;
   createdAt: string;
   updatedAt: string;
   viewCount: number;
   likeCount: number;
   commentCount: number;
   liked: boolean;
-  images?: string[];
-  imageUrls?: string[];
+  images: string[];
   review?: ReviewDto;
   education?: EducationDto;
 }
