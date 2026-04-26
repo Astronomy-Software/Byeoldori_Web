@@ -14,15 +14,20 @@ declare global {
       maps: {
         Map: new (el: HTMLElement, opts: Record<string, unknown>) => NaverMap;
         LatLng: new (lat: number, lng: number) => NaverLatLng;
+        LatLngBounds: new (sw: NaverLatLng, ne: NaverLatLng) => NaverLatLngBounds;
         Marker: new (opts: Record<string, unknown>) => NaverMarker;
-        ImageMapType: new (opts: {
-          getTileUrl: (x: number, y: number, z: number) => string;
-          tileSize: NaverSize;
-          opacity?: number;
-          minZoom?: number;
-          maxZoom?: number;
-        }) => NaverImageMapType;
-        Size: new (w: number, h: number) => NaverSize;
+        GroundOverlay: new (
+          url: string,
+          bounds: NaverLatLngBounds,
+          opts?: { opacity?: number }
+        ) => NaverGroundOverlay;
+        InfoWindow: new (opts: {
+          content: string;
+          borderWidth?: number;
+          backgroundColor?: string;
+          disableAnchor?: boolean;
+          pixelOffset?: { x: number; y: number };
+        }) => NaverInfoWindow;
         Event: {
           addListener: (target: unknown, event: string, handler: () => void) => void;
         };
@@ -34,16 +39,18 @@ declare global {
 interface NaverMap {
   setCenter(latlng: NaverLatLng): void;
   setZoom(zoom: number): void;
-  mapTypes: { set(id: string, type: NaverImageMapType): void };
-  addLayerType(id: string): void;
-  removeLayerType(id: string): void;
 }
 interface NaverLatLng { lat(): number; lng(): number; }
-interface NaverMarker { setMap(map: NaverMap | null): void; }
-interface NaverSize { width: number; height: number; }
-interface NaverImageMapType { opacity: number; }
-
-const LP_LAYER_ID = "lightPollution";
+interface NaverLatLngBounds { _min?: NaverLatLng; _max?: NaverLatLng; }
+interface NaverMarker {
+  setMap(map: NaverMap | null): void;
+  getPosition(): NaverLatLng;
+}
+interface NaverGroundOverlay { setMap(map: NaverMap | null): void; }
+interface NaverInfoWindow {
+  open(map: NaverMap, anchor: NaverLatLng | NaverMarker): void;
+  close(): void;
+}
 
 interface DayForecast {
   label: string;
@@ -87,6 +94,7 @@ export default function ObservatoryPage() {
   const mapRef = useRef<HTMLDivElement>(null);
   const naverMapRef = useRef<NaverMap | null>(null);
   const markersRef = useRef<NaverMarker[]>([]);
+  const lpOverlayRef = useRef<NaverGroundOverlay | null>(null);
 
   useEffect(() => {
     getAllSites().then((page) => setSites(page.content)).catch(() => {});
@@ -112,15 +120,16 @@ export default function ObservatoryPage() {
     });
     naverMapRef.current = map;
 
-    const lpType = new window.naver.maps.ImageMapType({
-      getTileUrl: (x, y, z) =>
-        `https://djlorenz.github.io/astronomy/lp2006/overlay/tiles/${z}/${x}/${y}.png`,
-      tileSize: new window.naver.maps.Size(256, 256),
-      opacity: 0.65,
-      minZoom: 4,
-      maxZoom: 16,
-    });
-    map.mapTypes.set(LP_LAYER_ID, lpType);
+    // 광공해 오버레이 — Android 앱과 동일한 bounds, GroundOverlay 방식
+    const sw = new window.naver.maps.LatLng(32.0, 123.5);
+    const ne = new window.naver.maps.LatLng(40.5, 132.5);
+    const bounds = new window.naver.maps.LatLngBounds(sw, ne);
+    const overlay = new window.naver.maps.GroundOverlay(
+      "/korea_lightpollution_overlay.png",
+      bounds,
+      { opacity: 0.65 },
+    );
+    lpOverlayRef.current = overlay;
   }
 
   useEffect(() => {
@@ -128,12 +137,29 @@ export default function ObservatoryPage() {
     if (!map || !window.naver) return;
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
+
     sites.forEach((site) => {
       const marker = new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(site.latitude, site.longitude),
         map,
       });
+
+      // 호버 툴팁
+      const infoWindow = new window.naver.maps.InfoWindow({
+        content: `<div style="padding:6px 10px;background:#1e1b4b;color:#e2e8f0;border-radius:8px;font-size:12px;font-weight:500;border:1px solid rgba(139,92,246,0.4);white-space:nowrap">${site.name}</div>`,
+        borderWidth: 0,
+        backgroundColor: "transparent",
+        disableAnchor: true,
+      });
+
+      window.naver.maps.Event.addListener(marker, "mouseover", () => {
+        infoWindow.open(map, marker.getPosition());
+      });
+      window.naver.maps.Event.addListener(marker, "mouseout", () => {
+        infoWindow.close();
+      });
       window.naver.maps.Event.addListener(marker, "click", () => selectSite(site));
+
       markersRef.current.push(marker);
     });
   }, [sites]);
@@ -172,14 +198,21 @@ export default function ObservatoryPage() {
   }
 
   function toggleLightPollution() {
+    const overlay = lpOverlayRef.current;
     const map = naverMapRef.current;
-    if (!map) return;
+    if (!overlay || !map) return;
     if (lpOn) {
-      map.removeLayerType(LP_LAYER_ID);
+      overlay.setMap(null);
     } else {
-      map.addLayerType(LP_LAYER_ID);
+      overlay.setMap(map);
     }
     setLpOn((v) => !v);
+  }
+
+  function closeModal() {
+    setSelected(null);
+    setSiteDetail(null);
+    setForecast(null);
   }
 
   function buildDayForecasts(): DayForecast[] {
@@ -195,16 +228,13 @@ export default function ObservatoryPage() {
       shortByDate[date].tmp.push(item.tmp);
     }
     for (const [date, data] of Object.entries(shortByDate)) {
-      const maxSuit = Math.max(...data.suitability);
-      const avgSky = Math.round(data.sky.reduce((a, b) => a + b, 0) / data.sky.length);
-      const temps = data.tmp;
       const label = `${date.slice(4, 6)}/${date.slice(6, 8)}`;
       days.push({
         label,
-        suitability: maxSuit,
-        sky: getSkyEmoji(avgSky),
-        minTemp: Math.min(...temps),
-        maxTemp: Math.max(...temps),
+        suitability: Math.max(...data.suitability),
+        sky: getSkyEmoji(Math.round(data.sky.reduce((a, b) => a + b, 0) / data.sky.length)),
+        minTemp: Math.min(...data.tmp),
+        maxTemp: Math.max(...data.tmp),
       });
     }
 
@@ -223,16 +253,18 @@ export default function ObservatoryPage() {
         });
       }
     }
-
     return days.slice(0, 14);
   }
 
   const dayForecasts = buildDayForecasts();
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    // 높이 fix: 모바일에서 하단 네비(4rem=64px) 제외한 높이, 데스크탑은 flex-1이 처리
+    <div className="relative h-[calc(100dvh-4rem)] w-full overflow-hidden md:h-full">
+      {/* 네이버 지도 */}
       <div ref={mapRef} className="h-full w-full" />
 
+      {/* 검색 바 */}
       <div className="absolute left-4 right-4 top-4 z-10 mx-auto max-w-md">
         <div className="flex gap-2">
           <Input
@@ -275,9 +307,10 @@ export default function ObservatoryPage() {
         )}
       </div>
 
+      {/* 광공해 토글 */}
       <button
         onClick={toggleLightPollution}
-        className={`absolute bottom-24 right-4 z-10 flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors ${
+        className={`absolute bottom-6 right-4 z-10 flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors ${
           lpOn ? "bg-yellow-500/90 text-black" : "bg-background/90 text-foreground hover:bg-background"
         }`}
       >
@@ -285,66 +318,76 @@ export default function ObservatoryPage() {
         광공해 {lpOn ? "ON" : "OFF"}
       </button>
 
+      {/* 관측지 상세 모달 */}
       {selected && (
-        <div className="absolute bottom-0 left-0 right-0 z-20 max-h-[70vh] overflow-y-auto rounded-t-2xl bg-background/95 shadow-2xl backdrop-blur md:bottom-4 md:left-auto md:right-4 md:top-4 md:w-80 md:max-h-none md:rounded-2xl">
-          <div className="sticky top-0 flex items-start justify-between bg-background/95 px-4 pb-2 pt-4 backdrop-blur">
-            <div>
-              <h3 className="font-semibold text-foreground">{selected.name}</h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {selected.latitude.toFixed(4)}, {selected.longitude.toFixed(4)}
-              </p>
-              {siteDetail && (
-                <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-0.5 text-yellow-400">
-                    <Star className="h-3 w-3 fill-yellow-400" />
-                    {siteDetail.averageScore.toFixed(1)}
-                  </span>
-                  <span>리뷰 {siteDetail.reviewCount}개</span>
-                  <span className="flex items-center gap-0.5">
-                    <Heart className="h-3 w-3" /> {siteDetail.totalLikes}
-                  </span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* 배경 딤 */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={closeModal}
+          />
+
+          {/* 모달 카드 */}
+          <div className="relative z-10 w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl bg-background shadow-2xl">
+            <div className="sticky top-0 flex items-start justify-between bg-background px-5 pb-3 pt-5">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">{selected.name}</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {selected.latitude.toFixed(4)}, {selected.longitude.toFixed(4)}
+                </p>
+                {siteDetail && (
+                  <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-0.5 text-yellow-400">
+                      <Star className="h-3 w-3 fill-yellow-400" />
+                      {siteDetail.averageScore.toFixed(1)}
+                    </span>
+                    <span>리뷰 {siteDetail.reviewCount}개</span>
+                    <span className="flex items-center gap-0.5">
+                      <Heart className="h-3 w-3" /> {siteDetail.totalLikes}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={closeModal}
+                className="rounded-full p-1.5 transition-colors hover:bg-card"
+              >
+                <X className="h-5 w-5 text-muted-foreground" />
+              </button>
+            </div>
+
+            <div className="space-y-4 px-5 pb-5">
+              <WeatherSection lat={selected.latitude} lon={selected.longitude} />
+
+              {panelLoading && (
+                <div className="h-24 animate-pulse rounded-xl bg-purple-500/10" />
+              )}
+              {!panelLoading && dayForecasts.length > 0 && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold text-foreground">2주 관측 적합도</p>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {dayForecasts.map((day, i) => (
+                      <div
+                        key={i}
+                        className="flex shrink-0 flex-col items-center rounded-lg bg-card/50 px-2.5 py-2 text-center"
+                        style={{ minWidth: 56 }}
+                      >
+                        <span className="text-xs text-muted-foreground">{day.label}</span>
+                        <span className="my-0.5 text-base">{day.sky}</span>
+                        <span className={`text-sm font-bold ${suitabilityColor(day.suitability)}`}>
+                          {day.suitability}
+                        </span>
+                        {day.minTemp !== undefined && day.maxTemp !== undefined && (
+                          <span className="mt-0.5 text-xs text-muted-foreground">
+                            {day.minTemp}~{day.maxTemp}°
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
-            <button
-              onClick={() => { setSelected(null); setSiteDetail(null); setForecast(null); }}
-              className="rounded-full p-1.5 transition-colors hover:bg-card"
-            >
-              <X className="h-4 w-4 text-muted-foreground" />
-            </button>
-          </div>
-
-          <div className="space-y-4 px-4 pb-4">
-            <WeatherSection lat={selected.latitude} lon={selected.longitude} />
-
-            {panelLoading && (
-              <div className="h-24 animate-pulse rounded-xl bg-purple-500/10" />
-            )}
-            {!panelLoading && dayForecasts.length > 0 && (
-              <div>
-                <p className="mb-2 text-xs font-semibold text-foreground">2주 관측 적합도</p>
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                  {dayForecasts.map((day, i) => (
-                    <div
-                      key={i}
-                      className="flex shrink-0 flex-col items-center rounded-lg bg-card/50 px-2.5 py-2 text-center"
-                      style={{ minWidth: 56 }}
-                    >
-                      <span className="text-xs text-muted-foreground">{day.label}</span>
-                      <span className="my-0.5 text-base">{day.sky}</span>
-                      <span className={`text-sm font-bold ${suitabilityColor(day.suitability)}`}>
-                        {day.suitability}
-                      </span>
-                      {day.minTemp !== undefined && day.maxTemp !== undefined && (
-                        <span className="mt-0.5 text-xs text-muted-foreground">
-                          {day.minTemp}~{day.maxTemp}°
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
