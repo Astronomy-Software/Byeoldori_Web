@@ -296,15 +296,14 @@ export default function PostDetailPage() {
           {post.content}
         </div>
 
-        {/* 이미지 — 서버 필드명: images (imageUrls는 레거시) */}
-        {((post.images ?? post.imageUrls) ?? []).length > 0 && (
+        {post.images && post.images.length > 0 && (
           <div className="grid grid-cols-2 gap-2">
-            {(post.images ?? post.imageUrls ?? []).map((url, i) => (
+            {post.images.map((url, i) => (
               <img
                 key={i}
                 src={url}
                 alt={`이미지 ${i + 1}`}
-                className="rounded-lg object-cover"
+                className="w-full rounded-lg object-cover"
               />
             ))}
           </div>
