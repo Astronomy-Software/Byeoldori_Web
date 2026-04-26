@@ -142,7 +142,7 @@ export default function ObservatoryDetailPage() {
       pop: Math.min(Math.round(u.rn1 * 10), 100),
       suit: u.suitability,
     })),
-    ...(forecast?.shortForecastResponse ?? []).slice(0, 16).map((s) => ({
+    ...(forecast?.shortForecastResponse ?? []).map((s) => ({
       time: formatHour(s.tmef),
       sky: s.sky,
       pty: s.pty,
