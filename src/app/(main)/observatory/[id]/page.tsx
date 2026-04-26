@@ -199,7 +199,7 @@ export default function ObservatoryDetailPage() {
         });
       }
     }
-    return rows.slice(0, 10);
+    return rows;
   })();
 
   // ultra 첫 번째 항목에서 습도·바람 추출
