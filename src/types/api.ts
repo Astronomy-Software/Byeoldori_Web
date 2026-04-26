@@ -272,6 +272,7 @@ export interface ObservationSite {
   name: string;
   latitude: number;
   longitude: number;
+  averageScore?: number; // 백엔드 목록 API에 추가 예정
 }
 
 // ObservationSiteDetailDto

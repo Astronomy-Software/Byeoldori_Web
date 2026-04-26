@@ -51,7 +51,6 @@ interface NaverLatLngBounds { _sw?: NaverLatLng; _ne?: NaverLatLng; }
 interface NaverMarker {
   setMap(map: NaverMap | null): void;
   getPosition(): NaverLatLng;
-  setIcon(icon: { content: string; anchor: { x: number; y: number } }): void;
 }
 interface NaverSize { width: number; height: number; }
 interface NaverGroundOverlay { setMap(map: NaverMap | null): void; }
@@ -250,22 +249,12 @@ export default function ObservatoryPage() {
     const markers: NaverMarker[] = sites.map((site) => {
       const marker = new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(site.latitude, site.longitude),
-        icon: { content: cardMarkerHtml(site.name), anchor: CARD_ANCHOR },
+        icon: { content: cardMarkerHtml(site.name, site.averageScore), anchor: CARD_ANCHOR },
         zIndex: 100,
       });
 
       markerToSiteRef.current.set(marker, site);
       window.naver.maps.Event.addListener(marker, "click", () => selectSite(site));
-
-      // 백그라운드에서 rating 로드 후 마커 아이콘 업데이트
-      getSiteById(site.id)
-        .then((detail) => {
-          marker.setIcon({
-            content: cardMarkerHtml(site.name, detail.averageScore),
-            anchor: CARD_ANCHOR,
-          });
-        })
-        .catch(() => {});
 
       return marker;
     });
