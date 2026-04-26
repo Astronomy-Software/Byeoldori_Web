@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { getAllSites, recommendSites } from "@/lib/api/observation-sites";
+import { getAllSites, getSitesByKeyword } from "@/lib/api/observation-sites";
 import type { ObservationSite } from "@/types/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { MapPin, Search, Navigation, Sun } from "lucide-react";
+import { MapPin, Search } from "lucide-react";
 
 declare global {
   interface Window {
@@ -44,7 +43,7 @@ export default function ObservatoryPage() {
   const [filtered, setFiltered] = useState<ObservationSite[]>([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<ObservationSite | null>(null);
-  const [recommended, setRecommended] = useState<ObservationSite[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
   const naverMapRef = useRef<NaverMap | null>(null);
   const markersRef = useRef<NaverMarker[]>([]);
@@ -110,33 +109,22 @@ export default function ObservatoryPage() {
     });
   }, [filtered]);
 
-  function handleSearch() {
+  // 서버 검색 API 사용
+  async function handleSearch() {
     if (!search.trim()) {
       setFiltered(sites);
-    } else {
-      setFiltered(
-        sites.filter(
-          (s) =>
-            s.name.includes(search) || s.address.includes(search),
-        ),
-      );
+      return;
     }
-  }
-
-  async function handleRecommend() {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      try {
-        const data = await recommendSites({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-        });
-        setRecommended(data);
-        setFiltered(data);
-      } catch {
-        // fallback
-      }
-    });
+    setIsSearching(true);
+    try {
+      const results = await getSitesByKeyword(search.trim());
+      setFiltered(results);
+    } catch {
+      // 검색 실패 시 클라이언트 필터로 폴백
+      setFiltered(sites.filter((s) => s.name.includes(search)));
+    } finally {
+      setIsSearching(false);
+    }
   }
 
   return (
@@ -152,30 +140,20 @@ export default function ObservatoryPage() {
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           />
-          <Button size="icon" variant="ghost" onClick={handleSearch}>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={handleSearch}
+            disabled={isSearching}
+          >
             <Search className="h-4 w-4" />
           </Button>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className="mb-4 w-full"
-          onClick={handleRecommend}
-        >
-          <Navigation className="mr-1 h-3 w-3" /> 내 주변 추천
-        </Button>
-
-        {recommended.length > 0 && (
-          <div className="mb-3">
-            <Badge variant="secondary" className="mb-2">추천 관측지</Badge>
-          </div>
-        )}
-
         <div className="space-y-2">
           {filtered.map((site) => (
             <button
-              key={site.name}
+              key={site.id}
               onClick={() => {
                 setSelected(site);
                 if (naverMapRef.current && window.naver) {
@@ -186,8 +164,8 @@ export default function ObservatoryPage() {
                 }
               }}
               className={`w-full rounded-lg p-3 text-left transition-colors ${
-                selected?.name === site.name
-                  ? "bg-purple-500/20 border border-purple-500/50"
+                selected?.id === site.id
+                  ? "border border-purple-500/50 bg-purple-500/20"
                   : "bg-card/30 hover:bg-card/50"
               }`}
             >
@@ -196,15 +174,8 @@ export default function ObservatoryPage() {
                 {site.name}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {site.address}
+                {site.latitude.toFixed(4)}, {site.longitude.toFixed(4)}
               </p>
-              <div className="mt-1 flex gap-2 text-xs text-muted-foreground">
-                <span>
-                  <Sun className="mr-0.5 inline h-3 w-3" />
-                  광공해 {site.lightPollution}
-                </span>
-                <span>해발 {site.altitude}m</span>
-              </div>
             </button>
           ))}
         </div>
@@ -230,19 +201,8 @@ export default function ObservatoryPage() {
           <div className="absolute bottom-20 left-4 right-4 rounded-xl bg-card/95 p-4 backdrop-blur md:bottom-4 md:left-auto md:right-4 md:w-80">
             <h3 className="font-semibold text-foreground">{selected.name}</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              {selected.address}
+              좌표: {selected.latitude.toFixed(4)}, {selected.longitude.toFixed(4)}
             </p>
-            <p className="mt-2 text-sm text-foreground">
-              {selected.description}
-            </p>
-            <div className="mt-2 flex gap-3 text-xs text-muted-foreground">
-              <span>광공해: {selected.lightPollution}</span>
-              <span>해발: {selected.altitude}m</span>
-              <span>
-                좌표: {selected.latitude.toFixed(4)},{" "}
-                {selected.longitude.toFixed(4)}
-              </span>
-            </div>
             <Button
               size="sm"
               variant="ghost"

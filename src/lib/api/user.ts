@@ -3,10 +3,8 @@ import type {
   UserProfile,
   UpdateUserProfile,
   ProfileImageResponse,
+  ChangePasswordRequest,
 } from "@/types/api";
-
-// apiFetch가 { success, message, data } 래퍼를 자동 unwrap하므로
-// 반환 타입은 항상 실제 데이터 타입 T로 선언한다
 
 export async function getMyProfile(): Promise<UserProfile> {
   return apiFetch<UserProfile>("users/me");
@@ -14,6 +12,13 @@ export async function getMyProfile(): Promise<UserProfile> {
 
 export async function updateMe(body: UpdateUserProfile): Promise<null> {
   return apiFetch<null>("users/me", {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function changePassword(body: ChangePasswordRequest): Promise<null> {
+  return apiFetch<null>("users/password-change", {
     method: "PATCH",
     body: JSON.stringify(body),
   });

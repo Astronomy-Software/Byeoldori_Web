@@ -25,6 +25,7 @@ export default function SignUpPage() {
     passwordConfirm: "",
     nickname: "",
     name: "",
+    phone: "",
     consentTerms: false,
     consentPrivacy: false,
   });
@@ -54,10 +55,9 @@ export default function SignUpPage() {
         email: form.email,
         password: form.password,
         passwordConfirm: form.passwordConfirm,
-        nickname: form.nickname,
         name: form.name,
-        consentTerms: form.consentTerms,
-        consentPrivacy: form.consentPrivacy,
+        phone: form.phone,
+        nickname: form.nickname || undefined,
       });
       toast.success("회원가입 완료! 이메일 인증을 진행해주세요.");
       router.push("/login");
@@ -90,12 +90,22 @@ export default function SignUpPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="nickname">닉네임</Label>
+            <Label htmlFor="phone">휴대폰 번호</Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={form.phone}
+              onChange={(e) => updateField("phone", e.target.value)}
+              placeholder="01012345678"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="nickname">닉네임 (선택)</Label>
             <Input
               id="nickname"
               value={form.nickname}
               onChange={(e) => updateField("nickname", e.target.value)}
-              required
             />
           </div>
           <div className="space-y-2">
