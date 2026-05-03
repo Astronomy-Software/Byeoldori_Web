@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { StellariumControl } from "@/lib/stellarium-control";
 import { executeStep } from "@/lib/education-engine";
+import { loadEducationProgram } from "@/lib/education-program-loader";
+import { getPostDetail, getEducationPosts } from "@/lib/api/community";
 import { Live2DCharacter } from "@/components/live2d-character";
 import { characterManager } from "@/lib/character-manager";
-import type { EduLesson, EduStep, ImagePosition } from "@/types/education";
-
-const LESSON_PATHS = [
-  "/lessons/orion-101.json",
-  "/lessons/ursa-major.json",
-  "/lessons/test-playground.json",
-];
+import type { EducationProgram, EduStep, ImagePosition } from "@/types/education";
+import type { EducationPostSummary } from "@/types/api";
 
 const IMAGE_POS: Record<ImagePosition, string> = {
   "top-left": "top-4 left-4",
@@ -52,23 +50,26 @@ function stepLabel(step: EduStep): string {
 
 type ImageOverlay = { url: string; position: ImagePosition; width: string };
 
-export default function StarMapPage() {
+function StarMapInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const controlRef = useRef<StellariumControl | null>(null);
 
   const [stelReady, setStelReady] = useState(false);
   const [eduMode, setEduMode] = useState(false);
-  const [lessons, setLessons] = useState<EduLesson[]>([]);
-  const [activeLesson, setActiveLesson] = useState<EduLesson | null>(null);
+  const [programs, setPrograms] = useState<EducationPostSummary[]>([]);
+  const [activeProgram, setActiveProgram] = useState<EducationProgram | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [charText, setCharText] = useState<string | null>(null);
   const [imageOverlay, setImageOverlay] = useState<ImageOverlay | null>(null);
   const [selectedStar, setSelectedStar] = useState<string | null>(null);
+  const [loadingProgram, setLoadingProgram] = useState(false);
 
-  // 레슨 JSON 로드
+  // 교육 프로그램 목록 로드
   useEffect(() => {
-    Promise.all(LESSON_PATHS.map((p) => fetch(p).then((r) => r.json())))
-      .then((data) => setLessons(data as EduLesson[]))
+    getEducationPosts(0, 20)
+      .then((r) => setPrograms(r.content))
       .catch(console.error);
   }, []);
 
@@ -96,16 +97,57 @@ export default function StarMapPage() {
     return () => window.removeEventListener("message", handler);
   }, []);
 
-  // 스텝 실행 — stepIndex or activeLesson 변경 시
+  const clearAllOverlays = useCallback(() => {
+    controlRef.current?.clearOverlays();
+    setImageOverlay(null);
+  }, []);
+
+  const startProgram = useCallback(
+    (program: EducationProgram) => {
+      clearAllOverlays();
+      setCharText(null);
+      setActiveProgram(program);
+      setStepIndex(0);
+      setEduMode(true);
+    },
+    [clearAllOverlays],
+  );
+
+  // ?programId= 쿼리 처리 — stelReady 후 자동 실행
   useEffect(() => {
-    if (!activeLesson || !controlRef.current) return;
-    const step = activeLesson.steps[stepIndex];
+    const programId = searchParams.get("programId");
+    if (!programId || !stelReady) return;
+
+    setLoadingProgram(true);
+    getPostDetail(Number(programId))
+      .then(async (post) => {
+        const contentUrl = post.education?.contentUrl;
+        if (!contentUrl) {
+          console.warn("[StarMap] contentUrl 없음", programId);
+          return;
+        }
+        const program = await loadEducationProgram(contentUrl);
+        startProgram(program);
+      })
+      .catch((e) => console.error("[StarMap] 프로그램 로드 실패:", e))
+      .finally(() => setLoadingProgram(false));
+  // stelReady가 true로 바뀔 때 한 번만 실행
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stelReady]);
+
+  // 스텝 실행
+  useEffect(() => {
+    if (!activeProgram || !controlRef.current) return;
+    const step = activeProgram.steps[stepIndex];
     if (!step) return;
 
     executeStep(step, controlRef.current, {
-      onText: (text, motion) => {
+      onText: (text, motion, duration) => {
         setCharText(text);
         if (motion) characterManager.playMotion(motion);
+        if (duration && duration > 0) {
+          setTimeout(() => setCharText(null), duration);
+        }
       },
       onImage: (url, position, width, duration) => {
         setImageOverlay({ url, position: position ?? "top-right", width: width ?? "200px" });
@@ -121,35 +163,22 @@ export default function StarMapPage() {
         controlRef.current?.drawLine(from, to, color);
       },
     });
-  }, [activeLesson, stepIndex]);
-
-  const clearAllOverlays = useCallback(() => {
-    controlRef.current?.clearOverlays();
-    setImageOverlay(null);
-  }, []);
-
-  const startLesson = useCallback(
-    (lesson: EduLesson) => {
-      clearAllOverlays();
-      setCharText(null);
-      setActiveLesson(lesson);
-      setStepIndex(0);
-    },
-    [clearAllOverlays],
-  );
+  }, [activeProgram, stepIndex]);
 
   const nextStep = useCallback(() => {
-    if (!activeLesson) return;
-    if (stepIndex < activeLesson.steps.length - 1) {
+    if (!activeProgram) return;
+    if (stepIndex < activeProgram.steps.length - 1) {
       setStepIndex((i) => i + 1);
     } else {
-      setActiveLesson(null);
+      setActiveProgram(null);
       setStepIndex(0);
       clearAllOverlays();
       setCharText("수업이 끝났어! 정말 잘했어! 🌟");
       characterManager.playMotion("happy");
+      // programId 쿼리 파라미터 제거
+      router.replace("/starmap");
     }
-  }, [activeLesson, stepIndex, clearAllOverlays]);
+  }, [activeProgram, stepIndex, clearAllOverlays, router]);
 
   const prevStep = useCallback(() => {
     if (stepIndex > 0) {
@@ -158,12 +187,13 @@ export default function StarMapPage() {
     }
   }, [stepIndex, clearAllOverlays]);
 
-  const exitLesson = useCallback(() => {
-    setActiveLesson(null);
+  const exitProgram = useCallback(() => {
+    setActiveProgram(null);
     setStepIndex(0);
     setCharText(null);
     clearAllOverlays();
-  }, [clearAllOverlays]);
+    router.replace("/starmap");
+  }, [clearAllOverlays, router]);
 
   const jumpToStep = useCallback(
     (idx: number) => {
@@ -171,6 +201,26 @@ export default function StarMapPage() {
       setStepIndex(idx);
     },
     [clearAllOverlays],
+  );
+
+  const handleProgramSelect = useCallback(
+    async (post: EducationPostSummary) => {
+      if (!stelReady) return;
+      // contentUrl 없을 경우 상세 페이지에서 가져오기
+      setLoadingProgram(true);
+      try {
+        const detail = await getPostDetail(post.id);
+        const contentUrl = detail.education?.contentUrl;
+        if (!contentUrl) return;
+        const program = await loadEducationProgram(contentUrl);
+        startProgram(program);
+      } catch (e) {
+        console.error("[StarMap] 프로그램 로드 실패:", e);
+      } finally {
+        setLoadingProgram(false);
+      }
+    },
+    [stelReady, startProgram],
   );
 
   return (
@@ -232,54 +282,63 @@ export default function StarMapPage() {
       )}
 
       {/* 로딩 표시 */}
-      {!stelReady && (
+      {(!stelReady || loadingProgram) && (
         <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center">
-          <span className="text-sm text-white/40">별지도 초기화 중...</span>
+          <span className="text-sm text-white/40">
+            {loadingProgram ? "교육 프로그램 로딩 중..." : "별지도 초기화 중..."}
+          </span>
         </div>
       )}
 
       {/* 교육 패널 */}
       {eduMode && (
         <div className="fixed right-0 top-0 z-40 flex h-full w-80 flex-col overflow-hidden border-l border-white/10 bg-gray-950/95 backdrop-blur-sm">
-          {!activeLesson ? (
-            /* 레슨 선택 */
+          {!activeProgram ? (
+            /* 프로그램 선택 */
             <>
               <div className="border-b border-white/10 p-4">
-                <h2 className="text-base font-semibold text-white">별자리 수업</h2>
+                <h2 className="text-base font-semibold text-white">교육 프로그램</h2>
                 <p className="mt-0.5 text-xs text-white/40">
-                  {stelReady ? "수업을 선택하세요" : "별지도 로딩 중..."}
+                  {stelReady ? "프로그램을 선택하세요" : "별지도 로딩 중..."}
                 </p>
               </div>
               <div className="flex-1 space-y-2 overflow-y-auto p-3">
-                {lessons.map((lesson) => (
+                {programs.length === 0 && (
+                  <p className="text-center text-xs text-white/30 pt-8">등록된 교육 프로그램이 없습니다.</p>
+                )}
+                {programs.map((post) => (
                   <button
-                    key={lesson.id}
-                    onClick={() => startLesson(lesson)}
-                    disabled={!stelReady}
+                    key={post.id}
+                    onClick={() => handleProgramSelect(post)}
+                    disabled={!stelReady || loadingProgram}
                     className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-left transition-colors hover:bg-white/10 disabled:opacity-40"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-sm font-medium text-white">{lesson.title}</span>
-                      <span className={`shrink-0 text-xs ${DIFF_COLOR[lesson.difficulty]}`}>
-                        {DIFF_LABEL[lesson.difficulty]}
-                      </span>
+                      <span className="text-sm font-medium text-white">{post.title}</span>
+                      {post.score != null && (
+                        <span className={`shrink-0 text-xs ${
+                          post.score >= 4 ? "text-green-400" :
+                          post.score >= 2.5 ? "text-yellow-400" : "text-red-400"
+                        }`}>
+                          ★ {post.score.toFixed(1)}
+                        </span>
+                      )}
                     </div>
-                    {lesson.subtitle && (
-                      <p className="mt-1 text-xs text-white/50">{lesson.subtitle}</p>
+                    {post.contentSummary && (
+                      <p className="mt-1 text-xs text-white/50 line-clamp-2">{post.contentSummary}</p>
                     )}
-                    <p className="mt-1 text-xs text-white/30">{lesson.steps.length}단계</p>
                   </button>
                 ))}
               </div>
             </>
           ) : (
-            /* 진행 중 레슨 패널 */
+            /* 진행 중 프로그램 패널 */
             <>
               <div className="border-b border-white/10 p-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-white">{activeLesson.title}</h2>
+                  <h2 className="text-sm font-semibold text-white">{activeProgram.title}</h2>
                   <button
-                    onClick={exitLesson}
+                    onClick={exitProgram}
                     className="text-xs text-white/40 transition-colors hover:text-white"
                   >
                     닫기
@@ -289,18 +348,18 @@ export default function StarMapPage() {
                   <div
                     className="h-full rounded-full bg-indigo-400 transition-all duration-300"
                     style={{
-                      width: `${((stepIndex + 1) / activeLesson.steps.length) * 100}%`,
+                      width: `${((stepIndex + 1) / activeProgram.steps.length) * 100}%`,
                     }}
                   />
                 </div>
                 <p className="mt-1 text-xs text-white/40">
-                  {stepIndex + 1} / {activeLesson.steps.length}
+                  {stepIndex + 1} / {activeProgram.steps.length}
                 </p>
               </div>
 
               {/* 스텝 목록 */}
               <div className="flex-1 space-y-0.5 overflow-y-auto p-2">
-                {activeLesson.steps.map((step, idx) => (
+                {activeProgram.steps.map((step, idx) => (
                   <button
                     key={idx}
                     onClick={() => jumpToStep(idx)}
@@ -331,7 +390,7 @@ export default function StarMapPage() {
                   onClick={nextStep}
                   className="flex-1 rounded-lg bg-indigo-600 py-2 text-sm text-white transition-colors hover:bg-indigo-500"
                 >
-                  {stepIndex === activeLesson.steps.length - 1 ? "완료 ✓" : "다음 →"}
+                  {stepIndex === activeProgram.steps.length - 1 ? "완료 ✓" : "다음 →"}
                 </button>
               </div>
             </>
@@ -339,5 +398,13 @@ export default function StarMapPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function StarMapPage() {
+  return (
+    <Suspense>
+      <StarMapInner />
+    </Suspense>
   );
 }

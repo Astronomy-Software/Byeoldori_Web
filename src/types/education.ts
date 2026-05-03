@@ -47,7 +47,7 @@ export interface EduStep {
   steps?: EduStep[];
 }
 
-export interface EduLesson {
+export interface EducationProgram {
   id: string;
   title: string;
   subtitle?: string;
