@@ -141,7 +141,15 @@ export default function ObservatoryDetailPage() {
 
   // 시간별 예보: ultra 전체 + ultra 종료 이후의 short만 이어붙임 (과거·중복 항목 제거)
   const ultraList = forecast?.ultraForecastResponse ?? [];
-  const lastUltraTmef = ultraList.length > 0 ? ultraList[ultraList.length - 1].tmef : "";
+  const now = new Date();
+  const nowTmef = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0"),
+  ].join("");
+  const lastUltraTmef = ultraList.length > 0 ? ultraList[ultraList.length - 1].tmef : nowTmef;
   const hourlyItems: HourlyItem[] = [
     ...ultraList.map((u) => ({
       tmef: u.tmef,
