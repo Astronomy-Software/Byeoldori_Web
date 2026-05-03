@@ -273,20 +273,13 @@ export default function PostDetailPage() {
               </div>
             )}
             {post.education.contentUrl && (
-              <div className="mt-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <BookOpen className="h-3.5 w-3.5 text-blue-400" />
-                  <span className="text-xs text-muted-foreground font-medium">학습 자료</span>
-                </div>
-                <a
-                  href={post.education.contentUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block rounded bg-blue-700/30 px-3 py-1.5 text-xs text-blue-300 hover:bg-blue-700/50 transition-colors"
-                >
-                  콘텐츠 보기 →
-                </a>
-              </div>
+              <button
+                onClick={() => router.push(`/starmap?programId=${postId}`)}
+                className="mt-2 flex items-center gap-2 rounded-lg bg-indigo-600/80 px-4 py-2 text-sm text-white hover:bg-indigo-500 transition-colors"
+              >
+                <BookOpen className="h-4 w-4" />
+                별지도에서 학습하기
+              </button>
             )}
           </div>
         )}
