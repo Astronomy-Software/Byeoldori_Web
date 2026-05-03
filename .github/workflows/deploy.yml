@@ -17,8 +17,81 @@ jobs:
       - name: Install Vercel CLI
         run: npm i -g vercel
 
+      - name: Notify Discord - Deploy Start
+        env:
+          DISCORD_URL: ${{ secrets.DISCORD_WEBHOOK_FRONTEND_URL }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          REF: ${{ github.ref_name }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          SHORT="${SHA:0:7}"
+          curl -s -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"🚀 별도리 웹 배포 시작\",
+                \"description\": \"새로운 버전 배포를 시작합니다.\",
+                \"color\": 3447003,
+                \"fields\": [
+                  {\"name\": \"브랜치\", \"value\": \"${REF}\", \"inline\": true},
+                  {\"name\": \"커밋\", \"value\": \"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\", \"inline\": true},
+                  {\"name\": \"작업자\", \"value\": \"${ACTOR}\", \"inline\": true}
+                ]
+              }]
+            }" \
+            "$DISCORD_URL"
+
       - name: Deploy to Production
         run: vercel deploy --prod --yes --token ${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Notify Discord - Deploy Success
+        if: success()
+        env:
+          DISCORD_URL: ${{ secrets.DISCORD_WEBHOOK_FRONTEND_URL }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          SHORT="${SHA:0:7}"
+          curl -s -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"✅ 별도리 웹 배포 완료\",
+                \"description\": \"새로운 버전이 성공적으로 배포되었습니다.\",
+                \"color\": 3066993,
+                \"fields\": [
+                  {\"name\": \"커밋\", \"value\": \"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\", \"inline\": true},
+                  {\"name\": \"작업자\", \"value\": \"${ACTOR}\", \"inline\": true}
+                ]
+              }]
+            }" \
+            "$DISCORD_URL"
+
+      - name: Notify Discord - Deploy Failure
+        if: failure()
+        env:
+          DISCORD_URL: ${{ secrets.DISCORD_WEBHOOK_FRONTEND_URL }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          WORKFLOW: ${{ github.workflow }}
+        run: |
+          SHORT="${SHA:0:7}"
+          curl -s -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"❌ 별도리 웹 배포 실패\",
+                \"description\": \"배포 중 오류가 발생했습니다. 확인이 필요합니다.\",
+                \"color\": 15158332,
+                \"fields\": [
+                  {\"name\": \"커밋\", \"value\": \"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\", \"inline\": true},
+                  {\"name\": \"작업자\", \"value\": \"${ACTOR}\", \"inline\": true},
+                  {\"name\": \"워크플로우\", \"value\": \"[${WORKFLOW}](${RUN_URL})\", \"inline\": false}
+                ]
+              }]
+            }" \
+            "$DISCORD_URL"
