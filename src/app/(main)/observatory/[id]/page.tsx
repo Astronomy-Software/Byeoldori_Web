@@ -5,37 +5,32 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Star, Heart, MessageSquare, MapPin,
-  Thermometer, Droplets, Wind, ThumbsUp,
-  Sun, CloudSun, Cloud, CloudMoon, CloudRainWind, Snowflake, Droplet,
+  Thermometer, Droplets, Wind, Gauge,
+  Sun, CloudSun, Cloud, CloudRain, Snowflake, Droplet,
 } from "lucide-react";
 import { getSiteById } from "@/lib/api/observation-sites";
-import { getWeatherSummary, getForecastData } from "@/lib/api/weather";
+import { getLiveWeather, getForecastData } from "@/lib/api/weather";
 import { getReviewPosts } from "@/lib/api/community";
 import type {
   ObservationSiteDetail,
-  WeatherSummary,
+  UltraForecastItem,
   ForecastData,
   PostSummary,
 } from "@/types/api";
 
-// lucide 날씨 아이콘 (피그마 기준: sun / cloud-sun / cloud / cloud-rain-wind / snowflake)
-function WeatherIcon({ sky, pty, className = "h-7 w-7" }: { sky: number | string; pty: number | string; className?: string }) {
-  const p = Number(pty);
-  const s = Number(sky);
-  if (p === 1 || p === 5) return <CloudRainWind className={className} />;
-  if (p === 2 || p === 6) return <CloudRainWind className={className} />;
-  if (p === 3 || p === 7) return <Snowflake className={className} />;
-  if (s === 1) return <Sun className={className} />;
-  if (s === 3) return <CloudSun className={className} />;
+function WeatherIcon({ sky, pty, className = "h-6 w-6" }: { sky: number; pty: number; className?: string }) {
+  if (pty === 1 || pty === 2 || pty === 5 || pty === 6) return <CloudRain className={className} />;
+  if (pty === 3 || pty === 7) return <Snowflake className={className} />;
+  if (sky === 1) return <Sun className={className} />;
+  if (sky === 3) return <CloudSun className={className} />;
   return <Cloud className={className} />;
 }
 
-function WeatherIconMid({ sky, pre, className = "h-7 w-7" }: { sky: string; pre: string; className?: string }) {
-  if (pre.includes("RAIN")) return <CloudRainWind className={className} />;
-  if (pre.includes("SNOW")) return <Snowflake className={className} />;
+function WeatherIconMid({ sky, pre, className = "h-5 w-5" }: { sky: string; pre: string; className?: string }) {
+  if (pre === "WB09" || pre === "WB11" || pre === "WB13") return <CloudRain className={className} />;
+  if (pre === "WB12") return <Snowflake className={className} />;
   if (sky === "WB01") return <Sun className={className} />;
   if (sky === "WB02") return <CloudSun className={className} />;
-  if (sky === "WB03") return <CloudMoon className={className} />;
   return <Cloud className={className} />;
 }
 
@@ -45,18 +40,31 @@ function suitColor(n: number): string {
   return "#f87171";
 }
 
-function formatHour(tmef: string): string {
+function suitLabel(n: number): string {
+  if (n >= 70) return "관측 가능";
+  if (n >= 40) return "보통";
+  return "관측 어려움";
+}
+
+function skyText(sky: number): string {
+  if (sky === 1) return "맑음";
+  if (sky === 3) return "구름조금";
+  if (sky === 4) return "흐림";
+  return "구름많음";
+}
+
+function formatHM(tmef: string): string {
   const h = tmef.slice(8, 10);
   const m = tmef.slice(10, 12);
   return m === "00" ? `${h}시` : `${h}:${m}`;
 }
 
-function formatDateLabel(s: string): string {
+function fmtDate(s: string): string {
   return `${s.slice(4, 6)}/${s.slice(6, 8)}`;
 }
 
 type HourlyItem = {
-  time: string;
+  tmef: string;
   sky: number;
   pty: number;
   temp: number;
@@ -64,17 +72,13 @@ type HourlyItem = {
   suit: number;
 };
 
-type DayRow =
-  | { label: string; pop: number; max: number; min: number; suit: number; kind: "short"; sky: number; pty: number }
-  | { label: string; pop: number; max: number; min: number; suit: number; kind: "mid"; skyCode: string; pre: string };
-
 export default function ObservatoryDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = Number(params.id);
 
   const [site, setSite] = useState<ObservationSiteDetail | null>(null);
-  const [weather, setWeather] = useState<WeatherSummary | null>(null);
+  const [live, setLive] = useState<UltraForecastItem | null>(null);
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [forecastLoading, setForecastLoading] = useState(false);
   const [reviews, setReviews] = useState<PostSummary[]>([]);
@@ -106,10 +110,10 @@ export default function ObservatoryDetailPage() {
 
         setForecastLoading(true);
         Promise.all([
-          getWeatherSummary(data.latitude, data.longitude),
+          getLiveWeather(data.latitude, data.longitude),
           getForecastData(data.latitude, data.longitude),
         ])
-          .then(([w, f]) => { setWeather(w); setForecast(f); })
+          .then(([lw, f]) => { setLive(lw); setForecast(f); })
           .catch(() => {})
           .finally(() => setForecastLoading(false));
 
@@ -138,75 +142,22 @@ export default function ObservatoryDetailPage() {
   // 시간별 예보 (ultra + short 합산)
   const hourlyItems: HourlyItem[] = [
     ...(forecast?.ultraForecastResponse ?? []).map((u) => ({
-      time: formatHour(u.tmef),
+      tmef: u.tmef,
       sky: u.sky,
       pty: u.pty,
       temp: u.t1h,
-      pop: Math.min(Math.round(u.rn1 * 10), 100),
+      pop: Math.min(Math.round((u.rn1 ?? 0) * 10), 100),
       suit: u.suitability,
     })),
     ...(forecast?.shortForecastResponse ?? []).map((s) => ({
-      time: formatHour(s.tmef),
+      tmef: s.tmef,
       sky: s.sky,
       pty: s.pty,
       temp: s.tmp,
-      pop: s.pop,
+      pop: s.pop ?? 0,
       suit: s.suitability,
     })),
   ];
-
-  // 일별 예보 (short 날짜그룹 + mid)
-  const dayRows: DayRow[] = (() => {
-    if (!forecast) return [];
-    const rows: DayRow[] = [];
-    const seen = new Set<string>();
-
-    const byDate: Record<string, { tmp: number[]; pop: number[]; suit: number[]; sky: number[]; pty: number[] }> = {};
-    for (const item of forecast.shortForecastResponse) {
-      const date = item.tmef.slice(0, 8);
-      if (!byDate[date]) byDate[date] = { tmp: [], pop: [], suit: [], sky: [], pty: [] };
-      byDate[date].tmp.push(item.tmp);
-      byDate[date].pop.push(item.pop);
-      byDate[date].suit.push(item.suitability);
-      byDate[date].sky.push(item.sky);
-      byDate[date].pty.push(item.pty);
-    }
-    for (const [date, d] of Object.entries(byDate)) {
-      const label = formatDateLabel(date);
-      seen.add(label);
-      rows.push({
-        kind: "short",
-        label,
-        pop: Math.max(...d.pop),
-        sky: Math.round(d.sky.reduce((a, b) => a + b, 0) / d.sky.length),
-        pty: Math.max(...d.pty),
-        max: Math.max(...d.tmp),
-        min: Math.min(...d.tmp),
-        suit: Math.round(d.suit.reduce((a, b) => a + b, 0) / d.suit.length),
-      });
-    }
-
-    for (const item of forecast.midCombinedForecastDTO) {
-      const label = formatDateLabel(item.tmEf.slice(0, 8));
-      if (!seen.has(label)) {
-        seen.add(label);
-        rows.push({
-          kind: "mid",
-          label,
-          pop: item.rnSt,
-          skyCode: item.sky,
-          pre: item.pre,
-          max: item.max,
-          min: item.min,
-          suit: item.suitability,
-        });
-      }
-    }
-    return rows;
-  })();
-
-  // ultra 첫 번째 항목에서 습도·바람 추출
-  const latestUltra = forecast?.ultraForecastResponse[0];
 
   if (loading) {
     return (
@@ -220,222 +171,273 @@ export default function ObservatoryDetailPage() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-4">
         <p className="text-muted-foreground">관측지를 찾을 수 없습니다.</p>
-        <button onClick={() => router.back()} className="text-sm text-purple-400">
-          돌아가기
-        </button>
+        <button onClick={() => router.back()} className="text-sm text-purple-400">돌아가기</button>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5 p-4">
-      {/* 헤더 */}
-      <div className="flex items-center gap-3">
+    <div className="mx-auto max-w-2xl space-y-5 pb-8">
+      {/* ── 헤더 ── */}
+      <div className="sticky top-0 z-10 flex items-center gap-3 bg-background/80 px-4 py-3 backdrop-blur-sm">
         <button
           onClick={() => router.back()}
           className="rounded-full p-1.5 transition-colors hover:bg-card"
         >
           <ArrowLeft className="h-5 w-5 text-foreground" />
         </button>
-        <h1 className="text-xl font-bold text-foreground">{site.name}</h1>
+        <h1 className="text-lg font-bold text-foreground">{site.name}</h1>
       </div>
 
-      {/* 썸네일 + 기본 정보 카드 */}
-      <div className="overflow-hidden rounded-2xl bg-card/50">
-        <img
-          src="/byeoldori.png"
-          alt={site.name}
-          className="aspect-video w-full object-cover"
-        />
-        <div className="space-y-3 p-4">
-          <div className="flex items-center gap-4 text-sm">
-            <span className="flex items-center gap-1 text-yellow-400">
-              <Star className="h-4 w-4 fill-yellow-400" />
-              {site.averageScore > 0 ? site.averageScore.toFixed(1) : "—"}
-            </span>
-            <span className="text-muted-foreground">리뷰 {site.reviewCount}개</span>
-            <span className="flex items-center gap-1 text-muted-foreground">
-              <Heart className="h-3.5 w-3.5" /> {site.totalLikes}
-            </span>
-          </div>
-          {address && (
-            <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
-              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-purple-400" />
-              <span>{address}</span>
+      <div className="space-y-5 px-4">
+        {/* ── 1. 관측지 사진 + 기본 정보 ── */}
+        <div className="overflow-hidden rounded-2xl bg-card/50">
+          <img
+            src="/byeoldori.png"
+            alt={site.name}
+            className="aspect-video w-full object-cover"
+          />
+          <div className="space-y-3 p-4">
+            {/* 평점 / 리뷰수 / 좋아요 */}
+            <div className="flex items-center gap-4 text-sm">
+              <span className="flex items-center gap-1 text-yellow-400">
+                <Star className="h-4 w-4 fill-yellow-400" />
+                {site.averageScore > 0 ? site.averageScore.toFixed(1) : "—"}
+              </span>
+              <span className="text-muted-foreground">리뷰 {site.reviewCount}개</span>
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <Heart className="h-3.5 w-3.5" /> {site.totalLikes}
+              </span>
             </div>
-          )}
+            {/* 주소 */}
+            {address && (
+              <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-purple-400" />
+                <span>{address}</span>
+              </div>
+            )}
+            {/* 현재 관측 적합도 배지 */}
+            {live && (
+              <div
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+                style={{ background: `${suitColor(live.suitability)}22`, color: suitColor(live.suitability) }}
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: suitColor(live.suitability) }} />
+                현재 관측 적합도 {live.suitability}점 — {suitLabel(live.suitability)}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* 현재 날씨 2×2 (피그마: 기온 / 습도 / 바람 / 관측 적합도) */}
-      {weather && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold text-foreground">해당 위치의 현재 날씨</h2>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
-              <div className="flex items-center gap-2 text-foreground">
-                <Thermometer className="h-5 w-5 text-orange-400" />
-                <span className="text-sm font-semibold">기온</span>
+        {/* ── 2. 현재 날씨 ── */}
+        {(forecastLoading || live) && (
+          <section>
+            <h2 className="mb-2 text-sm font-semibold text-foreground">현재 날씨</h2>
+            {forecastLoading && !live ? (
+              <div className="grid grid-cols-2 gap-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-20 animate-pulse rounded-xl bg-card/50" />
+                ))}
               </div>
-              <p className="text-lg font-bold text-foreground">{weather.temperature}°</p>
-            </div>
-            <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
-              <div className="flex items-center gap-2 text-foreground">
-                <Droplets className="h-5 w-5 text-blue-400" />
-                <span className="text-sm font-semibold">습도</span>
-              </div>
-              <p className="text-lg font-bold text-foreground">
-                {latestUltra ? `${latestUltra.reh}%` : "—"}
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
-              <div className="flex items-center gap-2 text-foreground">
-                <Wind className="h-5 w-5 text-cyan-400" />
-                <span className="text-sm font-semibold">바람</span>
-              </div>
-              <p className="text-lg font-bold text-foreground">
-                {latestUltra ? `${latestUltra.wsd}m/s` : "—"}
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
-              <div className="flex items-center gap-2 text-foreground">
-                <ThumbsUp className="h-5 w-5 text-green-400" />
-                <span className="text-sm font-semibold">관측 적합도</span>
-              </div>
-              <p className="text-lg font-bold" style={{ color: suitColor(weather.suitability) }}>
-                {weather.suitability}점
-              </p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* 시간별 예보 */}
-      {(forecastLoading || hourlyItems.length > 0) && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold text-foreground">시간별 예보</h2>
-          {forecastLoading ? (
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-28 min-w-[60px] shrink-0 animate-pulse rounded-xl bg-card/50" />
-              ))}
-            </div>
-          ) : (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {hourlyItems.map((item, i) => (
-              <div
-                key={i}
-                className="flex min-w-[60px] shrink-0 flex-col items-center gap-1.5 rounded-xl bg-card/50 px-2 py-2.5 text-center"
-              >
-                <span className="text-xs text-muted-foreground">{item.time}</span>
-                <WeatherIcon sky={item.sky} pty={item.pty} className="h-6 w-6 text-foreground" />
-                <span className="text-xs font-medium text-foreground">{item.temp}°</span>
-                <div className="flex items-center gap-0.5 text-xs text-blue-400">
-                  <Droplet className="h-3 w-3" />
-                  {item.pop}%
+            ) : live ? (
+              <>
+                {/* 하늘 상태 한 줄 */}
+                <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+                  <WeatherIcon sky={live.sky} pty={live.pty} className="h-4 w-4" />
+                  <span>{skyText(live.sky)}</span>
                 </div>
-                <div
-                  className="h-1.5 w-8 rounded-full"
-                  style={{ background: suitColor(item.suit) }}
-                />
-              </div>
-            ))}
-          </div>
-          )}
-        </section>
-      )}
-
-      {/* 일간 예보 */}
-      {(forecastLoading || dayRows.length > 0) && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold text-foreground">일간 예보</h2>
-          {forecastLoading ? (
-            <div className="space-y-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-12 animate-pulse rounded-xl bg-card/50" />
-              ))}
-            </div>
-          ) : (
-          <div className="overflow-hidden rounded-xl bg-card/50">
-            {dayRows.map((row, i) => (
-              <div
-                key={i}
-                className={`flex items-center gap-3 px-4 py-3 ${
-                  i < dayRows.length - 1 ? "border-b border-border/30" : ""
-                }`}
-              >
-                <span className="w-10 shrink-0 text-xs text-muted-foreground">{row.label}</span>
-                <div className="flex w-10 shrink-0 items-center gap-0.5 text-xs text-blue-400">
-                  <Droplet className="h-3 w-3" />
-                  {row.pop}%
-                </div>
-                <div className="shrink-0 text-foreground">
-                  {row.kind === "short"
-                    ? <WeatherIcon sky={row.sky} pty={row.pty} className="h-5 w-5" />
-                    : <WeatherIconMid sky={row.skyCode} pre={row.pre} className="h-5 w-5" />
-                  }
-                </div>
-                <span className="flex-1 text-xs">
-                  <span className="text-red-400">{row.max}°</span>
-                  <span className="text-muted-foreground"> / </span>
-                  <span className="text-blue-400">{row.min}°</span>
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-1.5 w-8 rounded-full" style={{ background: suitColor(row.suit) }} />
-                  <span className="text-xs font-medium" style={{ color: suitColor(row.suit) }}>
-                    {row.suit}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-          )}
-        </section>
-      )}
-
-      {/* 관측 리뷰 */}
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-foreground">해당 관측지에서 진행한 관측후기</h2>
-        {reviews.length === 0 ? (
-          <p className="text-sm text-muted-foreground">아직 리뷰가 없습니다.</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {reviews.map((post) => (
-              <Link
-                key={post.id}
-                href={`/community/review/${post.id}`}
-                className="overflow-hidden rounded-xl bg-card/50 transition-colors hover:bg-card"
-              >
-                <img
-                  src={post.thumbnailUrl ?? "/byeoldori.png"}
-                  alt={post.title}
-                  className="aspect-square w-full object-cover"
-                />
-                <div className="p-2">
-                  <p className="line-clamp-2 text-xs font-medium text-foreground">{post.title}</p>
-                  <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="truncate">{post.authorNickname}</span>
-                    {post.score != null && (
-                      <span className="ml-1 flex shrink-0 items-center gap-0.5 text-yellow-400">
-                        <Star className="h-3 w-3 fill-yellow-400" />
-                        {post.score.toFixed(1)}
-                      </span>
-                    )}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
+                    <div className="flex items-center gap-2">
+                      <Thermometer className="h-4 w-4 text-orange-400" />
+                      <span className="text-xs text-muted-foreground">기온</span>
+                    </div>
+                    <p className="text-xl font-bold text-foreground">{live.t1h}°</p>
                   </div>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-0.5">
-                      <Heart className="h-3 w-3" /> {post.likeCount}
-                    </span>
-                    <span className="flex items-center gap-0.5">
-                      <MessageSquare className="h-3 w-3" /> {post.commentCount}
-                    </span>
+                  <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
+                    <div className="flex items-center gap-2">
+                      <Droplets className="h-4 w-4 text-blue-400" />
+                      <span className="text-xs text-muted-foreground">습도</span>
+                    </div>
+                    <p className="text-xl font-bold text-foreground">{live.reh}%</p>
+                  </div>
+                  <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
+                    <div className="flex items-center gap-2">
+                      <Wind className="h-4 w-4 text-cyan-400" />
+                      <span className="text-xs text-muted-foreground">바람</span>
+                    </div>
+                    <p className="text-xl font-bold text-foreground">{live.wsd}m/s</p>
+                  </div>
+                  <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
+                    <div className="flex items-center gap-2">
+                      <Gauge className="h-4 w-4 text-green-400" />
+                      <span className="text-xs text-muted-foreground">관측 적합도</span>
+                    </div>
+                    <p className="text-xl font-bold" style={{ color: suitColor(live.suitability) }}>
+                      {live.suitability}점
+                    </p>
                   </div>
                 </div>
-              </Link>
-            ))}
-          </div>
+              </>
+            ) : null}
+          </section>
         )}
-      </section>
+
+        {/* ── 3. 시간별 예보 (초단기 + 단기, 날짜 구분) ── */}
+        {(forecastLoading || hourlyItems.length > 0) && (
+          <section>
+            <h2 className="mb-2 text-sm font-semibold text-foreground">시간별 예보</h2>
+            {forecastLoading && hourlyItems.length === 0 ? (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="h-28 min-w-[60px] shrink-0 animate-pulse rounded-xl bg-card/50" />
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-end gap-2 overflow-x-auto pb-2">
+                {hourlyItems.flatMap((item, i) => {
+                  const thisDate = item.tmef.slice(0, 8);
+                  const prevDate = i > 0 ? hourlyItems[i - 1].tmef.slice(0, 8) : null;
+                  const newDay = i > 0 && thisDate !== prevDate;
+                  const elements = [];
+
+                  if (newDay) {
+                    elements.push(
+                      <div
+                        key={`sep-${i}`}
+                        className="flex shrink-0 flex-col items-center self-stretch justify-center gap-1 px-0.5"
+                      >
+                        <div className="w-px flex-1 bg-white/10" />
+                        <span
+                          className="rounded-full bg-indigo-900/50 px-1.5 py-0.5 text-[10px] text-indigo-300"
+                          style={{ writingMode: "vertical-lr", transform: "rotate(180deg)" }}
+                        >
+                          {fmtDate(thisDate)}
+                        </span>
+                        <div className="w-px flex-1 bg-white/10" />
+                      </div>,
+                    );
+                  }
+
+                  elements.push(
+                    <div
+                      key={i}
+                      className="flex min-w-[60px] shrink-0 flex-col items-center gap-1.5 rounded-xl bg-card/50 px-2 py-2.5 text-center"
+                    >
+                      <span className="text-xs text-muted-foreground">{formatHM(item.tmef)}</span>
+                      <WeatherIcon sky={item.sky} pty={item.pty} className="h-6 w-6 text-foreground" />
+                      <span className="text-xs font-medium text-foreground">{item.temp}°</span>
+                      <div className="flex items-center gap-0.5 text-xs text-blue-400">
+                        <Droplet className="h-3 w-3" />{item.pop}%
+                      </div>
+                      <div
+                        className="h-1.5 w-8 rounded-full"
+                        style={{ background: suitColor(item.suit) }}
+                      />
+                    </div>,
+                  );
+                  return elements;
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── 4. 중기 예보 ── */}
+        {(forecastLoading || (forecast?.midCombinedForecastDTO?.length ?? 0) > 0) && (
+          <section>
+            <h2 className="mb-2 text-sm font-semibold text-foreground">중기 예보</h2>
+            {forecastLoading && !forecast ? (
+              <div className="space-y-1">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="h-12 animate-pulse rounded-xl bg-card/50" />
+                ))}
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-xl bg-card/50">
+                {(forecast?.midCombinedForecastDTO ?? []).map((item, i, arr) => (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-3 px-4 py-3 ${
+                      i < arr.length - 1 ? "border-b border-border/30" : ""
+                    }`}
+                  >
+                    <span className="w-10 shrink-0 text-xs text-muted-foreground">
+                      {fmtDate(item.tmEf.slice(0, 8))}
+                    </span>
+                    <div className="flex w-10 shrink-0 items-center gap-0.5 text-xs text-blue-400">
+                      <Droplet className="h-3 w-3" />{item.rnSt ?? 0}%
+                    </div>
+                    <div className="shrink-0 text-foreground">
+                      <WeatherIconMid sky={item.sky ?? ""} pre={item.pre ?? ""} />
+                    </div>
+                    <span className="flex-1 text-xs">
+                      <span className="text-red-400">{item.max}°</span>
+                      <span className="text-muted-foreground"> / </span>
+                      <span className="text-blue-400">{item.min}°</span>
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-1.5 w-8 rounded-full" style={{ background: suitColor(item.suitability) }} />
+                      <span className="w-6 text-right text-xs font-medium" style={{ color: suitColor(item.suitability) }}>
+                        {item.suitability}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── 5. 관측 리뷰 ── */}
+        <section>
+          <h2 className="mb-2 text-sm font-semibold text-foreground">
+            이곳에서 진행한 관측 리뷰
+            {reviews.length > 0 && (
+              <span className="ml-1.5 text-xs text-muted-foreground font-normal">{reviews.length}개</span>
+            )}
+          </h2>
+          {reviews.length === 0 ? (
+            <p className="text-sm text-muted-foreground">아직 리뷰가 없습니다.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {reviews.map((post) => (
+                <Link
+                  key={post.id}
+                  href={`/community/review/${post.id}`}
+                  className="overflow-hidden rounded-xl bg-card/50 transition-colors hover:bg-card"
+                >
+                  <img
+                    src={post.thumbnailUrl ?? "/byeoldori.png"}
+                    alt={post.title}
+                    className="aspect-square w-full object-cover"
+                  />
+                  <div className="p-2">
+                    <p className="line-clamp-2 text-xs font-medium text-foreground">{post.title}</p>
+                    <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="truncate">{post.authorNickname}</span>
+                      {post.score != null && (
+                        <span className="ml-1 flex shrink-0 items-center gap-0.5 text-yellow-400">
+                          <Star className="h-3 w-3 fill-yellow-400" />
+                          {post.score.toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-0.5">
+                        <Heart className="h-3 w-3" /> {post.likeCount}
+                      </span>
+                      <span className="flex items-center gap-0.5">
+                        <MessageSquare className="h-3 w-3" /> {post.commentCount}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
