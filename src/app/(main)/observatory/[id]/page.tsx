@@ -139,9 +139,11 @@ export default function ObservatoryDetailPage() {
       .catch(() => setLoading(false));
   }, [id, doGeocode]);
 
-  // 시간별 예보 (ultra + short 합산)
+  // 시간별 예보: ultra 전체 + ultra 종료 이후의 short만 이어붙임 (과거·중복 항목 제거)
+  const ultraList = forecast?.ultraForecastResponse ?? [];
+  const lastUltraTmef = ultraList.length > 0 ? ultraList[ultraList.length - 1].tmef : "";
   const hourlyItems: HourlyItem[] = [
-    ...(forecast?.ultraForecastResponse ?? []).map((u) => ({
+    ...ultraList.map((u) => ({
       tmef: u.tmef,
       sky: u.sky,
       pty: u.pty,
@@ -149,14 +151,16 @@ export default function ObservatoryDetailPage() {
       pop: Math.min(Math.round((u.rn1 ?? 0) * 10), 100),
       suit: u.suitability,
     })),
-    ...(forecast?.shortForecastResponse ?? []).map((s) => ({
-      tmef: s.tmef,
-      sky: s.sky,
-      pty: s.pty,
-      temp: s.tmp,
-      pop: s.pop ?? 0,
-      suit: s.suitability,
-    })),
+    ...(forecast?.shortForecastResponse ?? [])
+      .filter((s) => s.tmef > lastUltraTmef)
+      .map((s) => ({
+        tmef: s.tmef,
+        sky: s.sky,
+        pty: s.pty,
+        temp: s.tmp,
+        pop: s.pop ?? 0,
+        suit: s.suitability,
+      })),
   ];
 
   if (loading) {
@@ -343,7 +347,7 @@ export default function ObservatoryDetailPage() {
           </section>
         )}
 
-        {/* ── 4. 중기 예보 ── */}
+        {/* ── 4. 중기 예보 (날짜별 오전/오후 통합) ── */}
         {(forecastLoading || (forecast?.midCombinedForecastDTO?.length ?? 0) > 0) && (
           <section>
             <h2 className="mb-2 text-sm font-semibold text-foreground">중기 예보</h2>
@@ -353,39 +357,73 @@ export default function ObservatoryDetailPage() {
                   <div key={i} className="h-12 animate-pulse rounded-xl bg-card/50" />
                 ))}
               </div>
-            ) : (
-              <div className="overflow-hidden rounded-xl bg-card/50">
-                {(forecast?.midCombinedForecastDTO ?? []).map((item, i, arr) => (
-                  <div
-                    key={i}
-                    className={`flex items-center gap-3 px-4 py-3 ${
-                      i < arr.length - 1 ? "border-b border-border/30" : ""
-                    }`}
-                  >
-                    <span className="w-10 shrink-0 text-xs text-muted-foreground">
-                      {fmtDate(item.tmEf.slice(0, 8))}
-                    </span>
-                    <div className="flex w-10 shrink-0 items-center gap-0.5 text-xs text-blue-400">
-                      <Droplet className="h-3 w-3" />{item.rnSt ?? 0}%
-                    </div>
-                    <div className="shrink-0 text-foreground">
-                      <WeatherIconMid sky={item.sky ?? ""} pre={item.pre ?? ""} />
-                    </div>
-                    <span className="flex-1 text-xs">
-                      <span className="text-red-400">{item.max}°</span>
-                      <span className="text-muted-foreground"> / </span>
-                      <span className="text-blue-400">{item.min}°</span>
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <div className="h-1.5 w-8 rounded-full" style={{ background: suitColor(item.suitability) }} />
-                      <span className="w-6 text-right text-xs font-medium" style={{ color: suitColor(item.suitability) }}>
-                        {item.suitability}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            ) : (() => {
+              // 날짜별로 오전(09시)/오후(18시) 묶기
+              type MidItem = NonNullable<typeof forecast>["midCombinedForecastDTO"][0];
+              const byDate: Record<string, { am?: MidItem; pm?: MidItem }> = {};
+              for (const item of (forecast?.midCombinedForecastDTO ?? [])) {
+                const date = item.tmEf.slice(0, 8);
+                if (!byDate[date]) byDate[date] = {};
+                const hour = item.tmEf.slice(8, 10);
+                if (hour <= "12") byDate[date].am = item;
+                else byDate[date].pm = item;
+              }
+              const rows = Object.entries(byDate);
+              return (
+                <div className="overflow-hidden rounded-xl bg-card/50">
+                  {rows.map(([date, { am, pm }], i) => {
+                    const rep = pm ?? am!;
+                    const max = pm?.max ?? am?.max ?? 0;
+                    const min = am?.min ?? pm?.min ?? 0;
+                    const suit = Math.round(((am?.suitability ?? 0) + (pm?.suitability ?? 0)) / (am && pm ? 2 : 1));
+                    return (
+                      <div
+                        key={date}
+                        className={`flex items-center gap-2 px-4 py-3 ${
+                          i < rows.length - 1 ? "border-b border-border/30" : ""
+                        }`}
+                      >
+                        {/* 날짜 */}
+                        <span className="w-10 shrink-0 text-xs text-muted-foreground">{fmtDate(date)}</span>
+
+                        {/* 오전 날씨 */}
+                        <div className="flex shrink-0 flex-col items-center gap-0.5">
+                          <span className="text-[10px] text-white/40">오전</span>
+                          <WeatherIconMid sky={am?.sky ?? ""} pre={am?.pre ?? ""} className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex items-center gap-0.5 text-[10px] text-blue-400">
+                            <Droplet className="h-2.5 w-2.5" />{am?.rnSt ?? 0}%
+                          </div>
+                        </div>
+
+                        {/* 오후 날씨 */}
+                        <div className="flex shrink-0 flex-col items-center gap-0.5">
+                          <span className="text-[10px] text-white/40">오후</span>
+                          <WeatherIconMid sky={pm?.sky ?? rep.sky ?? ""} pre={pm?.pre ?? rep.pre ?? ""} className="h-4 w-4 text-foreground" />
+                          <div className="flex items-center gap-0.5 text-[10px] text-blue-400">
+                            <Droplet className="h-2.5 w-2.5" />{pm?.rnSt ?? 0}%
+                          </div>
+                        </div>
+
+                        {/* 기온 */}
+                        <span className="flex-1 text-xs">
+                          <span className="text-red-400">{max}°</span>
+                          <span className="text-muted-foreground"> / </span>
+                          <span className="text-blue-400">{min}°</span>
+                        </span>
+
+                        {/* 적합도 */}
+                        <div className="flex items-center gap-1.5">
+                          <div className="h-1.5 w-8 rounded-full" style={{ background: suitColor(suit) }} />
+                          <span className="w-6 text-right text-xs font-medium" style={{ color: suitColor(suit) }}>
+                            {suit}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </section>
         )}
 
