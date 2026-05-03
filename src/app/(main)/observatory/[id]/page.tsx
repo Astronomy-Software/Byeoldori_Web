@@ -109,13 +109,13 @@ export default function ObservatoryDetailPage() {
         setLoading(false);
 
         setForecastLoading(true);
-        Promise.all([
+        Promise.allSettled([
           getLiveWeather(data.latitude, data.longitude),
           getForecastData(data.latitude, data.longitude),
-        ])
-          .then(([lw, f]) => { setLive(lw); setForecast(f); })
-          .catch(() => {})
-          .finally(() => setForecastLoading(false));
+        ]).then(([lw, f]) => {
+          if (lw.status === "fulfilled") setLive(lw.value);
+          if (f.status === "fulfilled") setForecast(f.value);
+        }).finally(() => setForecastLoading(false));
 
         getReviewPosts(0, 20, "LATEST")
           .then((r) => setReviews(r.content.filter((p) => p.observationSiteId === id)))
