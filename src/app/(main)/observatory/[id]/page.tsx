@@ -18,12 +18,15 @@ import type {
   PostSummary,
 } from "@/types/api";
 
-function WeatherIcon({ sky, pty, className = "h-6 w-6" }: { sky: number; pty: number; className?: string }) {
-  if (pty === 1 || pty === 2 || pty === 5 || pty === 6) return <CloudRain className={className} />;
-  if (pty === 3 || pty === 7) return <Snowflake className={className} />;
-  if (sky === 1) return <Sun className={className} />;
-  if (sky === 3) return <CloudSun className={className} />;
-  return <Cloud className={className} />;
+function WeatherIcon({ sky, pty, className = "h-6 w-6" }: { sky: number | null | undefined; pty: number | null | undefined; className?: string }) {
+  const p = pty ?? 0;
+  const s = sky ?? 1;
+  if (p === 1 || p === 2 || p === 5 || p === 6) return <CloudRain className={className} />;
+  if (p === 3 || p === 7) return <Snowflake className={className} />;
+  if (s === 1) return <Sun className={className} />;
+  if (s === 2) return <CloudSun className={className} />;  // 구름조금
+  if (s === 3) return <Cloud className={className} />;     // 구름많음
+  return <Cloud className={className} />;                  // 4=흐림
 }
 
 function WeatherIconMid({ sky, pre, className = "h-5 w-5" }: { sky: string; pre: string; className?: string }) {
@@ -46,11 +49,12 @@ function suitLabel(n: number): string {
   return "관측 어려움";
 }
 
-function skyText(sky: number): string {
+function skyText(sky: number | null | undefined): string {
   if (sky === 1) return "맑음";
-  if (sky === 3) return "구름조금";
+  if (sky === 2) return "구름조금";
+  if (sky === 3) return "구름많음";
   if (sky === 4) return "흐림";
-  return "구름많음";
+  return "—";
 }
 
 function formatHM(tmef: string): string {
@@ -264,21 +268,27 @@ export default function ObservatoryDetailPage() {
                       <Thermometer className="h-4 w-4 text-orange-400" />
                       <span className="text-xs text-muted-foreground">기온</span>
                     </div>
-                    <p className="text-xl font-bold text-foreground">{live.t1h}°</p>
+                    <p className="text-xl font-bold text-foreground">
+                      {live.t1h != null ? `${live.t1h}°` : "—"}
+                    </p>
                   </div>
                   <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
                     <div className="flex items-center gap-2">
                       <Droplets className="h-4 w-4 text-blue-400" />
                       <span className="text-xs text-muted-foreground">습도</span>
                     </div>
-                    <p className="text-xl font-bold text-foreground">{live.reh}%</p>
+                    <p className="text-xl font-bold text-foreground">
+                      {live.reh != null ? `${live.reh}%` : "—"}
+                    </p>
                   </div>
                   <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
                     <div className="flex items-center gap-2">
                       <Wind className="h-4 w-4 text-cyan-400" />
                       <span className="text-xs text-muted-foreground">바람</span>
                     </div>
-                    <p className="text-xl font-bold text-foreground">{live.wsd}m/s</p>
+                    <p className="text-xl font-bold text-foreground">
+                      {live.wsd != null ? `${live.wsd}m/s` : "—"}
+                    </p>
                   </div>
                   <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
                     <div className="flex items-center gap-2">
