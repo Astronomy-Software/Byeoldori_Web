@@ -1,24 +1,21 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { characterManager } from "@/lib/character-manager";
 
-/** Cubism 4 코어 SDK를 CDN에서 동적으로 로드 (중복 로드 방지) */
 function loadCubism4Core(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (typeof window !== "undefined" && (window as any).Live2DCubismCore) {
       resolve();
       return;
     }
-    const existing = document.querySelector(
-      'script[src*="live2dcubismcore"]',
-    );
+    const existing = document.querySelector('script[src*="live2dcubismcore"]');
     if (existing) {
       existing.addEventListener("load", () => resolve());
       return;
     }
     const script = document.createElement("script");
-    script.src =
-      "https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js";
+    script.src = "https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js";
     script.onload = () => resolve();
     script.onerror = () => reject(new Error("Cubism4 코어 로드 실패"));
     document.head.appendChild(script);
@@ -36,11 +33,9 @@ export function Live2DCharacter() {
 
     (async () => {
       try {
-        // 1. Cubism 4 코어를 먼저 로드 (전역 Live2DCubismCore 설정)
         await loadCubism4Core();
         if (cancelled) return;
 
-        // 2. 코어 로드 후에 pixi-live2d-display/cubism4 import
         const PIXI = await import("pixi.js");
         const { Live2DModel } = await import("pixi-live2d-display/cubism4");
         if (cancelled) return;
@@ -59,10 +54,6 @@ export function Live2DCharacter() {
           antialias: true,
         });
 
-        // PIXI v7 + pixi-live2d-display v0.4 호환성:
-        // 스테이지에서 pointer hit-testing을 완전히 끈다.
-        // autoInteract:false만으로는 PIXI 이벤트 시스템이 여전히 동작해
-        // "t.isInteractive is not a function" 에러 발생.
         app.stage.eventMode = "none";
         app.stage.interactiveChildren = false;
 
@@ -81,6 +72,15 @@ export function Live2DCharacter() {
         model.position.set(canvas.offsetWidth / 2, canvas.offsetHeight);
 
         model.motion("Idle");
+
+        // characterManager에 모션 제어 함수 등록
+        characterManager.register((motionName: string) => {
+          try {
+            model.motion(motionName);
+          } catch (e) {
+            console.warn("[Live2D] 모션 재생 실패:", motionName, e);
+          }
+        });
       } catch (e) {
         console.warn("Live2D 초기화 실패:", e);
       }
@@ -88,6 +88,7 @@ export function Live2DCharacter() {
 
     return () => {
       cancelled = true;
+      characterManager.unregister();
       app?.destroy(false);
     };
   }, []);

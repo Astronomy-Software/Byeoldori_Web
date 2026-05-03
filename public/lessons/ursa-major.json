@@ -1,0 +1,150 @@
+{
+  "id": "ursa-major-101",
+  "title": "북두칠성 찾기",
+  "subtitle": "북극성을 찾는 나침반",
+  "difficulty": "BEGINNER",
+  "steps": [
+    {
+      "type": "show-text",
+      "text": "오늘은 밤하늘에서 북쪽을 찾는 방법을 배울 거야. 바로 북두칠성을 이용하는 방법이야!",
+      "motion": "happy",
+      "textDuration": 0
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "camera-move",
+          "target": "Dubhe",
+          "duration": 2.5
+        },
+        {
+          "type": "show-text",
+          "text": "북두칠성이 있는 방향으로 카메라를 이동할게!",
+          "motion": "standing",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "highlight-stars",
+          "stars": ["Dubhe", "Merak", "Phecda", "Megrez", "Alioth", "Mizar", "Alkaid"],
+          "color": [0.4, 0.8, 1, 1]
+        },
+        {
+          "type": "show-text",
+          "text": "이 일곱 개의 별이 바로 북두칠성이야! 하늘에서 국자 모양을 이루고 있어.",
+          "motion": "happy",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "draw-line",
+          "from": "Dubhe",
+          "to": "Merak",
+          "lineColor": [0.4, 0.8, 1, 0.8]
+        },
+        {
+          "type": "draw-line",
+          "from": "Merak",
+          "to": "Phecda",
+          "lineColor": [0.4, 0.8, 1, 0.8]
+        },
+        {
+          "type": "draw-line",
+          "from": "Phecda",
+          "to": "Megrez",
+          "lineColor": [0.4, 0.8, 1, 0.8]
+        },
+        {
+          "type": "draw-line",
+          "from": "Megrez",
+          "to": "Dubhe",
+          "lineColor": [0.4, 0.8, 1, 0.8]
+        },
+        {
+          "type": "draw-line",
+          "from": "Megrez",
+          "to": "Alioth",
+          "lineColor": [0.4, 0.8, 1, 0.8]
+        },
+        {
+          "type": "draw-line",
+          "from": "Alioth",
+          "to": "Mizar",
+          "lineColor": [0.4, 0.8, 1, 0.8]
+        },
+        {
+          "type": "draw-line",
+          "from": "Mizar",
+          "to": "Alkaid",
+          "lineColor": [0.4, 0.8, 1, 0.8]
+        },
+        {
+          "type": "show-text",
+          "text": "연결하면 이런 모양이야! 앞 네 별이 국자 몸통, 뒤 세 별이 국자 손잡이야.",
+          "motion": "happy",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "highlight-stars",
+          "stars": ["Dubhe", "Merak"],
+          "color": [1, 1, 0.2, 1]
+        },
+        {
+          "type": "show-text",
+          "text": "이제 비법을 알려줄게! 국자 끝부분 두 별(두베와 메라크)이 포인터 역할을 해. 이 두 별 사이 거리의 5배 만큼 직선으로 따라가면...",
+          "motion": "standing",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "camera-move",
+          "target": "Polaris",
+          "duration": 2.0
+        },
+        {
+          "type": "highlight-stars",
+          "stars": ["Polaris"],
+          "color": [1, 1, 0.2, 1]
+        },
+        {
+          "type": "show-text",
+          "text": "북극성(폴라리스)을 찾을 수 있어! 북극성은 항상 북쪽 하늘에 있으니까 길을 잃었을 때 나침반 역할을 해줘.",
+          "motion": "happy",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "clear-overlays"
+        },
+        {
+          "type": "show-text",
+          "text": "오늘의 핵심 정리! 북두칠성 국자 끝 두 별 → 5배 거리 → 북극성. 이제 밤에 길을 잃어도 걱정 없겠지?",
+          "motion": "happy",
+          "textDuration": 0
+        }
+      ]
+    }
+  ]
+}

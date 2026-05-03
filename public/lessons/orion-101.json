@@ -1,0 +1,131 @@
+{
+  "id": "orion-101",
+  "title": "오리온자리 이야기",
+  "subtitle": "겨울 밤하늘의 사냥꾼",
+  "difficulty": "BEGINNER",
+  "steps": [
+    {
+      "type": "show-text",
+      "text": "안녕! 오늘은 겨울 밤하늘의 가장 유명한 별자리, 오리온자리를 함께 탐험할 거야!",
+      "motion": "happy",
+      "textDuration": 0
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "camera-move",
+          "target": "Rigel",
+          "duration": 2.5
+        },
+        {
+          "type": "show-text",
+          "text": "카메라를 오리온자리 방향으로 이동할게. 잠깐 기다려줘!",
+          "motion": "standing",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "highlight-stars",
+          "stars": ["Rigel", "Betelgeuse", "Bellatrix", "Saiph"],
+          "color": [1, 0.3, 0.1, 1]
+        },
+        {
+          "type": "show-text",
+          "text": "이 네 개의 밝은 별이 오리온의 몸통을 이루고 있어. 오렌지색으로 표시된 게 보이니?",
+          "motion": "happy",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "highlight-stars",
+          "stars": ["Alnitak", "Alnilam", "Mintaka"],
+          "color": [0.3, 0.6, 1, 1]
+        },
+        {
+          "type": "show-text",
+          "text": "그리고 중앙에 일직선으로 늘어선 세 개의 별이 오리온의 허리띠야! 알니탁, 알닐람, 민타카라고 불러.",
+          "motion": "standing",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "draw-line",
+          "from": "Betelgeuse",
+          "to": "Rigel",
+          "lineColor": [1, 0.5, 0.2, 0.7]
+        },
+        {
+          "type": "draw-line",
+          "from": "Bellatrix",
+          "to": "Saiph",
+          "lineColor": [1, 0.5, 0.2, 0.7]
+        },
+        {
+          "type": "show-text",
+          "text": "연결해보면 오리온의 모습이 보이기 시작해! 베텔게우스(왼쪽 어깨)와 리겔(오른쪽 발)이 대각선을 이루고 있어.",
+          "motion": "happy",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "camera-move",
+          "target": "Betelgeuse",
+          "duration": 2.0
+        },
+        {
+          "type": "show-text",
+          "text": "가장 밝은 별 베텔게우스야. 붉은빛을 띠는 이유가 뭔지 알아? 이 별은 태양보다 수백 배 큰 '적색초거성'이거든!",
+          "motion": "happy",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "camera-move",
+          "target": "Rigel",
+          "duration": 2.0
+        },
+        {
+          "type": "show-text",
+          "text": "리겔은 파란빛의 별이야. 파란 별은 표면 온도가 매우 높다는 뜻이야. 무려 12,000°C가 넘는다고!",
+          "motion": "standing",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "clear-overlays"
+        },
+        {
+          "type": "show-text",
+          "text": "오리온자리 탐험 완료! 오늘 배운 거 기억해? 베텔게우스(적색초거성), 리겔(청색별), 오리온의 허리띠 세 별. 잘했어!",
+          "motion": "happy",
+          "textDuration": 0
+        }
+      ]
+    }
+  ]
+}

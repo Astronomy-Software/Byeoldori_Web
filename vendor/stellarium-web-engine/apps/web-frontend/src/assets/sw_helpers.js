@@ -48,6 +48,14 @@ const swh = {
         Vue.prototype.$selectionLayer = lstel.createLayer({ id: 'slayer', z: 50, visible: true })
         Vue.prototype.$observingLayer = lstel.createLayer({ id: 'obslayer', z: 40, visible: true })
         Vue.prototype.$skyHintsLayer = lstel.createLayer({ id: 'skyhintslayer', z: 38, visible: true })
+        // 교육 시스템 전역 API 노출 (byeoldori edu system)
+        const eduLayer = lstel.createLayer({ id: 'edulayer', z: 55, visible: true })
+        window.__stellariumAPI = {
+          stel: lstel,
+          eduLayer: eduLayer,
+          onSelect: null,
+          lastSelected: null,
+        }
         callBackOnDone()
       }
     })

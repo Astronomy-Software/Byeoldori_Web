@@ -1,0 +1,258 @@
+{
+  "id": "test-playground",
+  "title": "전체 기능 테스트",
+  "subtitle": "모든 스텝 타입 한번에 체험",
+  "difficulty": "BEGINNER",
+  "steps": [
+    {
+      "type": "show-text",
+      "text": "테스트 시작! 이 수업은 모든 기능을 순서대로 테스트해. 다음을 눌러서 진행해봐!",
+      "motion": "happy",
+      "textDuration": 0
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "camera-move",
+          "target": "Rigel",
+          "duration": 2.5
+        },
+        {
+          "type": "show-text",
+          "text": "📷 [camera-move 테스트] 리겔로 카메라가 이동 중이야!",
+          "motion": "standing",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "highlight-stars",
+          "stars": ["Rigel", "Betelgeuse", "Bellatrix", "Saiph", "Alnitak", "Alnilam", "Mintaka"],
+          "color": [1, 0.3, 0.1, 1]
+        },
+        {
+          "type": "show-text",
+          "text": "✦ [highlight-stars 테스트] 오리온자리 7개 별에 주황색 원이 표시됐어!",
+          "motion": "happy",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "draw-line",
+          "from": "Betelgeuse",
+          "to": "Bellatrix",
+          "lineColor": [0.2, 0.8, 1, 0.9]
+        },
+        {
+          "type": "draw-line",
+          "from": "Betelgeuse",
+          "to": "Alnitak",
+          "lineColor": [0.2, 0.8, 1, 0.9]
+        },
+        {
+          "type": "draw-line",
+          "from": "Bellatrix",
+          "to": "Mintaka",
+          "lineColor": [0.2, 0.8, 1, 0.9]
+        },
+        {
+          "type": "draw-line",
+          "from": "Alnitak",
+          "to": "Alnilam",
+          "lineColor": [0.2, 0.8, 1, 0.9]
+        },
+        {
+          "type": "draw-line",
+          "from": "Alnilam",
+          "to": "Mintaka",
+          "lineColor": [0.2, 0.8, 1, 0.9]
+        },
+        {
+          "type": "draw-line",
+          "from": "Alnitak",
+          "to": "Saiph",
+          "lineColor": [0.2, 0.8, 1, 0.9]
+        },
+        {
+          "type": "draw-line",
+          "from": "Mintaka",
+          "to": "Rigel",
+          "lineColor": [0.2, 0.8, 1, 0.9]
+        },
+        {
+          "type": "show-text",
+          "text": "— [draw-line 테스트] 하늘색 선으로 오리온 별자리선이 그려졌어!",
+          "motion": "happy",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "show-image",
+          "imageUrl": "/byeoldori.png",
+          "imagePosition": "top-right",
+          "imageWidth": "160px",
+          "imageDuration": 0
+        },
+        {
+          "type": "show-text",
+          "text": "🖼 [show-image 테스트] 오른쪽 위에 이미지가 표시됐어!",
+          "motion": "happy",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "show-image",
+          "imageUrl": "/byeoldori.png",
+          "imagePosition": "bottom-left",
+          "imageWidth": "120px",
+          "imageDuration": 0
+        },
+        {
+          "type": "show-text",
+          "text": "🖼 [show-image 위치 테스트] 이번엔 왼쪽 아래에!",
+          "motion": "standing",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "clear-overlays"
+        },
+        {
+          "type": "show-text",
+          "text": "○ [clear-overlays 테스트] 별 강조, 선, 이미지가 전부 사라졌어!",
+          "motion": "standing",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "camera-move",
+          "target": "Dubhe",
+          "duration": 2.5
+        },
+        {
+          "type": "show-text",
+          "text": "이제 북두칠성으로 이동! 선 그리기 연속 테스트를 볼 거야.",
+          "motion": "happy",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "highlight-stars",
+          "stars": ["Dubhe", "Merak", "Phecda", "Megrez", "Alioth", "Mizar", "Alkaid"],
+          "color": [0.4, 0.8, 1, 1]
+        },
+        {
+          "type": "draw-line",
+          "from": "Dubhe",
+          "to": "Merak",
+          "lineColor": [1, 1, 0.3, 0.9]
+        },
+        {
+          "type": "draw-line",
+          "from": "Merak",
+          "to": "Phecda",
+          "lineColor": [1, 1, 0.3, 0.9]
+        },
+        {
+          "type": "draw-line",
+          "from": "Phecda",
+          "to": "Megrez",
+          "lineColor": [1, 1, 0.3, 0.9]
+        },
+        {
+          "type": "draw-line",
+          "from": "Megrez",
+          "to": "Dubhe",
+          "lineColor": [1, 1, 0.3, 0.9]
+        },
+        {
+          "type": "draw-line",
+          "from": "Megrez",
+          "to": "Alioth",
+          "lineColor": [1, 0.6, 0.2, 0.9]
+        },
+        {
+          "type": "draw-line",
+          "from": "Alioth",
+          "to": "Mizar",
+          "lineColor": [1, 0.6, 0.2, 0.9]
+        },
+        {
+          "type": "draw-line",
+          "from": "Mizar",
+          "to": "Alkaid",
+          "lineColor": [1, 0.6, 0.2, 0.9]
+        },
+        {
+          "type": "show-text",
+          "text": "🌟 북두칠성 완성! 국자 몸통(노란선)과 손잡이(주황선)가 한번에 그려졌어!",
+          "motion": "happy",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "camera-move",
+          "target": "Polaris",
+          "duration": 2.0
+        },
+        {
+          "type": "highlight-stars",
+          "stars": ["Polaris"],
+          "color": [1, 1, 0.2, 1]
+        },
+        {
+          "type": "show-text",
+          "text": "📷 + ✦ [composite 테스트] 카메라 이동 + 별 강조가 동시에! 북극성이야.",
+          "motion": "happy",
+          "textDuration": 0
+        }
+      ]
+    },
+    {
+      "type": "composite",
+      "steps": [
+        {
+          "type": "clear-overlays"
+        },
+        {
+          "type": "show-text",
+          "text": "🎉 전체 기능 테스트 완료! camera-move, highlight-stars, draw-line, show-image, clear-overlays, composite 모두 정상이야!",
+          "motion": "happy",
+          "textDuration": 0
+        }
+      ]
+    }
+  ]
+}

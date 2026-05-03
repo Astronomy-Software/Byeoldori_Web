@@ -190,6 +190,22 @@ export default {
       }
       swh.sweObj2SkySource(this.$stel.core.selection).then(res => {
         this.$store.commit('setSelectedObject', res)
+        // 부모 프레임 및 로컬 API에 별 선택 이벤트 전파
+        const names = swh.namesForSkySource(res, 5)
+        const payload = {
+          type: 'BYEOLDORI_STAR_SELECTED',
+          name: names[0] || '',
+          names: names,
+          objectType: swh.nameForSkySourceType(res.types[0]),
+          types: res.types,
+        }
+        try { window.parent.postMessage(payload, '*') } catch (e) {}
+        if (window.__stellariumAPI) {
+          window.__stellariumAPI.lastSelected = payload
+          if (typeof window.__stellariumAPI.onSelect === 'function') {
+            window.__stellariumAPI.onSelect(payload.name, payload.types)
+          }
+        }
       }, err => {
         console.log("Couldn't find info for object " + s + ':' + err)
         this.$store.commit('setSelectedObject', 0)

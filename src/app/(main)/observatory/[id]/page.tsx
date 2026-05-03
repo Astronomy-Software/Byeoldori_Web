@@ -135,7 +135,7 @@ export default function ObservatoryDetailPage() {
       .catch(() => setLoading(false));
   }, [id, doGeocode]);
 
-  // 시간별 예보 (ultra + short 앞 16개)
+  // 시간별 예보 (ultra + short 합산)
   const hourlyItems: HourlyItem[] = [
     ...(forecast?.ultraForecastResponse ?? []).map((u) => ({
       time: formatHour(u.tmef),
