@@ -146,7 +146,7 @@ export default function SignUpPage() {
                 onChange={(e) => updateField("consentTerms", e.target.checked)}
                 className="accent-purple-500"
               />
-              이용약관에 동의합니다 (필수)
+              <Link href="/terms" target="_blank" className="underline hover:text-purple-400">이용약관</Link>에 동의합니다 (필수)
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -157,7 +157,7 @@ export default function SignUpPage() {
                 }
                 className="accent-purple-500"
               />
-              개인정보처리방침에 동의합니다 (필수)
+              <Link href="/privacy" target="_blank" className="underline hover:text-purple-400">개인정보처리방침</Link>에 동의합니다 (필수)
             </label>
           </div>
           {error && <p className="text-sm text-error">{error}</p>}
