@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { getSiteById } from "@/lib/api/observation-sites";
 import { getLiveWeather, getForecastData } from "@/lib/api/weather";
-import { ApiError } from "@/lib/api/client";
 import { getReviewPosts } from "@/lib/api/community";
 import type {
   ObservationSiteDetail,
@@ -86,7 +85,7 @@ export default function ObservatoryDetailPage() {
   const [live, setLive] = useState<UltraForecastItem | null>(null);
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [forecastLoading, setForecastLoading] = useState(false);
-  const [forecastError, setForecastError] = useState<"auth" | "error" | null>(null);
+  const [forecastError, setForecastError] = useState(false);
   const [reviews, setReviews] = useState<PostSummary[]>([]);
   const [address, setAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -123,13 +122,8 @@ export default function ObservatoryDetailPage() {
           if (f.status === "fulfilled") {
             setForecast(f.value);
           } else {
-            const reason = f.reason;
-            if (reason instanceof ApiError && reason.status === 401) {
-              setForecastError("auth");
-            } else {
-              setForecastError("error");
-            }
-            console.error("[weather/ForecastData] 실패:", reason);
+            setForecastError(true);
+            console.error("[weather/ForecastData] 실패:", f.reason);
           }
         }).finally(() => setForecastLoading(false));
 
@@ -323,11 +317,7 @@ export default function ObservatoryDetailPage() {
         {forecastError && (
           <section>
             <h2 className="mb-2 text-sm font-semibold text-foreground">시간별 예보</h2>
-            <p className="text-xs text-muted-foreground">
-              {forecastError === "auth"
-                ? "예보 데이터를 불러오려면 로그인이 필요합니다."
-                : "예보 데이터를 불러오지 못했습니다."}
-            </p>
+            <p className="text-xs text-muted-foreground">예보 데이터를 불러오지 못했습니다.</p>
           </section>
         )}
         {(forecastLoading || hourlyItems.length > 0) && (

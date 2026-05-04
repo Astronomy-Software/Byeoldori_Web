@@ -217,8 +217,8 @@ export interface LikeToggleResponse {
 export interface WeatherSummary {
   suitability: number;
   sky: string;
-  temperature: number;
-  nextGoodTime?: string;
+  temperature: number | null;
+  nextGoodTime?: string | null;
 }
 
 export type ForecastResponse = WeatherSummary;
@@ -237,26 +237,28 @@ export interface UltraForecastItem {
 
 export interface ShortForecastItem {
   tmef: string;
-  tmp: number;
-  tmx?: number;
-  tmn?: number;
-  vec: number;
-  wsd: number;
-  sky: number;
-  pty: number;
-  pop: number;
-  reh: number;
+  tmp: number | null;
+  tmx?: number | null;
+  tmn?: number | null;
+  vec: number | null;
+  wsd: number | null;
+  sky: number | null;
+  pty: number | null;
+  pop: number | null;
+  pcp?: number | null;
+  sno?: number | null;
+  reh: number | null;
   suitability: number;
 }
 
 export interface MidForecastItem {
   tmFc: string;
   tmEf: string;
-  sky: string;
-  pre: string;
-  rnSt: number;
-  min: number;
-  max: number;
+  sky: string | null;
+  pre: string | null;
+  rnSt: number | null;
+  min: number | null;
+  max: number | null;
   suitability: number;
 }
 
