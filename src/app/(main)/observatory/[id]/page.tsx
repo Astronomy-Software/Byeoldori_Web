@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { getSiteById } from "@/lib/api/observation-sites";
 import { getLiveWeather, getForecastData } from "@/lib/api/weather";
+import { ApiError } from "@/lib/api/client";
 import { getReviewPosts } from "@/lib/api/community";
 import type {
   ObservationSiteDetail,
@@ -69,9 +70,9 @@ function fmtDate(s: string): string {
 
 type HourlyItem = {
   tmef: string;
-  sky: number;
-  pty: number;
-  temp: number;
+  sky: number | null;
+  pty: number | null;
+  temp: number | null;
   pop: number;
   suit: number;
 };
@@ -85,6 +86,7 @@ export default function ObservatoryDetailPage() {
   const [live, setLive] = useState<UltraForecastItem | null>(null);
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [forecastLoading, setForecastLoading] = useState(false);
+  const [forecastError, setForecastError] = useState<"auth" | "error" | null>(null);
   const [reviews, setReviews] = useState<PostSummary[]>([]);
   const [address, setAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,7 +120,17 @@ export default function ObservatoryDetailPage() {
           getForecastData(data.latitude, data.longitude),
         ]).then(([lw, f]) => {
           if (lw.status === "fulfilled") setLive(lw.value);
-          if (f.status === "fulfilled") setForecast(f.value);
+          if (f.status === "fulfilled") {
+            setForecast(f.value);
+          } else {
+            const reason = f.reason;
+            if (reason instanceof ApiError && reason.status === 401) {
+              setForecastError("auth");
+            } else {
+              setForecastError("error");
+            }
+            console.error("[weather/ForecastData] 실패:", reason);
+          }
         }).finally(() => setForecastLoading(false));
 
         getReviewPosts(0, 20, "LATEST")
@@ -306,6 +318,16 @@ export default function ObservatoryDetailPage() {
         )}
 
         {/* ── 3. 시간별 예보 (초단기 + 단기, 날짜 구분) ── */}
+        {forecastError && (
+          <section>
+            <h2 className="mb-2 text-sm font-semibold text-foreground">시간별 예보</h2>
+            <p className="text-xs text-muted-foreground">
+              {forecastError === "auth"
+                ? "예보 데이터를 불러오려면 로그인이 필요합니다."
+                : "예보 데이터를 불러오지 못했습니다."}
+            </p>
+          </section>
+        )}
         {(forecastLoading || hourlyItems.length > 0) && (
           <section>
             <h2 className="mb-2 text-sm font-semibold text-foreground">시간별 예보</h2>
@@ -348,7 +370,9 @@ export default function ObservatoryDetailPage() {
                     >
                       <span className="text-xs text-muted-foreground">{formatHM(item.tmef)}</span>
                       <WeatherIcon sky={item.sky} pty={item.pty} className="h-6 w-6 text-foreground" />
-                      <span className="text-xs font-medium text-foreground">{item.temp}°</span>
+                      <span className="text-xs font-medium text-foreground">
+                        {item.temp != null ? `${item.temp}°` : "—"}
+                      </span>
                       <div className="flex items-center gap-0.5 text-xs text-blue-400">
                         <Droplet className="h-3 w-3" />{item.pop}%
                       </div>
