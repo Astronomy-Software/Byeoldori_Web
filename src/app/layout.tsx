@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   description:
     "천체 관측 초보자를 위한 교육 플랫폼. 별지도, 관측지 추천, 커뮤니티를 제공합니다.",
   verification: {
-    google: "qCLTRj-Z29lf93krES4qYsD--sC2igjp6gpQSGuNGKc",
+    google: "Ym-2QxytT69t-FAy10lptmLTYqScPCKQINN9o1f0oUE",
   },
 };
 
