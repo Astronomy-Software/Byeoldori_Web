@@ -269,11 +269,13 @@ export default function ObservatoryDetailPage() {
               </div>
             ) : live ? (
               <>
-                {/* 하늘 상태 한 줄 */}
-                <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
-                  <WeatherIcon sky={live.sky} pty={live.pty} className="h-4 w-4" />
-                  <span>{skyText(live.sky)}</span>
-                </div>
+                {/* 하늘 상태 한 줄 — sky가 null이면 숨김 */}
+                {live.sky != null && (
+                  <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+                    <WeatherIcon sky={live.sky} pty={live.pty} className="h-4 w-4" />
+                    <span>{skyText(live.sky)}</span>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex flex-col gap-2 rounded-xl bg-card/50 p-3">
                     <div className="flex items-center gap-2">
