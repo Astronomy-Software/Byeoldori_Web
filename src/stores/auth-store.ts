@@ -72,9 +72,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const res = await getMyProfile();
       set({ user: res, isSignedIn: true });
-    } catch {
-      clearTokens();
-      set({ user: null, isSignedIn: false });
+    } catch (e) {
+      // 401만 실제 세션 만료 — 네트워크 오류·5xx는 로그아웃하지 않는다
+      if (e instanceof ApiError && e.status === 401) {
+        clearTokens();
+        set({ user: null, isSignedIn: false });
+      }
     }
   },
 }));

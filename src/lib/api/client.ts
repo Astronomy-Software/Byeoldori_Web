@@ -57,7 +57,8 @@ export async function apiFetch<T>(
       });
     }
 
-    const refreshed = await refreshPromise;
+    // refreshPromise가 null이 된 경우(완료 직후 레이스 컨디션)는 false로 처리
+    const refreshed = await (refreshPromise ?? Promise.resolve(false));
     if (refreshed) {
       const newToken = getAccessToken();
       headers.set("Authorization", `Bearer ${newToken}`);
