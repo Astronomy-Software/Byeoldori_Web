@@ -225,13 +225,13 @@ export type ForecastResponse = WeatherSummary;
 
 export interface UltraForecastItem {
   tmef: string;
-  t1h: number;
-  vec: number;
-  wsd: number;
-  pty: number;
-  rn1: number;
-  reh: number;
-  sky: number;
+  t1h: number | null;
+  vec: number | null;
+  wsd: number | null;
+  pty: number | null;
+  rn1: number | null;
+  reh: number | null;
+  sky: number | null;
   suitability: number;
 }
 
