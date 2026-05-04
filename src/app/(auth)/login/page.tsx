@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,11 +17,27 @@ import {
 import { useAuthStore } from "@/stores/auth-store";
 import { Star } from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, isLoading, error } = useAuthStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const socialError =
+    searchParams.get("error") === "social_failed"
+      ? "소셜 로그인에 실패했습니다. 다시 시도해주세요."
+      : null;
+
+  function handleSocialLogin(provider: "google" | "kakao" | "naver") {
+    const redirectUri = `${window.location.origin}/auth/${provider}/callback`;
+    const urls: Record<string, string> = {
+      google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email%20profile`,
+      kakao: `https://kauth.kakao.com/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`,
+      naver: `https://nid.naver.com/oauth2.0/authorize?client_id=${process.env.NEXT_PUBLIC_NAVER_OAUTH_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${crypto.randomUUID()}`,
+    };
+    window.location.href = urls[provider];
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,8 +82,8 @@ export default function LoginPage() {
               required
             />
           </div>
-          {error && (
-            <p className="text-sm text-error">{error}</p>
+          {(error || socialError) && (
+            <p className="text-sm text-error">{error ?? socialError}</p>
           )}
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
@@ -98,8 +114,50 @@ export default function LoginPage() {
               회원가입
             </Link>
           </div>
+
+          <div className="relative my-1 w-full">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs text-muted-foreground">
+              <span className="bg-card px-2">또는</span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => handleSocialLogin("google")}
+          >
+            Google로 계속하기
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full bg-[#FEE500] text-black hover:bg-[#FDD800] border-[#FEE500]"
+            onClick={() => handleSocialLogin("kakao")}
+          >
+            카카오로 계속하기
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full bg-[#03C75A] text-white hover:bg-[#02B350] border-[#03C75A]"
+            onClick={() => handleSocialLogin("naver")}
+          >
+            네이버로 계속하기
+          </Button>
         </CardFooter>
       </form>
     </Card>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="h-96 w-full animate-pulse rounded-xl bg-card/50" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

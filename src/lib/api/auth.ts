@@ -7,6 +7,7 @@ import type {
   FindEmailRequest,
   FindEmailResponse,
   ResetPasswordToEmailRequest,
+  SocialLoginRequest,
   ApiResponse,
 } from "@/types/api";
 
@@ -40,6 +41,18 @@ export async function resetPasswordToEmail(
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export async function loginWithGoogle(body: SocialLoginRequest): Promise<LoginResponse> {
+  return apiFetch<LoginResponse>("auth/google", { method: "POST", body: JSON.stringify(body) });
+}
+
+export async function loginWithKakao(body: SocialLoginRequest): Promise<LoginResponse> {
+  return apiFetch<LoginResponse>("auth/kakao", { method: "POST", body: JSON.stringify(body) });
+}
+
+export async function loginWithNaver(body: SocialLoginRequest): Promise<LoginResponse> {
+  return apiFetch<LoginResponse>("auth/naver", { method: "POST", body: JSON.stringify(body) });
 }
 
 /**

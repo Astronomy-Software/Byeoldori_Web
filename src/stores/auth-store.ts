@@ -9,7 +9,7 @@ import {
 import { login as apiLogin } from "@/lib/api/auth";
 import { getMyProfile, logOut as logoutOnServer } from "@/lib/api/user";
 import { ApiError } from "@/lib/api/client";
-import type { UserProfile, LoginRequest } from "@/types/api";
+import type { UserProfile, LoginRequest, AuthTokens } from "@/types/api";
 
 interface AuthState {
   user: UserProfile | null;
@@ -18,6 +18,7 @@ interface AuthState {
   error: string | null;
 
   login: (req: LoginRequest) => Promise<void>;
+  loginWithSocial: (tokens: AuthTokens) => void;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
   initAuth: () => void;
@@ -34,6 +35,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (token) {
       set({ isSignedIn: true });
     }
+  },
+
+  loginWithSocial: (tokens: AuthTokens) => {
+    setTokens(tokens.accessToken, tokens.refreshToken);
+    set({ isSignedIn: true });
   },
 
   login: async (req: LoginRequest) => {

@@ -412,3 +412,8 @@ export interface EducationResponse {
   objectName: string;
   difficulty: string;
 }
+
+export interface SocialLoginRequest {
+  code: string;
+  redirectUri: string;
+}
