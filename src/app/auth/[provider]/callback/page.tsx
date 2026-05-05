@@ -30,7 +30,7 @@ function OAuthCallbackInner() {
     apiFn({ code, redirectUri })
       .then((tokens) => {
         loginWithSocial(tokens);
-        router.replace("/home");
+        router.replace(tokens.onboardingRequired ? "/onboarding" : "/home");
       })
       .catch(() => {
         router.replace("/login?error=social_failed");

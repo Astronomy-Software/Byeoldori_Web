@@ -50,8 +50,7 @@ export default function SettingsPage() {
 
     try {
       await resign();
-      logout();
-      toast.success("회원 탈퇴가 완료되었습니다.");
+      await logout();
       router.replace("/login");
     } catch {
       toast.error("회원 탈퇴에 실패했습니다.");
