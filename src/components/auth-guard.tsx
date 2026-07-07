@@ -27,8 +27,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [checked, isSignedIn, router, loadUser]);
 
-  // 인증 확인 전이거나 미로그인이면 빈 화면 (리다이렉트 중)
-  if (!checked || !isSignedIn) return null;
-
+  // 셸/children을 항상 렌더(FCP 개선 — 서버·초기 렌더에서 빈 화면 방지).
+  // 미인증이 확인되면 위 effect가 /login으로 리다이렉트한다.
+  // (보호 데이터는 백엔드가 인증을 강제하므로 미로그인 시 빈 상태로 표시됨)
   return <>{children}</>;
 }
