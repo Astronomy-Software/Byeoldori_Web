@@ -17,6 +17,7 @@ export default function EditPostPage() {
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -25,6 +26,7 @@ export default function EditPostPage() {
       .then((post) => {
         setTitle(post.title);
         setContent(post.content);
+        setImageUrls(post.images ?? []);
         setIsLoading(false);
       })
       .catch(() => {
@@ -40,7 +42,7 @@ export default function EditPostPage() {
     }
     setIsSaving(true);
     try {
-      await updatePost(postId, { title, content, imageUrls: [] });
+      await updatePost(postId, { title, content, imageUrls });
       toast.success("게시글이 수정되었습니다.");
       router.push(`/community/${params.type}/${postId}`);
     } catch {

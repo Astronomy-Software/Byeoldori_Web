@@ -36,12 +36,14 @@ export default function MyPageScreen() {
   const [nickname, setNickname] = useState("");
   const [observationCount, setObservationCount] =
     useState<ObservationCountDto | null>(null);
+  const [observationError, setObservationError] = useState(false);
 
   useEffect(() => {
     loadUser();
+    setObservationError(false);
     getObservationCount()
       .then((r) => setObservationCount(r))
-      .catch(() => {});
+      .catch(() => setObservationError(true));
   }, [loadUser]);
 
   useEffect(() => {
@@ -104,12 +106,14 @@ export default function MyPageScreen() {
               </AvatarFallback>
             </Avatar>
             <label className="absolute -bottom-1 -right-1 cursor-pointer rounded-full bg-purple-600 p-1">
-              <Camera className="h-3 w-3 text-white" />
+              <Camera className="h-3 w-3 text-white" aria-hidden="true" />
+              <span className="sr-only">프로필 이미지 변경</span>
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
                 className="hidden"
+                aria-label="프로필 이미지 변경"
               />
             </label>
           </div>
@@ -154,6 +158,11 @@ export default function MyPageScreen() {
       </Card>
 
       {/* 관측 통계 */}
+      {observationError && (
+        <p role="alert" className="text-sm text-error">
+          관측 통계를 불러오지 못했습니다.
+        </p>
+      )}
       {observationCount && (
         <div className="grid grid-cols-2 gap-4">
           <Card className="border-purple-700/30 bg-card/80">

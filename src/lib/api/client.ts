@@ -7,7 +7,7 @@ let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
 async function refreshAccessToken(): Promise<boolean> {
-  const refreshToken = getRefreshToken();
+  const refreshToken = getRefreshToken()?.trim();
   if (!refreshToken) return false;
 
   try {
@@ -19,11 +19,21 @@ async function refreshAccessToken(): Promise<boolean> {
 
     if (!res.ok) return false;
 
-    const json = await res.json();
+    // JSON 파싱 실패 방어 (백엔드가 비정상 응답을 줄 수 있음)
+    let json: unknown;
+    try {
+      json = await res.json();
+    } catch {
+      return false;
+    }
     // 서버 공통 래퍼 {success,message,data} 안에 토큰이 들어있다
-    const tokens = json?.data ?? json;
-    if (!tokens?.accessToken || !tokens?.refreshToken) return false;
-    setTokens(tokens.accessToken, tokens.refreshToken);
+    const tokens = (json as { data?: unknown })?.data ?? json;
+    const accessToken = (tokens as { accessToken?: unknown })?.accessToken;
+    const newRefreshToken = (tokens as { refreshToken?: unknown })?.refreshToken;
+    if (typeof accessToken !== "string" || typeof newRefreshToken !== "string") {
+      return false;
+    }
+    setTokens(accessToken, newRefreshToken);
     return true;
   } catch {
     return false;
@@ -37,7 +47,7 @@ export async function apiFetch<T>(
   const url = `${API_BASE_URL}/${path.replace(/^\//, "")}`;
 
   const headers = new Headers(options.headers);
-  const token = getAccessToken();
+  const token = getAccessToken()?.trim();
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
@@ -60,7 +70,7 @@ export async function apiFetch<T>(
     // refreshPromise가 null이 된 경우(완료 직후 레이스 컨디션)는 false로 처리
     const refreshed = await (refreshPromise ?? Promise.resolve(false));
     if (refreshed) {
-      const newToken = getAccessToken();
+      const newToken = getAccessToken()?.trim();
       headers.set("Authorization", `Bearer ${newToken}`);
       res = await fetch(url, { ...options, headers });
     } else {
@@ -91,7 +101,17 @@ export async function apiFetch<T>(
     return (await res.text()) as T;
   }
 
-  const json = await res.json();
+  // 본문이 비어있으면(Content-Type이 json이어도) void로 처리
+  const rawBody = await res.text();
+  if (rawBody.trim() === "") return undefined as T;
+
+  // JSON 파싱 실패 방어
+  let json: unknown;
+  try {
+    json = JSON.parse(rawBody);
+  } catch {
+    throw new ApiError(res.status, `Invalid JSON response: ${rawBody}`);
+  }
 
   // 서버 공통 래퍼 { success, message, data } 자동 unwrap
   // 모든 엔드포인트가 이 구조를 쓰므로 caller는 항상 실제 데이터 타입 T를 받는다

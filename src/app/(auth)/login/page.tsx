@@ -31,10 +31,19 @@ function LoginForm() {
 
   function handleSocialLogin(provider: "google" | "kakao" | "naver") {
     const redirectUri = `${window.location.origin}/auth/${provider}/callback`;
+    const googleClientId = encodeURIComponent(
+      (process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "").trim(),
+    );
+    const kakaoClientId = encodeURIComponent(
+      (process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID ?? "").trim(),
+    );
+    const naverClientId = encodeURIComponent(
+      (process.env.NEXT_PUBLIC_NAVER_OAUTH_CLIENT_ID ?? "").trim(),
+    );
     const urls: Record<string, string> = {
-      google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email%20profile`,
-      kakao: `https://kauth.kakao.com/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`,
-      naver: `https://nid.naver.com/oauth2.0/authorize?client_id=${process.env.NEXT_PUBLIC_NAVER_OAUTH_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${crypto.randomUUID()}`,
+      google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email%20profile`,
+      kakao: `https://kauth.kakao.com/oauth/authorize?client_id=${kakaoClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`,
+      naver: `https://nid.naver.com/oauth2.0/authorize?client_id=${naverClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${crypto.randomUUID()}`,
     };
     window.location.href = urls[provider];
   }
@@ -65,6 +74,7 @@ function LoginForm() {
             <Input
               id="email"
               type="email"
+              autoComplete="email"
               placeholder="example@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -76,6 +86,7 @@ function LoginForm() {
             <Input
               id="password"
               type="password"
+              autoComplete="current-password"
               placeholder="비밀번호를 입력하세요"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -143,7 +154,7 @@ function LoginForm() {
           <Button
             type="button"
             variant="outline"
-            className="w-full bg-[#03C75A] text-white hover:bg-[#02B350] border-[#03C75A]"
+            className="w-full bg-[#02A94D] text-white font-semibold hover:bg-[#029044] border-[#02A94D]"
             onClick={() => handleSocialLogin("naver")}
           >
             네이버로 계속하기
