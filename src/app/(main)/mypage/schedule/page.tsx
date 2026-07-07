@@ -34,6 +34,7 @@ export default function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [monthSummary, setMonthSummary] = useState<MonthDaySummaryDto[]>([]);
   const [dayPlans, setDayPlans] = useState<PlanDetailDto[]>([]);
+  const [dayPlansError, setDayPlansError] = useState(false);
   const [showNewPlan, setShowNewPlan] = useState(false);
 
   // 새 일정 폼
@@ -50,13 +51,19 @@ export default function SchedulePage() {
       .catch(() => {});
   }, [year, month]);
 
+  const loadDayPlans = useCallback((date: string) => {
+    setDayPlansError(false);
+    getEventsByDate(date)
+      .then((r) => setDayPlans(r))
+      .catch(() => {
+        setDayPlans([]);
+        setDayPlansError(true);
+      });
+  }, []);
+
   useEffect(() => {
-    if (selectedDate) {
-      getEventsByDate(selectedDate)
-        .then((r) => setDayPlans(r))
-        .catch(() => setDayPlans([]));
-    }
-  }, [selectedDate]);
+    if (selectedDate) loadDayPlans(selectedDate);
+  }, [selectedDate, loadDayPlans]);
 
   const calendarBadges = monthSummary.reduce(
     (acc, item) => {
@@ -202,7 +209,21 @@ export default function SchedulePage() {
           <h2 className="mb-2 text-sm font-semibold text-foreground">
             {selectedDate} 일정
           </h2>
-          {dayPlans.length === 0 ? (
+          {dayPlansError ? (
+            <div
+              role="alert"
+              className="flex items-center justify-between gap-3 rounded-lg border border-error/50 bg-error/10 p-3 text-sm text-error"
+            >
+              <span>일정을 불러오지 못했습니다.</span>
+              <button
+                type="button"
+                onClick={() => loadDayPlans(selectedDate)}
+                className="shrink-0 rounded-md border border-error/50 px-2 py-1 text-xs font-medium hover:bg-error/10"
+              >
+                다시 시도
+              </button>
+            </div>
+          ) : dayPlans.length === 0 ? (
             <p className="text-sm text-muted-foreground">일정이 없습니다.</p>
           ) : (
             <div className="space-y-2">
@@ -239,16 +260,19 @@ export default function SchedulePage() {
                             variant="ghost"
                             onClick={() => handleComplete(plan.id)}
                             title="관측 완료"
+                            aria-label="관측 완료"
                           >
-                            <Check className="h-4 w-4 text-success" />
+                            <Check className="h-4 w-4 text-success" aria-hidden="true" />
                           </Button>
                         )}
                         <Button
                           size="icon"
                           variant="ghost"
                           onClick={() => handleDelete(plan.id)}
+                          title="일정 삭제"
+                          aria-label="일정 삭제"
                         >
-                          <Trash2 className="h-4 w-4 text-error" />
+                          <Trash2 className="h-4 w-4 text-error" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>

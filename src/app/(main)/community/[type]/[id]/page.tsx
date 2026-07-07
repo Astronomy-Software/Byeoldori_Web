@@ -49,15 +49,23 @@ export default function PostDetailPage() {
   const [comments, setComments] = useState<CommentResponse[]>([]);
   const [newComment, setNewComment] = useState("");
   const [replyTo, setReplyTo] = useState<number | null>(null);
+  const [postError, setPostError] = useState<string | null>(null);
+  const [commentsError, setCommentsError] = useState<string | null>(null);
 
   useEffect(() => {
+    setPostError(null);
+    setCommentsError(null);
+
     getPostDetail(postId)
       .then(setPost)
-      .catch(() => toast.error("게시글을 불러오지 못했습니다."));
+      .catch(() => {
+        setPostError("게시글을 불러오지 못했습니다.");
+        toast.error("게시글을 불러오지 못했습니다.");
+      });
 
     getComments(postId)
       .then((r) => setComments(r.content))
-      .catch(() => {});
+      .catch(() => setCommentsError("댓글을 불러오지 못했습니다."));
   }, [postId]);
 
   async function handleLike() {
@@ -77,7 +85,9 @@ export default function PostDetailPage() {
         content: newComment,
         parentId: replyTo ?? undefined,
       });
-      setComments((prev) => [...prev, res]);
+      setComments((prev) =>
+        replyTo ? insertReply(prev, replyTo, res) : [...prev, res],
+      );
       setNewComment("");
       setReplyTo(null);
       if (post) setPost({ ...post, commentCount: post.commentCount + 1 });
@@ -100,7 +110,7 @@ export default function PostDetailPage() {
   async function handleDeleteComment(commentId: number) {
     try {
       await deleteComment(postId, commentId);
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      setComments((prev) => removeInTree(prev, commentId));
       if (post) setPost({ ...post, commentCount: post.commentCount - 1 });
     } catch {
       toast.error("댓글 삭제에 실패했습니다.");
@@ -111,7 +121,10 @@ export default function PostDetailPage() {
     try {
       const res = await updateComment(postId, commentId, { content });
       setComments((prev) =>
-        prev.map((c) => (c.id === commentId ? { ...c, content: res.content } : c)),
+        updateCommentTree(prev, commentId, (c) => ({
+          ...c,
+          content: res.content,
+        })),
       );
     } catch {
       toast.error("댓글 수정에 실패했습니다.");
@@ -122,15 +135,29 @@ export default function PostDetailPage() {
     try {
       const res = await toggleCommentLike(postId, commentId);
       setComments((prev) =>
-        prev.map((c) =>
-          c.id === commentId
-            ? { ...c, liked: res.liked, likeCount: res.likeCount }
-            : c,
-        ),
+        updateCommentTree(prev, commentId, (c) => ({
+          ...c,
+          liked: res.liked,
+          likeCount: res.likeCount,
+        })),
       );
     } catch {
       toast.error("좋아요 처리에 실패했습니다.");
     }
+  }
+
+  if (postError && !post) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+        <p>{postError}</p>
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-1 hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" /> 돌아가기
+        </button>
+      </div>
+    );
   }
 
   if (!post) {
@@ -141,7 +168,7 @@ export default function PostDetailPage() {
     );
   }
 
-  const isAuthor = user?.nickname === post.authorNickname;
+  const isAuthor = user?.id === post.authorId;
 
   return (
     <div className="mx-auto max-w-3xl p-4">
@@ -356,12 +383,15 @@ export default function PostDetailPage() {
         )}
 
         {/* 댓글 목록 */}
+        {commentsError && (
+          <p className="text-xs text-error">{commentsError}</p>
+        )}
         <div className="space-y-3">
           {comments.map((comment) => (
             <CommentItem
               key={comment.id}
               comment={comment}
-              currentUser={user?.nickname ?? undefined}
+              currentUserId={user?.id}
               onReply={(id) => setReplyTo(id)}
               onDelete={handleDeleteComment}
               onEdit={handleCommentEdit}
@@ -376,7 +406,7 @@ export default function PostDetailPage() {
 
 function CommentItem({
   comment,
-  currentUser,
+  currentUserId,
   onReply,
   onDelete,
   onEdit,
@@ -384,7 +414,7 @@ function CommentItem({
   depth = 0,
 }: {
   comment: CommentResponse;
-  currentUser?: string;
+  currentUserId?: number;
   onReply: (id: number) => void;
   onDelete: (id: number) => void;
   onEdit: (id: number, content: string) => Promise<void>;
@@ -394,7 +424,8 @@ function CommentItem({
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
   const [isSaving, setIsSaving] = useState(false);
-  const isAuthor = currentUser === comment.authorNickname;
+  const isAuthor =
+    currentUserId !== undefined && currentUserId === comment.authorId;
 
   async function handleSaveEdit() {
     if (!editContent.trim()) return;
@@ -494,7 +525,7 @@ function CommentItem({
         <CommentItem
           key={child.id}
           comment={child}
-          currentUser={currentUser}
+          currentUserId={currentUserId}
           onReply={onReply}
           onDelete={onDelete}
           onEdit={onEdit}
@@ -504,4 +535,50 @@ function CommentItem({
       ))}
     </div>
   );
+}
+
+// 댓글 트리(대댓글 포함)를 재귀적으로 순회하며 특정 댓글만 갱신
+function updateCommentTree(
+  comments: CommentResponse[],
+  id: number,
+  updater: (c: CommentResponse) => CommentResponse,
+): CommentResponse[] {
+  return comments.map((c) => {
+    if (c.id === id) return updater(c);
+    if (c.children?.length) {
+      return { ...c, children: updateCommentTree(c.children, id, updater) };
+    }
+    return c;
+  });
+}
+
+// 댓글 트리에서 특정 댓글(및 그 하위)을 재귀적으로 제거
+function removeInTree(
+  comments: CommentResponse[],
+  id: number,
+): CommentResponse[] {
+  return comments
+    .filter((c) => c.id !== id)
+    .map((c) =>
+      c.children?.length
+        ? { ...c, children: removeInTree(c.children, id) }
+        : c,
+    );
+}
+
+// 대댓글을 부모 댓글의 children에 재귀적으로 삽입
+function insertReply(
+  comments: CommentResponse[],
+  parentId: number,
+  reply: CommentResponse,
+): CommentResponse[] {
+  return comments.map((c) => {
+    if (c.id === parentId) {
+      return { ...c, children: [...(c.children ?? []), reply] };
+    }
+    if (c.children?.length) {
+      return { ...c, children: insertReply(c.children, parentId, reply) };
+    }
+    return c;
+  });
 }

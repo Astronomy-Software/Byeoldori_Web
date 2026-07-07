@@ -36,6 +36,9 @@ export default function SignUpPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  const passwordMismatch =
+    form.passwordConfirm.length > 0 && form.password !== form.passwordConfirm;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -84,6 +87,7 @@ export default function SignUpPage() {
             <Label htmlFor="name">이름</Label>
             <Input
               id="name"
+              autoComplete="name"
               value={form.name}
               onChange={(e) => updateField("name", e.target.value)}
               required
@@ -94,6 +98,7 @@ export default function SignUpPage() {
             <Input
               id="phone"
               type="tel"
+              autoComplete="tel"
               value={form.phone}
               onChange={(e) => updateField("phone", e.target.value)}
               placeholder="01012345678"
@@ -104,6 +109,7 @@ export default function SignUpPage() {
             <Label htmlFor="nickname">닉네임 (선택)</Label>
             <Input
               id="nickname"
+              autoComplete="nickname"
               value={form.nickname}
               onChange={(e) => updateField("nickname", e.target.value)}
             />
@@ -113,6 +119,7 @@ export default function SignUpPage() {
             <Input
               id="email"
               type="email"
+              autoComplete="email"
               value={form.email}
               onChange={(e) => updateField("email", e.target.value)}
               required
@@ -123,6 +130,7 @@ export default function SignUpPage() {
             <Input
               id="password"
               type="password"
+              autoComplete="new-password"
               value={form.password}
               onChange={(e) => updateField("password", e.target.value)}
               required
@@ -133,23 +141,33 @@ export default function SignUpPage() {
             <Input
               id="passwordConfirm"
               type="password"
+              autoComplete="new-password"
+              aria-invalid={passwordMismatch}
               value={form.passwordConfirm}
               onChange={(e) => updateField("passwordConfirm", e.target.value)}
               required
             />
+            {passwordMismatch && (
+              <p className="text-sm text-error" role="alert">
+                비밀번호가 일치하지 않습니다.
+              </p>
+            )}
           </div>
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-sm">
               <input
+                id="consentTerms"
                 type="checkbox"
                 checked={form.consentTerms}
                 onChange={(e) => updateField("consentTerms", e.target.checked)}
                 className="accent-purple-500"
               />
-              <Link href="/terms" target="_blank" className="underline hover:text-purple-400">이용약관</Link>에 동의합니다 (필수)
-            </label>
-            <label className="flex items-center gap-2 text-sm">
+              <Link href="/terms" target="_blank" className="underline hover:text-purple-400">이용약관</Link>
+              <label htmlFor="consentTerms">에 동의합니다 (필수)</label>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
               <input
+                id="consentPrivacy"
                 type="checkbox"
                 checked={form.consentPrivacy}
                 onChange={(e) =>
@@ -157,10 +175,15 @@ export default function SignUpPage() {
                 }
                 className="accent-purple-500"
               />
-              <Link href="/privacy" target="_blank" className="underline hover:text-purple-400">개인정보처리방침</Link>에 동의합니다 (필수)
-            </label>
+              <Link href="/privacy" target="_blank" className="underline hover:text-purple-400">개인정보처리방침</Link>
+              <label htmlFor="consentPrivacy">에 동의합니다 (필수)</label>
+            </div>
           </div>
-          {error && <p className="text-sm text-error">{error}</p>}
+          {error && (
+            <p className="text-sm text-error" role="alert" aria-live="assertive">
+              {error}
+            </p>
+          )}
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
           <Button

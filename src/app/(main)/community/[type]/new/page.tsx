@@ -195,6 +195,7 @@ export default function NewPostPage() {
                 <button
                   type="button"
                   onClick={() => removeImage(i)}
+                  aria-label="이미지 삭제"
                   className="absolute -right-1 -top-1 rounded-full bg-error p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
                 >
                   <X className="h-3 w-3" />

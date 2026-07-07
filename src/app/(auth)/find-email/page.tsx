@@ -47,6 +47,7 @@ export default function FindEmailPage() {
             <Label htmlFor="name">이름</Label>
             <Input
               id="name"
+              autoComplete="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="가입 시 입력한 이름"
@@ -58,6 +59,7 @@ export default function FindEmailPage() {
             <Input
               id="phone"
               type="tel"
+              autoComplete="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="01012345678"

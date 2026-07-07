@@ -13,10 +13,37 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://byeoldori-web.vercel.app";
+
 export const metadata: Metadata = {
-  title: "별도리 - 천체 관측 교육 플랫폼",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "별도리 - 천체 관측 교육 플랫폼",
+    template: "%s | 별도리",
+  },
   description:
     "천체 관측 초보자를 위한 교육 플랫폼. 별지도, 관측지 추천, 커뮤니티를 제공합니다.",
+  openGraph: {
+    type: "website",
+    siteName: "별도리",
+    title: "별도리 - 천체 관측 교육 플랫폼",
+    description:
+      "천체 관측 초보자를 위한 교육 플랫폼. 별지도, 관측지 추천, 커뮤니티를 제공합니다.",
+    url: siteUrl,
+    locale: "ko_KR",
+    images: [
+      {
+        url: "/byeoldori.png",
+        width: 1200,
+        height: 630,
+        alt: "별도리",
+      },
+    ],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
   verification: {
     google: "Ym-2QxytT69t-FAy10lptmLTYqScPCKQINN9o1f0oUE",
   },

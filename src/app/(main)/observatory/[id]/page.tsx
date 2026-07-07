@@ -131,7 +131,7 @@ export default function ObservatoryDetailPage() {
           .then((r) => setReviews(r.content.filter((p) => p.observationSiteId === id)))
           .catch(() => {});
 
-        const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
+        const clientId = (process.env.NEXT_PUBLIC_NAVER_CLIENT_ID ?? "").trim();
         if (!clientId) return;
         const existing = document.getElementById("naver-map-script");
         if (existing && window.naver?.maps?.Service) {

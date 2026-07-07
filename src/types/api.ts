@@ -188,6 +188,7 @@ export interface CreatedPostId {
 export interface CommentResponse {
   id: number;
   content: string;
+  authorId: number;
   authorNickname: string;
   authorProfileImageUrl: string | null;
   createdAt: string;

@@ -135,7 +135,9 @@ export default function ObservatoryPage() {
   const markerToSiteRef = useRef<Map<NaverMarker, ObservationSite>>(new Map());
 
   useEffect(() => {
-    getAllSites().then((page) => setSites(page.content)).catch(() => {});
+    getAllSites()
+      .then((page) => setSites(page.content))
+      .catch((err) => console.error("[observation-sites/getAllSites] 실패:", err));
   }, []);
 
   // 현재 위치 블루닷
@@ -169,7 +171,7 @@ export default function ObservatoryPage() {
   }, []);
 
   useEffect(() => {
-    const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
+    const clientId = (process.env.NEXT_PUBLIC_NAVER_CLIENT_ID ?? "").trim();
     if (!clientId) return;
 
     function initMap() {
@@ -334,9 +336,10 @@ export default function ObservatoryPage() {
           <button
             onClick={handleSearch}
             disabled={isSearching}
+            aria-label="관측지 검색"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-input bg-background/90 backdrop-blur transition-colors hover:bg-background"
           >
-            <Search className="h-4 w-4" />
+            <Search className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -348,7 +351,7 @@ export default function ObservatoryPage() {
                 onClick={() => goToDetail(site)}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-card"
               >
-                <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-400" />
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-400" aria-hidden="true" />
                 <span className="text-foreground">{site.name}</span>
               </button>
             ))}
@@ -366,10 +369,11 @@ export default function ObservatoryPage() {
         <button
           onClick={goToMyLocation}
           disabled={locating}
+          aria-label="내 위치로 이동"
           className="flex h-10 w-10 items-center justify-center rounded-full bg-background/90 shadow-lg backdrop-blur transition-colors hover:bg-background disabled:opacity-60"
           title="내 위치로 이동"
         >
-          <LocateFixed className={`h-4 w-4 ${locating ? "animate-pulse text-purple-400" : ""}`} />
+          <LocateFixed className={`h-4 w-4 ${locating ? "animate-pulse text-purple-400" : ""}`} aria-hidden="true" />
         </button>
 
         <button
@@ -380,7 +384,7 @@ export default function ObservatoryPage() {
               : "bg-background/90 text-foreground hover:bg-background"
           }`}
         >
-          <Lamp className="h-4 w-4" />
+          <Lamp className="h-4 w-4" aria-hidden="true" />
           광공해 {lpOn ? "ON" : "OFF"}
         </button>
       </div>
@@ -394,9 +398,10 @@ export default function ObservatoryPage() {
             </span>
             <button
               onClick={() => setClusterSites(null)}
+              aria-label="닫기"
               className="rounded-full p-1 transition-colors hover:bg-card"
             >
-              <X className="h-4 w-4 text-muted-foreground" />
+              <X className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             </button>
           </div>
           <div className="max-h-56 overflow-y-auto pb-4">
@@ -406,7 +411,7 @@ export default function ObservatoryPage() {
                 onClick={() => goToDetail(site)}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-card"
               >
-                <MapPin className="h-4 w-4 shrink-0 text-purple-400" />
+                <MapPin className="h-4 w-4 shrink-0 text-purple-400" aria-hidden="true" />
                 <span className="text-sm text-foreground">{site.name}</span>
                 {site.averageScore != null && (
                   <span className="ml-auto text-xs text-yellow-400">★ {site.averageScore.toFixed(1)}</span>

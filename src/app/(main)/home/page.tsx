@@ -29,6 +29,8 @@ export default function HomePage() {
     null,
   );
 
+  const [postsError, setPostsError] = useState(false);
+
   // 위치 가져오기
   useEffect(() => {
     if (navigator.geolocation) {
@@ -48,11 +50,18 @@ export default function HomePage() {
   }, [year, month]);
 
   // 홈 전용 API (docs: /community/home/*)
-  useEffect(() => {
-    getHomeReviews().then(setReviews).catch(() => {});
-    getHomeEducations().then(setEduPosts).catch(() => {});
-    getHomeFreePosts().then(setFreePosts).catch(() => {});
+  const loadHomePosts = useCallback(() => {
+    setPostsError(false);
+    Promise.all([
+      getHomeReviews().then(setReviews),
+      getHomeEducations().then(setEduPosts),
+      getHomeFreePosts().then(setFreePosts),
+    ]).catch(() => setPostsError(true));
   }, []);
+
+  useEffect(() => {
+    loadHomePosts();
+  }, [loadHomePosts]);
 
   const calendarBadges = monthSummary.reduce(
     (acc, item) => {
@@ -106,6 +115,22 @@ export default function HomePage() {
         <section>
           <WeatherSection lat={location.lat} lon={location.lon} />
         </section>
+      )}
+
+      {postsError && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-lg border border-error/50 bg-error/10 p-3 text-sm text-error"
+        >
+          <span>게시글을 불러오지 못했습니다.</span>
+          <button
+            type="button"
+            onClick={loadHomePosts}
+            className="shrink-0 rounded-md border border-error/50 px-2 py-1 text-xs font-medium hover:bg-error/10"
+          >
+            다시 시도
+          </button>
+        </div>
       )}
 
       {/* 최근 리뷰 */}
@@ -168,6 +193,10 @@ function CardPostSection({
               <img
                 src={post.thumbnailUrl ?? "/byeoldori.png"}
                 alt={post.title}
+                width={300}
+                height={300}
+                loading="lazy"
+                decoding="async"
                 className="aspect-square w-full object-cover"
               />
               <div className="p-2">
