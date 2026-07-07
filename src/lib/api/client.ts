@@ -113,17 +113,23 @@ export async function apiFetch<T>(
     throw new ApiError(res.status, `Invalid JSON response: ${rawBody}`);
   }
 
-  // 서버 공통 래퍼 { success, message, data } 자동 unwrap
-  // 모든 엔드포인트가 이 구조를 쓰므로 caller는 항상 실제 데이터 타입 T를 받는다
-  if (
-    json !== null &&
-    typeof json === "object" &&
-    "success" in json &&
-    "data" in json
-  ) {
-    return json.data as T;
+  // 서버 공통 봉투 { success, message, data, code } 자동 unwrap
+  // 모든 REST 엔드포인트가 이 구조로 통일됐으므로 caller는 항상 실제 데이터 타입 T(res.data)를 받는다.
+  if (json !== null && typeof json === "object" && "success" in json) {
+    const envelope = json as {
+      success: boolean;
+      message?: string;
+      data?: unknown;
+      code?: string | null;
+    };
+    // 성공 판별은 HTTP 상태 + success:true. 2xx인데 success:false 인 비정상 응답도 에러로 throw.
+    if (envelope.success === false) {
+      throw new ApiError(res.status, envelope.message ?? "Request failed");
+    }
+    return envelope.data as T;
   }
 
+  // 봉투로 감싸지 않는 예외 응답(예: /auth/verify-email 평문 문자열)은 그대로 반환
   return json as T;
 }
 

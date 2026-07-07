@@ -143,7 +143,7 @@ export async function toggleLike(
 // 댓글
 export async function getComments(
   postId: number,
-  page = 1,
+  page = 0,
   size = 15,
 ): Promise<CommentsPageResponse> {
   return apiFetch<CommentsPageResponse>(

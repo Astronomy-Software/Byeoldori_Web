@@ -70,7 +70,7 @@ export default function NewPostPage() {
           rating,
           imageUrls,
         });
-        postId = res.postId;
+        postId = res.id;
       } else if (type === "program") {
         const res = await createEducationPost({
           title,
@@ -79,10 +79,10 @@ export default function NewPostPage() {
           difficulty,
           imageUrls,
         });
-        postId = res.postId;
+        postId = res.id;
       } else {
         const res = await createFreePost({ title, content, imageUrls });
-        postId = res.postId;
+        postId = res.id;
       }
       toast.success("게시글이 작성되었습니다.");
       router.replace(`/community/${type}/${postId}`);

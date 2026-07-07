@@ -1,12 +1,23 @@
-// 서버 공통 응답 래퍼 — 모든 엔드포인트가 { success, message, data } 구조
+// 서버 공통 응답 래퍼 — 모든 REST 엔드포인트가 { success, message, data, code } 구조.
+// apiFetch가 data를 자동 unwrap 하므로 caller는 보통 이 타입을 직접 다루지 않는다.
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
   data: T;
+  code?: string | null;
 }
 
 // 레거시 별칭 (기존 코드 호환용)
 export type BaseResponse<T> = ApiResponse<T>;
+
+// 서버 공통 페이지네이션 응답 (요청/응답 모두 0-based)
+export interface PageResponse<T> {
+  content: T[];
+  page: number; // 0-based 현재 페이지
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
 
 // Auth
 export interface LoginRequest {
@@ -111,12 +122,8 @@ export interface PostSummary {
 export type ReviewPostSummary = PostSummary;
 export type EducationPostSummary = PostSummary;
 
-export interface PostResponse {
-  content: PostSummary[];
-  totalPages: number;
-  totalElements: number;
-  number: number;
-}
+// GET /community/{type}/posts → data: PageResponse<PostSummaryResponse> (0-based)
+export type PostResponse = PageResponse<PostSummary>;
 
 export type ReviewPostResponse = PostResponse;
 export type EducationPostResponse = PostResponse;
@@ -180,8 +187,9 @@ export interface CreateEducationRequest {
   imageUrls: string[];
 }
 
+// POST /community/{type}/posts → data: { id: <Long> }
 export interface CreatedPostId {
-  postId: number;
+  id: number;
 }
 
 // Comments
@@ -198,12 +206,8 @@ export interface CommentResponse {
   children: CommentResponse[];
 }
 
-export interface CommentsPageResponse {
-  content: CommentResponse[];
-  totalPages: number;
-  totalElements: number;
-  number: number;
-}
+// GET /community/posts/{postId}/comments → data: PageResponse<CommentResponse> (0-based)
+export type CommentsPageResponse = PageResponse<CommentResponse>;
 
 export interface CreateCommentRequest {
   content: string;
@@ -290,11 +294,8 @@ export interface ObservationSiteDetail {
   averageScore: number;
 }
 
-export interface ObservationSitePage {
-  content: ObservationSite[];
-  totalPages: number;
-  totalElements: number;
-}
+// GET /observationsites → data: PageResponse<ObservationSiteResponseDto> (0-based)
+export type ObservationSitePage = PageResponse<ObservationSite>;
 
 // ObservationSiteDto (ADMIN 전용 등록/수정 바디)
 export interface ObservationSiteRegisterRequest {
@@ -318,6 +319,18 @@ export interface SavedSiteResponse {
   longitude: number;
   isCustom: boolean;
 }
+
+// Notifications — GET /notifications → data: PageResponse<NotificationResponse> (0-based)
+export interface NotificationResponse {
+  id: number;
+  type: string;
+  title: string;
+  body: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export type NotificationsPageResponse = PageResponse<NotificationResponse>;
 
 // Calendar / Plan — EventResponse
 export interface PhotoResponse {
