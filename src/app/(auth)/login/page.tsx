@@ -40,10 +40,13 @@ function LoginForm() {
     const naverClientId = encodeURIComponent(
       (process.env.NEXT_PUBLIC_NAVER_OAUTH_CLIENT_ID ?? "").trim(),
     );
+    const state = crypto.randomUUID();
+    sessionStorage.setItem("oauth_state_" + provider, state);
+    const stateParam = encodeURIComponent(state);
     const urls: Record<string, string> = {
-      google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email%20profile`,
-      kakao: `https://kauth.kakao.com/oauth/authorize?client_id=${kakaoClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`,
-      naver: `https://nid.naver.com/oauth2.0/authorize?client_id=${naverClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${crypto.randomUUID()}`,
+      google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email%20profile&state=${stateParam}`,
+      kakao: `https://kauth.kakao.com/oauth/authorize?client_id=${kakaoClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${stateParam}`,
+      naver: `https://nid.naver.com/oauth2.0/authorize?client_id=${naverClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${stateParam}`,
     };
     window.location.href = urls[provider];
   }

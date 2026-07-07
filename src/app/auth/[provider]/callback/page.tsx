@@ -19,6 +19,14 @@ function OAuthCallbackInner() {
       return;
     }
 
+    const returnedState = searchParams.get("state");
+    const storedState = sessionStorage.getItem("oauth_state_" + params.provider);
+    if (!returnedState || !storedState || returnedState !== storedState) {
+      router.replace("/login?error=social_failed");
+      return;
+    }
+    sessionStorage.removeItem("oauth_state_" + params.provider);
+
     const redirectUri = `${window.location.origin}/auth/${params.provider}/callback`;
     const apiFn =
       params.provider === "google"
