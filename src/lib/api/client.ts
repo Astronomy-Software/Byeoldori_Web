@@ -1,4 +1,4 @@
-import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "@/lib/auth/token";
+import { getAccessToken, setAccessToken, clearTokens } from "@/lib/auth/token";
 
 // Next.js rewrites를 통해 프록시 (/api/* → 백엔드 서버)
 const API_BASE_URL = "/api";
@@ -7,14 +7,12 @@ let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
 async function refreshAccessToken(): Promise<boolean> {
-  const refreshToken = getRefreshToken()?.trim();
-  if (!refreshToken) return false;
-
   try {
+    // refresh 토큰은 httpOnly 쿠키(refreshToken)로 자동 전송되므로 body를 보내지 않는다.
+    // 쿠키가 없으면 백엔드가 401을 반환하고, 아래에서 false로 처리된다.
     const res = await fetch(`${API_BASE_URL}/auth/token`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
+      credentials: "include",
     });
 
     if (!res.ok) return false;
@@ -29,11 +27,11 @@ async function refreshAccessToken(): Promise<boolean> {
     // 서버 공통 래퍼 {success,message,data} 안에 토큰이 들어있다
     const tokens = (json as { data?: unknown })?.data ?? json;
     const accessToken = (tokens as { accessToken?: unknown })?.accessToken;
-    const newRefreshToken = (tokens as { refreshToken?: unknown })?.refreshToken;
-    if (typeof accessToken !== "string" || typeof newRefreshToken !== "string") {
+    // 새 refresh는 응답 쿠키로 재세팅되므로 body의 refreshToken은 무시하고 access만 저장한다.
+    if (typeof accessToken !== "string") {
       return false;
     }
-    setTokens(accessToken, newRefreshToken);
+    setAccessToken(accessToken);
     return true;
   } catch {
     return false;
@@ -55,7 +53,8 @@ export async function apiFetch<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  let res = await fetch(url, { ...options, headers });
+  // credentials:'include' → refreshToken 등 httpOnly 쿠키를 same-origin 프록시로 송수신
+  let res = await fetch(url, { ...options, headers, credentials: "include" });
 
   // 401 → 토큰 갱신 시도
   if (res.status === 401 && token) {
@@ -72,7 +71,7 @@ export async function apiFetch<T>(
     if (refreshed) {
       const newToken = getAccessToken()?.trim();
       headers.set("Authorization", `Bearer ${newToken}`);
-      res = await fetch(url, { ...options, headers });
+      res = await fetch(url, { ...options, headers, credentials: "include" });
     } else {
       clearTokens();
       throw new ApiError(401, "Session expired");

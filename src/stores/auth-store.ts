@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import {
   getAccessToken,
-  setTokens,
+  setAccessToken,
   clearTokens,
 } from "@/lib/auth/token";
 import { login as apiLogin } from "@/lib/api/auth";
@@ -38,7 +38,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   loginWithSocial: (tokens: AuthTokens) => {
-    setTokens(tokens.accessToken, tokens.refreshToken);
+    // refresh는 httpOnly 쿠키로 세팅되므로 body의 refreshToken은 무시하고 access만 저장한다.
+    setAccessToken(tokens.accessToken);
     set({ isSignedIn: true });
   },
 
@@ -46,7 +47,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const res = await apiLogin(req);
-      setTokens(res.accessToken, res.refreshToken);
+      // refresh는 httpOnly 쿠키로 세팅되므로 body의 refreshToken은 무시하고 access만 저장한다.
+      setAccessToken(res.accessToken);
       set({ isSignedIn: true, isLoading: false });
     } catch (e) {
       set({
