@@ -13,11 +13,11 @@ const csp = [
   "object-src 'none'",
   "form-action 'self'",
   "frame-ancestors 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://openapi.map.naver.com https://navermaps.github.io https://cubism.live2d.com",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://openapi.map.naver.com https://oapi.map.naver.com https://*.pstatic.net https://navermaps.github.io https://cubism.live2d.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://openapi.map.naver.com https://byeoldori.duckdns.org https://storage.googleapis.com https://navermaps.github.io",
+  "connect-src 'self' https://openapi.map.naver.com https://oapi.map.naver.com https://*.map.naver.com https://*.pstatic.net https://*.navercorp.com https://byeoldori.duckdns.org https://storage.googleapis.com https://navermaps.github.io",
   "frame-src 'self'",
   "worker-src 'self' blob:",
 ]
