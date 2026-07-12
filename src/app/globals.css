@@ -11,7 +11,40 @@
   --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
   --font-heading: var(--font-sans);
 
-  /* Byeoldori Purple palette */
+  /* ── Deep Field: 심우주 배경 스케일 ── */
+  --color-space-950: #070B1E;
+  --color-space-900: #0C1330;
+  --color-space-800: #141A3D;
+  --color-space-700: #1A2150;
+  --color-space-600: #232B63;
+
+  /* ── Starlight: 텍스트 뉴트럴 4단 ── */
+  --color-starlight-50: #F5F7FF;
+  --color-starlight-200: #CED3EC;
+  --color-starlight-300: #AEB4D6;
+  --color-starlight-500: #6B7299;
+  --color-starlight-700: #454B72;
+
+  /* ── Aurora: 민트 포인트 ── */
+  --color-aurora: #5EEAD4;
+  --color-aurora-soft: #34D3B7;
+
+  /* ── 시맨틱 토큰 (Figma Variables ↔ CSS 1:1) ── */
+  --color-bg-page: var(--bg-page);
+  --color-bg-section: var(--bg-section);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-glass: var(--surface-glass);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-on-primary: var(--text-on-primary);
+  --color-interactive-primary: var(--interactive-primary);
+  --color-interactive-link: var(--interactive-link);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+
+  /* Byeoldori Purple palette (인터랙티브 전용) */
   --color-purple-100: #E2D9F2;
   --color-purple-200: #CBB9E8;
   --color-purple-300: #B399DE;
@@ -77,39 +110,55 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Byeoldori: 우주 테마 (dark-first) */
+/* Byeoldori: Deep Field (심우주 다크우선) */
 :root {
-  --background: #0F163A;
-  --foreground: #FAFAFA;
-  --card: #1a1f4a;
-  --card-foreground: #FAFAFA;
-  --popover: #1a1f4a;
-  --popover-foreground: #FAFAFA;
+  /* Deep Field 시맨틱 원천값 */
+  --bg-page: #070B1E;
+  --bg-section: #0C1330;
+  --surface-1: #141A3D;
+  --surface-2: #1A2150;
+  --surface-glass: rgba(255, 255, 255, 0.06);
+  --text-primary: #F5F7FF;
+  --text-secondary: #AEB4D6;
+  --text-tertiary: #6B7299;
+  --text-on-primary: #FFFFFF;
+  --interactive-primary: #8459C9;
+  --interactive-link: #B399DE;
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* shadcn 매핑 → Deep Field로 재조정 (전 화면 리스킨) */
+  --background: #070B1E;
+  --foreground: #F5F7FF;
+  --card: #141A3D;
+  --card-foreground: #F5F7FF;
+  --popover: #1A2150;
+  --popover-foreground: #F5F7FF;
   --primary: #8459C9;
-  --primary-foreground: #FAFAFA;
-  --secondary: #241860;
-  --secondary-foreground: #E0E0E0;
-  --muted: #1a1f4a;
-  --muted-foreground: #B0B0B0;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1A2150;
+  --secondary-foreground: #CED3EC;
+  --muted: #141A3D;
+  --muted-foreground: #AEB4D6;
   --accent: #5A329B;
-  --accent-foreground: #FAFAFA;
+  --accent-foreground: #F5F7FF;
   --destructive: #FF6B6B;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.15);
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.12);
   --ring: #8459C9;
   --chart-1: #8459C9;
   --chart-2: #3851CD;
-  --chart-3: #6EFFA6;
+  --chart-3: #5EEAD4;
   --chart-4: #FFD76B;
   --chart-5: #FF6B6B;
-  --radius: 0.625rem;
-  --sidebar: #120A2A;
-  --sidebar-foreground: #FAFAFA;
+  --radius: 0.75rem;
+  --sidebar: #0C1330;
+  --sidebar-foreground: #F5F7FF;
   --sidebar-primary: #8459C9;
-  --sidebar-primary-foreground: #FAFAFA;
-  --sidebar-accent: #351E5B;
-  --sidebar-accent-foreground: #FAFAFA;
-  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1A2150;
+  --sidebar-accent-foreground: #F5F7FF;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
   --sidebar-ring: #8459C9;
 }
 
@@ -122,5 +171,52 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer utilities {
+  /* 유리 표면: 반투명 + 블러 + 미세 보더 */
+  .glass {
+    background-color: var(--surface-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-default);
+  }
+
+  /* 별빛 발광 (그림자 대신) */
+  .glow-primary {
+    box-shadow: 0 0 24px -4px color-mix(in srgb, var(--interactive-primary) 55%, transparent);
+  }
+  .glow-aurora {
+    box-shadow: 0 0 24px -4px color-mix(in srgb, var(--color-aurora) 55%, transparent);
+  }
+
+  /* 심우주 별필드 배경 (랜딩/인증/홈 히어로) */
+  .starfield {
+    background-color: var(--bg-page);
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, 0.6) 50%, transparent),
+      radial-gradient(1px 1px at 70% 60%, rgba(255, 255, 255, 0.45) 50%, transparent),
+      radial-gradient(1.5px 1.5px at 45% 15%, rgba(255, 255, 255, 0.5) 50%, transparent),
+      radial-gradient(1px 1px at 85% 25%, rgba(255, 255, 255, 0.4) 50%, transparent),
+      radial-gradient(1px 1px at 30% 80%, rgba(255, 255, 255, 0.5) 50%, transparent),
+      radial-gradient(1.5px 1.5px at 60% 90%, rgba(255, 255, 255, 0.35) 50%, transparent),
+      radial-gradient(1px 1px at 10% 55%, rgba(255, 255, 255, 0.4) 50%, transparent),
+      radial-gradient(1px 1px at 90% 75%, rgba(255, 255, 255, 0.45) 50%, transparent);
+    background-repeat: no-repeat;
+  }
+
+  /* 별 반짝임 애니메이션 (reduced-motion 대응) */
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.85; }
+    50% { opacity: 0.35; }
+  }
+  .twinkle {
+    animation: twinkle 3.2s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .twinkle {
+      animation: none;
+    }
   }
 }

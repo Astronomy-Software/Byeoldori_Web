@@ -22,7 +22,13 @@ function loadCubism4Core(): Promise<void> {
   });
 }
 
-export function Live2DCharacter() {
+export function Live2DCharacter({
+  className,
+  scale = 0.9,
+}: {
+  className?: string;
+  scale?: number;
+} = {}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -66,8 +72,8 @@ export function Live2DCharacter() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         app.stage.addChild(model as any);
 
-        const scale = canvas.offsetHeight / model.height;
-        model.scale.set(scale * 0.9);
+        const fitScale = canvas.offsetHeight / model.height;
+        model.scale.set(fitScale * scale);
         model.anchor.set(0.5, 1);
         model.position.set(canvas.offsetWidth / 2, canvas.offsetHeight);
 
@@ -96,7 +102,10 @@ export function Live2DCharacter() {
   return (
     <canvas
       ref={canvasRef}
-      className="pointer-events-none fixed bottom-16 right-0 z-40 h-64 w-48 md:bottom-0 md:h-80 md:w-64"
+      className={
+        className ??
+        "pointer-events-none fixed bottom-16 right-0 z-40 h-64 w-48 md:bottom-0 md:h-80 md:w-64"
+      }
     />
   );
 }

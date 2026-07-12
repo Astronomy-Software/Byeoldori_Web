@@ -13,7 +13,7 @@ import {
 } from "@/lib/api/community";
 import { uploadImage } from "@/lib/api/files";
 import { toast } from "sonner";
-import { ArrowLeft, Upload, X } from "lucide-react";
+import { ArrowLeft, Upload, X, Star } from "lucide-react";
 
 export default function NewPostPage() {
   const params = useParams<{ type: string }>();
@@ -94,51 +94,60 @@ export default function NewPostPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-4">
+    <div className="mx-auto min-h-screen max-w-3xl bg-bg-page p-4 md:p-6">
       <button
         onClick={() => router.back()}
-        className="mb-4 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="mb-5 flex items-center gap-1 text-sm text-text-tertiary transition-colors hover:text-text-primary"
       >
         <ArrowLeft className="h-4 w-4" /> 돌아가기
       </button>
 
-      <h1 className="mb-4 text-xl font-bold text-foreground">
+      <h1 className="mb-5 text-2xl font-bold tracking-tight text-text-primary">
         {typeLabel} 글쓰기
       </h1>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="glass space-y-5 rounded-2xl p-5 md:p-6">
         <div className="space-y-2">
-          <Label htmlFor="title">제목</Label>
+          <Label htmlFor="title" className="text-text-secondary">제목</Label>
           <Input
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
+            className="border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
           />
         </div>
 
         {type === "review" && (
           <>
             <div className="space-y-2">
-              <Label htmlFor="siteName">관측지 이름</Label>
+              <Label htmlFor="siteName" className="text-text-secondary">관측지 이름</Label>
               <Input
                 id="siteName"
                 value={siteName}
                 onChange={(e) => setSiteName(e.target.value)}
                 required
+                className="border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="rating">평점 (1~5)</Label>
-              <Input
-                id="rating"
-                type="number"
-                min={1}
-                max={5}
-                value={rating}
-                onChange={(e) => setRating(Number(e.target.value))}
-                required
-              />
+              <Label htmlFor="rating" className="text-text-secondary">평점 (1~5)</Label>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setRating(i + 1)}
+                    aria-label={`${i + 1}점`}
+                    className="transition-transform hover:scale-110"
+                  >
+                    <Star
+                      className={`h-7 w-7 ${i < rating ? "fill-aurora text-aurora" : "text-text-tertiary"}`}
+                    />
+                  </button>
+                ))}
+                <span className="ml-2 font-mono text-sm text-text-secondary">{rating}/5</span>
+              </div>
             </div>
           </>
         )}
@@ -146,21 +155,22 @@ export default function NewPostPage() {
         {type === "program" && (
           <>
             <div className="space-y-2">
-              <Label htmlFor="objectName">천체 이름</Label>
+              <Label htmlFor="objectName" className="text-text-secondary">천체 이름</Label>
               <Input
                 id="objectName"
                 value={objectName}
                 onChange={(e) => setObjectName(e.target.value)}
                 required
+                className="border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="difficulty">난이도</Label>
+              <Label htmlFor="difficulty" className="text-text-secondary">난이도</Label>
               <select
                 id="difficulty"
                 value={difficulty}
                 onChange={(e) => setDifficulty(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="w-full rounded-md border border-border-default bg-surface-1 px-3 py-2 text-sm text-text-primary"
               >
                 <option value="BEGINNER">초급</option>
                 <option value="INTERMEDIATE">중급</option>
@@ -171,26 +181,26 @@ export default function NewPostPage() {
         )}
 
         <div className="space-y-2">
-          <Label htmlFor="content">내용</Label>
+          <Label htmlFor="content" className="text-text-secondary">내용</Label>
           <Textarea
             id="content"
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="min-h-[200px]"
+            className="min-h-[200px] border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
             required
           />
         </div>
 
         {/* 이미지 업로드 */}
         <div className="space-y-2">
-          <Label>이미지</Label>
+          <Label className="text-text-secondary">이미지</Label>
           <div className="flex flex-wrap gap-2">
             {imageUrls.map((url, i) => (
               <div key={i} className="group relative h-20 w-20">
                 <img
                   src={url}
                   alt=""
-                  className="h-full w-full rounded-lg object-cover"
+                  className="h-full w-full rounded-lg border border-border-default object-cover"
                 />
                 <button
                   type="button"
@@ -202,8 +212,8 @@ export default function NewPostPage() {
                 </button>
               </div>
             ))}
-            <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-lg border border-dashed border-border hover:border-purple-500">
-              <Upload className="h-5 w-5 text-muted-foreground" />
+            <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-lg border border-dashed border-border-strong bg-surface-1 transition-colors hover:border-interactive-primary">
+              <Upload className="h-5 w-5 text-text-tertiary" />
               <input
                 type="file"
                 accept="image/*"
@@ -214,13 +224,13 @@ export default function NewPostPage() {
             </label>
           </div>
           {isUploading && (
-            <p className="text-xs text-muted-foreground">업로드 중...</p>
+            <p className="text-xs text-text-tertiary">업로드 중...</p>
           )}
         </div>
 
         <Button
           type="submit"
-          className="w-full bg-purple-600 hover:bg-purple-700"
+          className="glow-primary w-full bg-interactive-primary text-white hover:bg-interactive-primary/90"
           disabled={isSubmitting}
         >
           {isSubmitting ? "작성 중..." : "게시글 작성"}

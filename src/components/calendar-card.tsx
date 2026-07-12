@@ -43,12 +43,12 @@ export function CalendarCard({
       : null;
 
   return (
-    <div className="rounded-xl bg-purple-100/10 p-4">
+    <div className="rounded-2xl border border-border-default bg-surface-1 p-4">
       <div className="mb-4 flex items-center justify-between">
         <Button variant="ghost" size="icon" onClick={onPrev}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <span className="text-sm font-semibold text-foreground">
+        <span className="font-mono text-sm font-semibold text-text-primary">
           {year}년 {month}월
         </span>
         <Button variant="ghost" size="icon" onClick={onNext}>
@@ -58,7 +58,7 @@ export function CalendarCard({
 
       <div className="grid grid-cols-7 gap-1 text-center text-xs">
         {WEEKDAYS.map((d) => (
-          <div key={d} className="py-1 font-medium text-muted-foreground">
+          <div key={d} className="py-1 font-medium text-text-tertiary">
             {d}
           </div>
         ))}
@@ -74,15 +74,19 @@ export function CalendarCard({
             <button
               key={dateStr}
               onClick={() => onSelect(dateStr)}
-              className={`relative flex h-8 items-center justify-center rounded-md text-sm transition-colors
-                ${isSelected ? "bg-purple-500 text-white" : "hover:bg-purple-500/20"}
-                ${isToday && !isSelected ? "font-bold text-purple-400" : ""}
+              className={`relative flex h-9 items-center justify-center rounded-lg font-mono text-sm transition-colors
+                ${
+                  isSelected
+                    ? "bg-interactive-primary text-white glow-primary"
+                    : "text-text-secondary hover:bg-surface-2"
+                }
+                ${isToday && !isSelected ? "font-bold text-aurora" : ""}
               `}
             >
               {day}
               {badgeColor && (
                 <span
-                  className="absolute bottom-0.5 h-1.5 w-1.5 rounded-full"
+                  className="absolute bottom-1 h-1.5 w-1.5 rounded-full"
                   style={{ backgroundColor: badgeColor }}
                 />
               )}

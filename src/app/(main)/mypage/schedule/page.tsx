@@ -23,7 +23,7 @@ import {
 } from "@/lib/api/calendar";
 import type { PlanDetailDto, MonthDaySummaryDto } from "@/types/api";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Check, Trash2, MapPin } from "lucide-react";
+import { ArrowLeft, Plus, Check, Trash2, MapPin, Telescope } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function SchedulePage() {
@@ -139,155 +139,169 @@ export default function SchedulePage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-4">
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> 돌아가기
-      </button>
+    <div className="starfield min-h-screen">
+      <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-1 text-sm text-text-tertiary transition-colors hover:text-text-primary"
+        >
+          <ArrowLeft className="h-4 w-4" /> 돌아가기
+        </button>
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">관측 일정 관리</h1>
-        <Dialog open={showNewPlan} onOpenChange={setShowNewPlan}>
-          <DialogTrigger>
-            <span className="inline-flex items-center gap-1 rounded-md bg-purple-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-purple-700">
-              <Plus className="h-4 w-4" /> 새 일정
-            </span>
-          </DialogTrigger>
-          <DialogContent className="bg-card border-purple-700/30">
-            <DialogHeader>
-              <DialogTitle>새 관측 일정</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreatePlan} className="space-y-3">
-              <div>
-                <Label>제목</Label>
-                <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required />
-              </div>
-              <div>
-                <Label>메모</Label>
-                <Textarea value={newMemo} onChange={(e) => setNewMemo(e.target.value)} />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-text-primary">관측 일정 관리</h1>
+          <Dialog open={showNewPlan} onOpenChange={setShowNewPlan}>
+            <DialogTrigger>
+              <span className="glow-primary inline-flex items-center gap-1 rounded-xl bg-interactive-primary px-3 py-2 text-sm font-medium text-text-on-primary transition-opacity hover:opacity-90">
+                <Plus className="h-4 w-4" /> 새 일정
+              </span>
+            </DialogTrigger>
+            <DialogContent className="glass border-border-default">
+              <DialogHeader>
+                <DialogTitle className="text-text-primary">새 관측 일정</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleCreatePlan} className="space-y-3">
                 <div>
-                  <Label>시작</Label>
-                  <Input type="datetime-local" value={newStartAt} onChange={(e) => setNewStartAt(e.target.value)} required />
+                  <Label className="text-text-secondary">제목</Label>
+                  <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required className="border-border-default bg-surface-1 text-text-primary" />
                 </div>
                 <div>
-                  <Label>종료</Label>
-                  <Input type="datetime-local" value={newEndAt} onChange={(e) => setNewEndAt(e.target.value)} />
+                  <Label className="text-text-secondary">메모</Label>
+                  <Textarea value={newMemo} onChange={(e) => setNewMemo(e.target.value)} className="border-border-default bg-surface-1 text-text-primary" />
                 </div>
-              </div>
-              <div>
-                <Label>관측지</Label>
-                <Input value={newPlaceName} onChange={(e) => setNewPlaceName(e.target.value)} />
-              </div>
-              <div>
-                <Label>관측 대상</Label>
-                <Input value={newTarget} onChange={(e) => setNewTarget(e.target.value)} />
-              </div>
-              <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700">
-                일정 추가
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-text-secondary">시작</Label>
+                    <Input type="datetime-local" value={newStartAt} onChange={(e) => setNewStartAt(e.target.value)} required className="border-border-default bg-surface-1 font-mono text-text-primary" />
+                  </div>
+                  <div>
+                    <Label className="text-text-secondary">종료</Label>
+                    <Input type="datetime-local" value={newEndAt} onChange={(e) => setNewEndAt(e.target.value)} className="border-border-default bg-surface-1 font-mono text-text-primary" />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-text-secondary">관측지</Label>
+                  <Input value={newPlaceName} onChange={(e) => setNewPlaceName(e.target.value)} className="border-border-default bg-surface-1 text-text-primary" />
+                </div>
+                <div>
+                  <Label className="text-text-secondary">관측 대상</Label>
+                  <Input value={newTarget} onChange={(e) => setNewTarget(e.target.value)} className="border-border-default bg-surface-1 text-text-primary" />
+                </div>
+                <Button type="submit" className="glow-primary w-full bg-interactive-primary text-text-on-primary hover:opacity-90">
+                  일정 추가
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
 
-      <CalendarCard
-        year={year}
-        month={month}
-        selectedDate={selectedDate}
-        badges={calendarBadges}
-        onSelect={setSelectedDate}
-        onPrev={handlePrevMonth}
-        onNext={handleNextMonth}
-      />
+        <CalendarCard
+          year={year}
+          month={month}
+          selectedDate={selectedDate}
+          badges={calendarBadges}
+          onSelect={setSelectedDate}
+          onPrev={handlePrevMonth}
+          onNext={handleNextMonth}
+        />
 
-      {selectedDate && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold text-foreground">
-            {selectedDate} 일정
-          </h2>
-          {dayPlansError ? (
-            <div
-              role="alert"
-              className="flex items-center justify-between gap-3 rounded-lg border border-error/50 bg-error/10 p-3 text-sm text-error"
-            >
-              <span>일정을 불러오지 못했습니다.</span>
-              <button
-                type="button"
-                onClick={() => loadDayPlans(selectedDate)}
-                className="shrink-0 rounded-md border border-error/50 px-2 py-1 text-xs font-medium hover:bg-error/10"
+        {selectedDate && (
+          <section>
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
+              <span className="font-mono text-aurora">{selectedDate}</span> 일정
+            </h2>
+            {dayPlansError ? (
+              <div
+                role="alert"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-error/40 bg-error/10 p-3 text-sm text-error"
               >
-                다시 시도
-              </button>
-            </div>
-          ) : dayPlans.length === 0 ? (
-            <p className="text-sm text-muted-foreground">일정이 없습니다.</p>
-          ) : (
-            <div className="space-y-2">
-              {dayPlans.map((plan) => {
-                const isCompleted = plan.status === "COMPLETED";
-                return (
-                  <div
-                    key={plan.id}
-                    className="rounded-lg bg-card/50 p-3"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          {plan.title}
-                        </p>
-                        {plan.placeName && (
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            <MapPin className="mr-0.5 inline h-3 w-3" />
-                            {plan.placeName}
-                          </p>
-                        )}
-                        {plan.targets && plan.targets.length > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            관측 대상: {plan.targets.join(", ")}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex gap-1">
-                        {isCompleted ? (
-                          <Badge className="bg-success/20 text-success">완료</Badge>
-                        ) : (
+                <span>일정을 불러오지 못했습니다.</span>
+                <button
+                  type="button"
+                  onClick={() => loadDayPlans(selectedDate)}
+                  className="shrink-0 rounded-lg border border-error/50 px-2 py-1 text-xs font-medium hover:bg-error/10"
+                >
+                  다시 시도
+                </button>
+              </div>
+            ) : dayPlans.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-border-default bg-surface-1 px-6 py-12 text-center">
+                <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-2 text-interactive-link">
+                  <Telescope className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <p className="text-sm text-text-tertiary">이 날의 관측 일정이 없어요.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {dayPlans.map((plan) => {
+                  const isCompleted = plan.status === "COMPLETED";
+                  return (
+                    <div
+                      key={plan.id}
+                      className="rounded-2xl border border-border-default bg-surface-1 p-4 transition-colors hover:border-border-strong"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold text-text-primary">
+                              {plan.title}
+                            </p>
+                            {isCompleted ? (
+                              <Badge className="border-transparent bg-success/15 text-success">완료</Badge>
+                            ) : (
+                              <Badge className="border-transparent bg-warning/15 font-mono text-warning">예정</Badge>
+                            )}
+                          </div>
+                          {plan.placeName && (
+                            <p className="mt-1.5 flex items-center gap-1 text-xs text-text-tertiary">
+                              <MapPin className="h-3 w-3" aria-hidden="true" />
+                              {plan.placeName}
+                            </p>
+                          )}
+                          {plan.targets && plan.targets.length > 0 && (
+                            <p className="mt-0.5 text-xs text-text-secondary">
+                              관측 대상: {plan.targets.join(", ")}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 gap-1">
+                          {isCompleted ? null : (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-success hover:bg-success/10"
+                              onClick={() => handleComplete(plan.id)}
+                              title="관측 완료"
+                              aria-label="관측 완료"
+                            >
+                              <Check className="h-4 w-4" aria-hidden="true" />
+                            </Button>
+                          )}
                           <Button
                             size="icon"
                             variant="ghost"
-                            onClick={() => handleComplete(plan.id)}
-                            title="관측 완료"
-                            aria-label="관측 완료"
+                            className="text-error hover:bg-error/10"
+                            onClick={() => handleDelete(plan.id)}
+                            title="일정 삭제"
+                            aria-label="일정 삭제"
                           >
-                            <Check className="h-4 w-4 text-success" aria-hidden="true" />
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
                           </Button>
-                        )}
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleDelete(plan.id)}
-                          title="일정 삭제"
-                          aria-label="일정 삭제"
-                        >
-                          <Trash2 className="h-4 w-4 text-error" aria-hidden="true" />
-                        </Button>
+                        </div>
                       </div>
+                      {plan.memo && (
+                        <p className="mt-2 border-t border-border-default pt-2 text-xs text-text-tertiary">
+                          {plan.memo}
+                        </p>
+                      )}
                     </div>
-                    {plan.memo && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {plan.memo}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      )}
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
+      </div>
     </div>
   );
 }

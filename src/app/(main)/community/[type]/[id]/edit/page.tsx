@@ -57,47 +57,48 @@ export default function EditPostPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-purple-500 border-t-transparent" />
+      <div className="flex h-64 items-center justify-center bg-bg-page">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-interactive-primary border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-4">
+    <div className="mx-auto min-h-screen max-w-3xl bg-bg-page p-4 md:p-6">
       <button
         onClick={() => router.back()}
-        className="mb-4 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="mb-5 flex items-center gap-1 text-sm text-text-tertiary transition-colors hover:text-text-primary"
       >
         <ArrowLeft className="h-4 w-4" /> 돌아가기
       </button>
 
-      <h1 className="mb-6 text-xl font-bold text-foreground">
+      <h1 className="mb-6 text-2xl font-bold tracking-tight text-text-primary">
         {typeLabel} 수정
       </h1>
 
-      <div className="space-y-4">
+      <div className="glass space-y-5 rounded-2xl p-5 md:p-6">
         <div>
-          <label className="mb-1 block text-sm font-medium text-foreground">제목</label>
+          <label className="mb-1.5 block text-sm font-medium text-text-secondary">제목</label>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="제목을 입력하세요"
+            className="border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-foreground">내용</label>
+          <label className="mb-1.5 block text-sm font-medium text-text-secondary">내용</label>
           <Textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="내용을 입력하세요"
-            className="min-h-[300px]"
+            className="min-h-[300px] border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
           />
         </div>
         <Button
           onClick={handleSubmit}
           disabled={isSaving}
-          className="w-full bg-purple-600 hover:bg-purple-700"
+          className="glow-primary w-full bg-interactive-primary text-white hover:bg-interactive-primary/90"
         >
           {isSaving ? "저장 중..." : "저장"}
         </Button>
