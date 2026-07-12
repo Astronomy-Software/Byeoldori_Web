@@ -6,6 +6,10 @@ import { Live2DCharacter } from "@/components/live2d-character";
 
 function handleSocialLogin(provider: "google" | "kakao" | "naver") {
   const redirectUri = `${window.location.origin}/auth/${provider}/callback`;
+  // CSRF 방지: state 생성 후 sessionStorage 저장 → 콜백에서 검증(3 provider 공통)
+  const state = crypto.randomUUID();
+  sessionStorage.setItem("oauth_state_" + provider, state);
+  const s = encodeURIComponent(state);
   const googleClientId = encodeURIComponent(
     (process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "").trim(),
   );
@@ -16,9 +20,9 @@ function handleSocialLogin(provider: "google" | "kakao" | "naver") {
     (process.env.NEXT_PUBLIC_NAVER_OAUTH_CLIENT_ID ?? "").trim(),
   );
   const urls: Record<string, string> = {
-    google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email%20profile`,
-    kakao: `https://kauth.kakao.com/oauth/authorize?client_id=${kakaoClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`,
-    naver: `https://nid.naver.com/oauth2.0/authorize?client_id=${naverClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${crypto.randomUUID()}`,
+    google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email%20profile&state=${s}`,
+    kakao: `https://kauth.kakao.com/oauth/authorize?client_id=${kakaoClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${s}`,
+    naver: `https://nid.naver.com/oauth2.0/authorize?client_id=${naverClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${s}`,
   };
   window.location.href = urls[provider];
 }
