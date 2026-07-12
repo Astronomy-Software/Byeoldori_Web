@@ -1,45 +1,17 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useAuthStore } from "@/stores/auth-store";
-import { resign, changePassword } from "@/lib/api/user";
+import { resign } from "@/lib/api/user";
 import { toast } from "sonner";
 import { ArrowLeft, UserCircle, Info, ShieldAlert } from "lucide-react";
 
 export default function SettingsPage() {
   const router = useRouter();
   const { logout } = useAuthStore();
-
-  const [pwForm, setPwForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmNewPassword: "",
-  });
-  const [isPwLoading, setIsPwLoading] = useState(false);
-
-  async function handleChangePassword(e: React.FormEvent) {
-    e.preventDefault();
-    if (pwForm.newPassword !== pwForm.confirmNewPassword) {
-      toast.error("새 비밀번호가 일치하지 않습니다.");
-      return;
-    }
-    setIsPwLoading(true);
-    try {
-      await changePassword(pwForm);
-      toast.success("비밀번호가 변경되었습니다.");
-      setPwForm({ currentPassword: "", newPassword: "", confirmNewPassword: "" });
-    } catch {
-      toast.error("비밀번호 변경에 실패했습니다.");
-    } finally {
-      setIsPwLoading(false);
-    }
-  }
 
   async function handleResign() {
     if (

@@ -113,7 +113,7 @@ export default function HomePage() {
               관측 캘린더
             </h2>
             <Link
-              href="/calendar"
+              href="/mypage/schedule"
               className="text-xs text-interactive-link hover:text-aurora"
             >
               더보기 &rarr;

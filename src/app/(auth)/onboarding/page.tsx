@@ -86,7 +86,7 @@ export default function OnboardingPage() {
   const canProceedInterests = nickname.trim().length > 0;
 
   return (
-    <div className="starfield relative flex min-h-[36rem] w-full max-w-md flex-col items-center">
+    <div className="relative flex min-h-[36rem] w-full max-w-md flex-col items-center">
       {/* 건너뛰기 */}
       <button
         type="button"
