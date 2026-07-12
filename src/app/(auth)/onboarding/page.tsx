@@ -107,7 +107,10 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            <Live2DCharacter className="pointer-events-none mx-auto h-56 w-56" />
+            <Live2DCharacter
+              className="pointer-events-none mx-auto h-72 w-72"
+              scale={1.3}
+            />
 
             <Button
               type="button"
@@ -123,7 +126,10 @@ export default function OnboardingPage() {
         {step === 1 && (
           <div className="flex flex-col">
             <div className="mb-4 flex items-start gap-3">
-              <Live2DCharacter className="pointer-events-none h-20 w-20 shrink-0" />
+              <Live2DCharacter
+              className="pointer-events-none h-28 w-28 shrink-0"
+              scale={1.2}
+            />
               <div className="glass rounded-2xl border border-border-default px-4 py-3">
                 <p className="text-sm text-text-primary">어떤 하늘을 좋아하세요?</p>
               </div>
@@ -176,7 +182,10 @@ export default function OnboardingPage() {
         {step === 2 && (
           <div className="flex flex-col">
             <div className="mb-4 flex items-start gap-3">
-              <Live2DCharacter className="pointer-events-none h-20 w-20 shrink-0" />
+              <Live2DCharacter
+              className="pointer-events-none h-28 w-28 shrink-0"
+              scale={1.2}
+            />
               <div className="glass rounded-2xl border border-border-default px-4 py-3">
                 <p className="text-sm text-text-primary">어디서 주로 별을 보세요?</p>
               </div>
@@ -228,7 +237,10 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            <Live2DCharacter className="pointer-events-none mx-auto h-56 w-56" />
+            <Live2DCharacter
+              className="pointer-events-none mx-auto h-72 w-72"
+              scale={1.3}
+            />
 
             {/* 선택 요약 */}
             <div className="mt-6 w-full space-y-3 text-left">

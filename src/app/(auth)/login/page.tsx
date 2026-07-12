@@ -43,7 +43,10 @@ function LoginForm() {
           <br />
           함께 별 보러 가요
         </div>
-        <Live2DCharacter className="pointer-events-none mx-auto h-40 w-40" />
+        <Live2DCharacter
+          className="pointer-events-none mx-auto h-72 w-72"
+          scale={1.3}
+        />
       </div>
 
       {/* 로그인 카드 */}
