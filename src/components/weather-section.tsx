@@ -22,16 +22,21 @@ export function WeatherSection({ lat, lon }: WeatherSectionProps) {
 
   if (error) {
     return (
-      <div className="rounded-xl bg-purple-100/10 p-4 text-sm text-muted-foreground">
-        날씨 정보를 가져올 수 없습니다.
+      <div className="glass rounded-2xl p-5 flex items-center gap-2 text-sm text-text-tertiary">
+        <AlertCircle className="h-4 w-4 shrink-0" />
+        <span>날씨 정보를 가져올 수 없습니다.</span>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="rounded-xl bg-purple-100/10 p-4">
-        <div className="h-20 animate-pulse rounded bg-purple-500/10" />
+      <div className="glass rounded-2xl p-6">
+        <div className="h-8 w-40 animate-pulse rounded-lg bg-surface-2" />
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="h-20 animate-pulse rounded-xl bg-surface-2" />
+          <div className="h-20 animate-pulse rounded-xl bg-surface-2" />
+        </div>
       </div>
     );
   }
@@ -40,7 +45,7 @@ export function WeatherSection({ lat, lon }: WeatherSectionProps) {
   const hasNoData = data.sky === "정보없음" || data.temperature === null;
   if (hasNoData) {
     return (
-      <div className="rounded-xl bg-purple-100/10 p-4 flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="glass rounded-2xl p-5 flex items-center gap-2 text-sm text-text-tertiary">
         <AlertCircle className="h-4 w-4 shrink-0" />
         <span>현재 위치의 날씨 정보를 가져올 수 없습니다.</span>
       </div>
@@ -55,29 +60,56 @@ export function WeatherSection({ lat, lon }: WeatherSectionProps) {
         : "text-error";
 
   return (
-    <div className="rounded-xl bg-purple-100/10 p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">현재 날씨</h3>
-        <span className={`text-lg font-bold ${scoreColor}`}>
-          관측 적합도 {data.suitability}점
-        </span>
-      </div>
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div className="flex items-center gap-2">
-          <Thermometer className="h-4 w-4 text-purple-400" />
-          <span>온도: {data.temperature}°C</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Cloud className="h-4 w-4 text-blue-400" />
-          <span>{data.sky}</span>
-        </div>
-        {data.nextGoodTime && (
-          <div className="col-span-2 flex items-center gap-2">
-            <Star className="h-4 w-4 text-yellow-400" />
-            <span>다음 좋은 관측 시각: {data.nextGoodTime}</span>
+    <div className="glass glow-primary rounded-2xl p-6">
+      {/* 적합도 히어로 */}
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.18em] text-text-tertiary">
+            오늘 밤 관측 적합도
+          </p>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className={`font-mono text-5xl font-bold leading-none ${scoreColor}`}>
+              {data.suitability}
+            </span>
+            <span className="font-mono text-lg text-text-secondary">점</span>
+            <span className={`ml-1 text-sm font-medium ${scoreColor}`}>
+              · {data.suitability >= 70 ? "좋음" : data.suitability >= 40 ? "보통" : "나쁨"}
+            </span>
           </div>
-        )}
+        </div>
+        <div className="twinkle hidden h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface-2 text-aurora sm:flex">
+          <Star className="h-6 w-6" />
+        </div>
       </div>
+
+      {/* 계기판 */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-border-default bg-surface-1 p-3">
+          <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
+            <Thermometer className="h-3.5 w-3.5 text-interactive-link" /> 기온
+          </div>
+          <p className="mt-1.5 font-mono text-2xl text-text-primary">
+            {data.temperature}
+            <span className="ml-0.5 text-base text-text-secondary">°C</span>
+          </p>
+        </div>
+        <div className="rounded-xl border border-border-default bg-surface-1 p-3">
+          <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
+            <Cloud className="h-3.5 w-3.5 text-interactive-link" /> 하늘 상태
+          </div>
+          <p className="mt-1.5 text-2xl font-medium text-text-primary">{data.sky}</p>
+        </div>
+      </div>
+
+      {data.nextGoodTime && (
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-border-default bg-surface-1 p-3">
+          <Star className="h-4 w-4 shrink-0 text-aurora" />
+          <span className="text-sm text-text-secondary">다음 좋은 관측 시각</span>
+          <span className="ml-auto font-mono text-sm text-aurora">
+            {data.nextGoodTime}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

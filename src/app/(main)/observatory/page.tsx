@@ -320,68 +320,100 @@ export default function ObservatoryPage() {
   }
 
   return (
-    <div className="relative h-[calc(100dvh-4rem)] w-full overflow-hidden md:h-full">
+    <div className="relative h-[calc(100dvh-4rem)] w-full overflow-hidden bg-bg-page md:h-full">
       <div ref={mapRef} className="h-full w-full" />
 
+      {/* 데스크톱 좌측 glass 패널: 관측지 리스트 */}
+      <aside className="absolute left-0 top-0 z-20 hidden h-full w-80 flex-col border-r border-border-default glass md:flex">
+        <div className="border-b border-border-default px-5 pb-4 pt-6">
+          <h2 className="text-lg font-bold text-text-primary">관측지</h2>
+          <p className="mt-0.5 font-mono text-xs text-text-tertiary">{sites.length}곳</p>
+        </div>
+        <div className="flex-1 overflow-y-auto px-3 py-3">
+          {sites.map((site) => (
+            <button
+              key={site.id}
+              onClick={() => goToDetail(site)}
+              className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-surface-2"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-1 text-interactive-link">
+                <MapPin className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-text-primary">{site.name}</span>
+                <span className="block truncate font-mono text-[11px] text-text-tertiary">
+                  {site.latitude.toFixed(3)}, {site.longitude.toFixed(3)}
+                </span>
+              </span>
+              {site.averageScore != null && (
+                <span className="shrink-0 rounded-full bg-surface-1 px-2 py-1 font-mono text-xs text-warning">
+                  ★ {site.averageScore.toFixed(1)}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </aside>
+
       {/* 검색 바 */}
-      <div className="absolute left-4 right-4 top-4 z-10 mx-auto max-w-md">
+      <div className="absolute left-4 right-4 top-4 z-30 mx-auto max-w-md md:left-[21rem] md:right-auto md:mx-0 md:w-[22rem]">
         <div className="flex gap-2">
           <Input
             placeholder="관측지 검색..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="bg-background/90 backdrop-blur"
+            className="glass border-border-default text-text-primary placeholder:text-text-tertiary"
           />
           <button
             onClick={handleSearch}
             disabled={isSearching}
             aria-label="관측지 검색"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-input bg-background/90 backdrop-blur transition-colors hover:bg-background"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md glass text-text-secondary transition-colors hover:bg-surface-2"
           >
             <Search className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
         {searchResults && searchResults.length > 0 && (
-          <div className="mt-1 overflow-hidden rounded-lg bg-background/95 shadow-lg backdrop-blur">
+          <div className="mt-2 overflow-hidden rounded-2xl border border-border-default glass shadow-lg">
             {searchResults.map((site) => (
               <button
                 key={site.id}
                 onClick={() => goToDetail(site)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-card"
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors hover:bg-surface-2"
               >
-                <MapPin className="h-3.5 w-3.5 shrink-0 text-purple-400" aria-hidden="true" />
-                <span className="text-foreground">{site.name}</span>
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-interactive-link" aria-hidden="true" />
+                <span className="text-text-primary">{site.name}</span>
               </button>
             ))}
           </div>
         )}
         {searchResults && searchResults.length === 0 && (
-          <div className="mt-1 rounded-lg bg-background/95 px-3 py-2 text-sm text-muted-foreground backdrop-blur">
+          <div className="mt-2 rounded-2xl border border-border-default glass px-3 py-2.5 text-sm text-text-tertiary">
             검색 결과가 없습니다.
           </div>
         )}
       </div>
 
       {/* 우하단 버튼 그룹 */}
-      <div className="absolute bottom-6 right-4 z-10 flex flex-col gap-2">
+      <div className="absolute right-4 bottom-[calc(34vh+1rem)] z-40 flex flex-col gap-2 md:bottom-6">
         <button
           onClick={goToMyLocation}
           disabled={locating}
           aria-label="내 위치로 이동"
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-background/90 shadow-lg backdrop-blur transition-colors hover:bg-background disabled:opacity-60"
+          className="flex h-10 w-10 items-center justify-center rounded-full glass text-text-secondary shadow-lg transition-colors hover:bg-surface-2 disabled:opacity-60"
           title="내 위치로 이동"
         >
-          <LocateFixed className={`h-4 w-4 ${locating ? "animate-pulse text-purple-400" : ""}`} aria-hidden="true" />
+          <LocateFixed className={`h-4 w-4 ${locating ? "animate-pulse text-interactive-link" : ""}`} aria-hidden="true" />
         </button>
 
         <button
           onClick={toggleLightPollution}
-          className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium shadow-lg backdrop-blur transition-colors ${
+          className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium shadow-lg transition-colors ${
             lpOn
-              ? "bg-yellow-500/90 text-black"
-              : "bg-background/90 text-foreground hover:bg-background"
+              ? "bg-warning text-space-950"
+              : "glass text-text-secondary hover:bg-surface-2"
           }`}
         >
           <Lamp className="h-4 w-4" aria-hidden="true" />
@@ -389,32 +421,55 @@ export default function ObservatoryPage() {
         </button>
       </div>
 
+      {/* 모바일 하단 리스트 */}
+      <div className="absolute inset-x-0 bottom-0 z-20 md:hidden">
+        <div className="max-h-[34vh] overflow-y-auto rounded-t-2xl border-t border-border-default glass px-3 pb-4 pt-3">
+          <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-border-strong" />
+          <h2 className="px-2 pb-1 text-sm font-semibold text-text-primary">
+            관측지 <span className="font-mono text-xs text-text-tertiary">{sites.length}</span>
+          </h2>
+          {sites.map((site) => (
+            <button
+              key={site.id}
+              onClick={() => goToDetail(site)}
+              className="flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition-colors hover:bg-surface-2"
+            >
+              <MapPin className="h-4 w-4 shrink-0 text-interactive-link" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{site.name}</span>
+              {site.averageScore != null && (
+                <span className="shrink-0 font-mono text-xs text-warning">★ {site.averageScore.toFixed(1)}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* 클러스터 클릭 → 관측지 목록 바텀시트 */}
       {clusterSites && (
-        <div className="absolute bottom-0 left-0 right-0 z-30 rounded-t-2xl bg-background shadow-2xl">
-          <div className="sticky top-0 flex items-center justify-between rounded-t-2xl bg-background px-4 py-3">
-            <span className="font-semibold text-foreground">
-              이 지역 관측지 {clusterSites.length}곳
+        <div className="absolute bottom-0 left-0 right-0 z-40 rounded-t-2xl border-t border-border-default bg-surface-1 shadow-2xl">
+          <div className="sticky top-0 flex items-center justify-between rounded-t-2xl border-b border-border-default bg-surface-1 px-4 py-3">
+            <span className="font-semibold text-text-primary">
+              이 지역 관측지 <span className="font-mono text-text-secondary">{clusterSites.length}</span>곳
             </span>
             <button
               onClick={() => setClusterSites(null)}
               aria-label="닫기"
-              className="rounded-full p-1 transition-colors hover:bg-card"
+              className="rounded-full p-1 transition-colors hover:bg-surface-2"
             >
-              <X className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <X className="h-4 w-4 text-text-tertiary" aria-hidden="true" />
             </button>
           </div>
-          <div className="max-h-56 overflow-y-auto pb-4">
+          <div className="max-h-56 overflow-y-auto p-2 pb-4">
             {clusterSites.map((site) => (
               <button
                 key={site.id}
                 onClick={() => goToDetail(site)}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-card"
+                className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors hover:bg-surface-2"
               >
-                <MapPin className="h-4 w-4 shrink-0 text-purple-400" aria-hidden="true" />
-                <span className="text-sm text-foreground">{site.name}</span>
+                <MapPin className="h-4 w-4 shrink-0 text-interactive-link" aria-hidden="true" />
+                <span className="text-sm text-text-primary">{site.name}</span>
                 {site.averageScore != null && (
-                  <span className="ml-auto text-xs text-yellow-400">★ {site.averageScore.toFixed(1)}</span>
+                  <span className="ml-auto font-mono text-xs text-warning">★ {site.averageScore.toFixed(1)}</span>
                 )}
               </button>
             ))}
