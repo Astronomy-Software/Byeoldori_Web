@@ -214,10 +214,11 @@ export default function ObservatoryDetailPage() {
       <div className="space-y-5 px-4">
         {/* ── 1. 관측지 히어로 + 기본 정보 ── */}
         <div className="relative overflow-hidden rounded-2xl bg-surface-2">
-          <img
-            src="/byeoldori.png"
-            alt={site.name}
-            className="aspect-video w-full object-cover"
+          {/* 관측지 사진이 없을 때 심우주 별필드 플레이스홀더 */}
+          <div
+            role="img"
+            aria-label={`${site.name} 관측지`}
+            className="starfield aspect-video w-full"
           />
           {/* 어두운 그라디언트 오버레이 */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-space-950 via-space-950/40 to-transparent" />

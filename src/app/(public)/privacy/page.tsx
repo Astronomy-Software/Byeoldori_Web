@@ -55,7 +55,7 @@ export default function PrivacyPage() {
         </p>
         <ul className="ml-4 list-disc space-y-1 text-muted-foreground">
           <li>Google LLC — 소셜 로그인 인증 처리</li>
-          <li>Google Cloud Platform — 서버 인프라 운영</li>
+          <li>Oracle Cloud Infrastructure — 서버 인프라 운영</li>
         </ul>
       </section>
 
