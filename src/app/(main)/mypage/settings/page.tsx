@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -77,11 +78,25 @@ export default function SettingsPage() {
               </div>
               <div className="flex items-center justify-between">
                 <dt className="text-text-tertiary">서비스 이용약관</dt>
-                <dd className="text-text-secondary">별도리</dd>
+                <dd>
+                  <Link
+                    href="/terms"
+                    className="text-interactive-link transition-colors hover:text-aurora"
+                  >
+                    보기 →
+                  </Link>
+                </dd>
               </div>
               <div className="flex items-center justify-between">
                 <dt className="text-text-tertiary">개인정보 처리방침</dt>
-                <dd className="text-text-secondary">별도리</dd>
+                <dd>
+                  <Link
+                    href="/privacy"
+                    className="text-interactive-link transition-colors hover:text-aurora"
+                  >
+                    보기 →
+                  </Link>
+                </dd>
               </div>
             </dl>
           </section>
