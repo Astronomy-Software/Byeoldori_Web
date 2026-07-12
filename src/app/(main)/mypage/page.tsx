@@ -23,8 +23,6 @@ import { toast } from "sonner";
 import {
   Calendar,
   Heart,
-  FileText,
-  MessageSquare,
   Settings,
   LogOut,
   Camera,
@@ -93,9 +91,6 @@ export default function MyPageScreen() {
     );
   }
 
-  const remaining = observationCount
-    ? Math.max(observationCount.total - observationCount.completed, 0)
-    : 0;
 
   return (
     <div className="starfield min-h-screen">
@@ -181,47 +176,22 @@ export default function MyPageScreen() {
           </p>
         )}
         {observationCount && (
-          <div className="grid grid-cols-3 gap-3">
-            <Card className="rounded-2xl border-border-default bg-surface-1">
-              <CardHeader className="flex flex-row items-center gap-1.5 pb-1">
-                <FileText className="h-3.5 w-3.5 text-text-tertiary" aria-hidden="true" />
-                <CardTitle className="text-xs font-medium text-text-tertiary">
-                  전체 계획
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="font-mono text-3xl font-bold text-text-primary">
-                  {observationCount.total}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="rounded-2xl border-border-default bg-surface-1">
-              <CardHeader className="flex flex-row items-center gap-1.5 pb-1">
-                <Calendar className="h-3.5 w-3.5 text-text-tertiary" aria-hidden="true" />
-                <CardTitle className="text-xs font-medium text-text-tertiary">
-                  완료 관측
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="font-mono text-3xl font-bold text-success">
-                  {observationCount.completed}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="rounded-2xl border-border-default bg-surface-1">
-              <CardHeader className="flex flex-row items-center gap-1.5 pb-1">
-                <MessageSquare className="h-3.5 w-3.5 text-text-tertiary" aria-hidden="true" />
-                <CardTitle className="text-xs font-medium text-text-tertiary">
-                  진행 예정
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="font-mono text-3xl font-bold text-aurora">
-                  {remaining}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="rounded-2xl border-border-default bg-surface-1">
+            <CardHeader className="flex flex-row items-center gap-1.5 pb-1">
+              <Calendar className="h-3.5 w-3.5 text-text-tertiary" aria-hidden="true" />
+              <CardTitle className="text-xs font-medium text-text-tertiary">
+                관측 기록
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="font-mono text-3xl font-bold text-aurora">
+                {observationCount.observationCount}
+                <span className="ml-1 text-base font-normal text-text-tertiary">
+                  회
+                </span>
+              </p>
+            </CardContent>
+          </Card>
         )}
 
         <Separator className="bg-border-default" />

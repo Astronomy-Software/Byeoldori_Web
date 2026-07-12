@@ -396,8 +396,7 @@ export interface UpdatePlanRequest {
 }
 
 export interface ObservationCountDto {
-  total: number;
-  completed: number;
+  observationCount: number;
 }
 
 // Feedback / Evaluation

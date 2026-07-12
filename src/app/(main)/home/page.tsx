@@ -6,6 +6,7 @@ import { CalendarCard } from "@/components/calendar-card";
 import { WeatherSection } from "@/components/weather-section";
 import { getHomeReviews, getHomeEducations, getHomeFreePosts } from "@/lib/api/community";
 import { getMonthlySummary } from "@/lib/api/calendar";
+import { useAuthStore } from "@/stores/auth-store";
 import type {
   ReviewPostSummary,
   EducationPostSummary,
@@ -16,6 +17,7 @@ import { Eye, Heart, MessageSquare, Star } from "lucide-react";
 
 export default function HomePage() {
   const now = new Date();
+  const nickname = useAuthStore((s) => s.user?.nickname);
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -96,7 +98,7 @@ export default function HomePage() {
         {/* 헤더 */}
         <header>
           <h1 className="text-2xl font-bold text-text-primary sm:text-3xl">
-            좋은 밤이에요, 관측자님
+            좋은 밤이에요, {nickname ?? "관측자"}님
           </h1>
           <p className="mt-1.5 font-mono text-sm text-text-tertiary">
             {now.getFullYear()}년 {now.getMonth() + 1}월 {now.getDate()}일 · 오늘 밤 관측 브리핑
