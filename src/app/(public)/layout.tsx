@@ -9,7 +9,7 @@ export default function PublicLayout({
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       {/* Desktop: 사이드 네비게이션 */}
-      <aside className="hidden md:flex md:w-20 md:flex-shrink-0 md:bg-purple-800">
+      <aside className="hidden md:flex md:w-20 md:flex-shrink-0 md:bg-bg-section">
         <NavBar />
       </aside>
 
