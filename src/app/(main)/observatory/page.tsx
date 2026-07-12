@@ -320,7 +320,7 @@ export default function ObservatoryPage() {
   }
 
   return (
-    <div className="relative h-[calc(100dvh-4rem)] w-full overflow-hidden bg-bg-page md:h-full">
+    <div className="relative h-[calc(100dvh-4rem)] w-full overflow-hidden bg-bg-page md:h-screen">
       <div ref={mapRef} className="h-full w-full" />
 
       {/* 데스크톱 좌측 glass 패널: 관측지 리스트 */}

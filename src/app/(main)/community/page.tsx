@@ -20,19 +20,19 @@ export default function CommunityPage() {
         <TabsList className="mb-6 h-auto w-full justify-start gap-6 rounded-none border-b border-border-default bg-transparent p-0">
           <TabsTrigger
             value="review"
-            className="rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 text-sm font-medium text-text-tertiary shadow-none transition-colors hover:text-text-secondary data-active:border-aurora data-active:bg-transparent data-active:text-text-primary data-active:shadow-none"
+            className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent bg-transparent px-1 pb-3 text-sm font-medium text-text-tertiary shadow-none transition-colors hover:text-text-secondary data-active:border-aurora data-active:bg-transparent data-active:text-text-primary data-active:shadow-none"
           >
             관측 리뷰
           </TabsTrigger>
           <TabsTrigger
             value="program"
-            className="rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 text-sm font-medium text-text-tertiary shadow-none transition-colors hover:text-text-secondary data-active:border-aurora data-active:bg-transparent data-active:text-text-primary data-active:shadow-none"
+            className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent bg-transparent px-1 pb-3 text-sm font-medium text-text-tertiary shadow-none transition-colors hover:text-text-secondary data-active:border-aurora data-active:bg-transparent data-active:text-text-primary data-active:shadow-none"
           >
             교육 프로그램
           </TabsTrigger>
           <TabsTrigger
             value="free"
-            className="rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 text-sm font-medium text-text-tertiary shadow-none transition-colors hover:text-text-secondary data-active:border-aurora data-active:bg-transparent data-active:text-text-primary data-active:shadow-none"
+            className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent bg-transparent px-1 pb-3 text-sm font-medium text-text-tertiary shadow-none transition-colors hover:text-text-secondary data-active:border-aurora data-active:bg-transparent data-active:text-text-primary data-active:shadow-none"
           >
             자유게시판
           </TabsTrigger>

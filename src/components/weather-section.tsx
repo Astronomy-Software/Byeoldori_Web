@@ -10,6 +10,14 @@ interface WeatherSectionProps {
   lon: number;
 }
 
+// 백엔드가 주는 nextGoodTime(YYYYMMDDHHmm)을 사람이 읽는 형식으로
+function formatGoodTime(raw: string): string {
+  const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(raw.trim());
+  if (!m) return raw;
+  const [, , mo, d, h, mi] = m;
+  return `${mo}월 ${d}일 ${h}:${mi}`;
+}
+
 export function WeatherSection({ lat, lon }: WeatherSectionProps) {
   const [data, setData] = useState<WeatherSummary | null>(null);
   const [error, setError] = useState(false);
@@ -106,7 +114,7 @@ export function WeatherSection({ lat, lon }: WeatherSectionProps) {
           <Star className="h-4 w-4 shrink-0 text-aurora" />
           <span className="text-sm text-text-secondary">다음 좋은 관측 시각</span>
           <span className="ml-auto font-mono text-sm text-aurora">
-            {data.nextGoodTime}
+            {formatGoodTime(data.nextGoodTime)}
           </span>
         </div>
       )}
