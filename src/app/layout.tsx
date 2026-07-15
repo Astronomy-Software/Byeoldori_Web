@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// 컷오버(byeoldori.com) 시 NEXT_PUBLIC_SITE_URL 환경변수로 교체한다.
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://byeoldori-web.vercel.app";
 
 export const metadata: Metadata = {

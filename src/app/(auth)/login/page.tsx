@@ -3,9 +3,11 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Live2DCharacter } from "@/components/live2d-character";
+import { getOAuthRedirectUri } from "@/lib/auth/oauth-redirect";
 
 function handleSocialLogin(provider: "google" | "kakao" | "naver") {
-  const redirectUri = `${window.location.origin}/auth/${provider}/callback`;
+  // canonical 도메인 고정 — 콜백의 토큰교환과 동일한 값을 써야 한다.
+  const redirectUri = getOAuthRedirectUri(provider);
   // CSRF 방지: state 생성 후 sessionStorage 저장 → 콜백에서 검증(3 provider 공통)
   const state = crypto.randomUUID();
   sessionStorage.setItem("oauth_state_" + provider, state);
