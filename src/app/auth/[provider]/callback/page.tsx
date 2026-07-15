@@ -5,6 +5,7 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { Star } from "lucide-react";
 import { loginWithGoogle, loginWithKakao, loginWithNaver } from "@/lib/api/auth";
 import { useAuthStore } from "@/stores/auth-store";
+import { getOAuthRedirectUri } from "@/lib/auth/oauth-redirect";
 
 function OAuthCallbackInner() {
   const router = useRouter();
@@ -27,7 +28,8 @@ function OAuthCallbackInner() {
     }
     sessionStorage.removeItem("oauth_state_" + params.provider);
 
-    const redirectUri = `${window.location.origin}/auth/${params.provider}/callback`;
+    // 로그인 요청 때와 반드시 동일한 redirect_uri여야 토큰교환이 성공한다.
+    const redirectUri = getOAuthRedirectUri(params.provider);
     const apiFn =
       params.provider === "google"
         ? loginWithGoogle
