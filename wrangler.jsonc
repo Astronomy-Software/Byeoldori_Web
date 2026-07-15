@@ -9,6 +9,12 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  // 커스텀 도메인 — CF가 DNS 레코드와 인증서를 자동 생성한다.
+  // apex를 canonical로 두고 www는 앱에서 리다이렉트한다.
+  "routes": [
+    { "pattern": "byeoldori.com", "custom_domain": true },
+    { "pattern": "www.byeoldori.com", "custom_domain": true }
+  ],
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
