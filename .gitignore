@@ -63,3 +63,7 @@ vendor/stellarium-web-engine/**/dist/
 !public/live2d/**
 
 .vercel
+.open-next
+.dev.vars
+cloudflare-env.d.ts
+.wrangler
