@@ -82,18 +82,46 @@ export async function createFreePost(
 export async function createReviewPost(
   body: CreateReviewRequest,
 ): Promise<CreatedPostId> {
+  // 백엔드는 review 필드로 중첩된 형태를 기대한다(PostCreateRequest.review: ReviewDto).
+  // 프론트의 flat 입력(siteName·rating)을 매핑: siteName→location, rating→score.
+  const payload = {
+    title: body.title,
+    content: body.content,
+    imageUrls: body.imageUrls ?? [],
+    review: {
+      location: body.siteName,
+      score: body.rating,
+    },
+  };
   return apiFetch<CreatedPostId>("community/REVIEW/posts", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   });
 }
 
 export async function createEducationPost(
   body: CreateEducationRequest,
 ): Promise<CreatedPostId> {
+  // 백엔드는 education 필드로 중첩된 형태를 기대한다(PostCreateRequest.education: EducationRequestDto).
+  // objectName→education.targets(List), status는 PUBLISHED로 게시.
+  const payload = {
+    title: body.title,
+    content: body.content,
+    imageUrls: body.imageUrls ?? [],
+    education: {
+      difficulty: body.difficulty,
+      targets: body.objectName
+        ? body.objectName
+            .split("·")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [],
+      status: "PUBLISHED",
+    },
+  };
   return apiFetch<CreatedPostId>("community/EDUCATION/posts", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   });
 }
 
