@@ -35,13 +35,31 @@ export default function HomePage() {
 
   // 위치 가져오기
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) =>
-          setLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-        () => setLocation({ lat: 36.6284, lon: 127.4572 }), // 충북대 기본값
-      );
+    const FALLBACK = { lat: 36.6284, lon: 127.4572 }; // 충북대 기본값
+
+    if (!navigator.geolocation) {
+      setLocation(FALLBACK);
+      return;
     }
+
+    // 권한 프롬프트에 응답하지 않으면 콜백이 영영 안 와서 날씨 히어로가
+    // 계속 비어 보인다 → 6초 안전 타이머로 기본 좌표를 먼저 채운다.
+    // 이후 실제 위치가 오면 최신 좌표로 덮어쓴다.
+    const fallbackTimer = setTimeout(() => setLocation(FALLBACK), 6000);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        clearTimeout(fallbackTimer);
+        setLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+      },
+      () => {
+        clearTimeout(fallbackTimer);
+        setLocation(FALLBACK);
+      },
+      { timeout: 10000, maximumAge: 600000 },
+    );
+
+    return () => clearTimeout(fallbackTimer);
   }, []);
 
   // 월별 요약
