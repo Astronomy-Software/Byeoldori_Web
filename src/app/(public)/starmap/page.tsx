@@ -10,9 +10,11 @@ import {
   incrementProgramView,
   type ProgramSummary,
 } from "@/lib/api/education-program";
+import { ApiError } from "@/lib/api/client";
 import { Live2DCharacter } from "@/components/live2d-character";
 import { characterManager } from "@/lib/character-manager";
 import { speak, cancelNarration, warmupVoices } from "@/lib/narration";
+import { toast } from "sonner";
 import type {
   CharacterPosition,
   EducationProgram,
@@ -78,11 +80,22 @@ function stepLabel(step: EduStep): string {
 
 type ImageOverlay = { url: string; position: ImagePosition; width: string };
 
+// 프로그램 로드 실패를 사용자에게 설명 가능한 문구로 바꾼다.
+// 403은 아직 PUBLISHED 가 아닌 프로그램(작성자 외 접근 불가)이 대부분이다.
+function programErrorMessage(e: unknown): string {
+  if (e instanceof ApiError) {
+    if (e.status === 403) return "아직 발행되지 않은 프로그램입니다.";
+    if (e.status === 404) return "프로그램을 찾을 수 없습니다.";
+  }
+  return "프로그램을 불러오지 못했습니다.";
+}
+
 function StarMapInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const controlRef = useRef<StellariumControl | null>(null);
+  const closingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [stelReady, setStelReady] = useState(false);
   const [eduMode, setEduMode] = useState(false);
@@ -93,6 +106,7 @@ function StarMapInner() {
   const [imageOverlay, setImageOverlay] = useState<ImageOverlay | null>(null);
   const [selectedStar, setSelectedStar] = useState<string | null>(null);
   const [loadingProgram, setLoadingProgram] = useState(false);
+  const [programError, setProgramError] = useState<string | null>(null);
   const [characterPosition, setCharacterPosition] =
     useState<CharacterPosition>("bottom-right");
 
@@ -137,6 +151,7 @@ function StarMapInner() {
       warmupVoices(); // 사용자 제스처 시점에 음성 목록 로드
       clearAllOverlays();
       setCharText(null);
+      setProgramError(null);
       setCharacterPosition("bottom-right"); // 프로그램마다 기본 위치에서 시작
       // 별 카탈로그가 아직 로드 중이면 getObj가 null을 반환해 카메라 이동·별 강조가
       // 조용히 실패한다. 첫 스텝 실행 전에 조회 가능해질 때까지 기다린다.
@@ -154,12 +169,19 @@ function StarMapInner() {
     if (!programId || !stelReady) return;
 
     setLoadingProgram(true);
+    setProgramError(null);
     loadProgramById(programId)
-      .then((program) => {
-        startProgram(program);
+      .then(async (program) => {
+        await startProgram(program);
         incrementProgramView(programId).catch(() => {});
       })
-      .catch((e) => console.error("[StarMap] 프로그램 로드 실패:", e))
+      .catch((e) => {
+        console.error("[StarMap] 프로그램 로드 실패:", e);
+        const msg = programErrorMessage(e);
+        setProgramError(msg);
+        toast.error(msg);
+        setEduMode(true); // 오류를 볼 수 있도록 교육 패널을 열어둔다
+      })
       .finally(() => setLoadingProgram(false));
   // stelReady가 true로 바뀔 때 한 번만 실행
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -171,31 +193,67 @@ function StarMapInner() {
     const step = activeProgram.steps[stepIndex];
     if (!step) return;
 
+    // 스텝이 바뀌면 이전 스텝의 잔재(자막 숨김 타이머·재생 중 나레이션)를 반드시 걷어낸다.
+    // 없으면 이전 타이머가 새 스텝의 자막을 지우고, 화면을 떠나도 TTS가 계속 재생된다.
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
     executeStep(step, controlRef.current, {
       onText: (text, motion, duration) => {
+        if (cancelled) return;
         setCharText(text);
         speak(text); // 자막 + 음성 나레이션(ko-KR)
         if (motion) characterManager.playMotion(motion);
         if (duration && duration > 0) {
-          setTimeout(() => setCharText(null), duration);
+          timers.push(
+            setTimeout(() => {
+              if (!cancelled) setCharText(null);
+            }, duration),
+          );
         }
       },
       onImage: (url, position, width, duration) => {
+        if (cancelled) return;
         setImageOverlay({ url, position: position ?? "top-right", width: width ?? "200px" });
         if (duration && duration > 0) {
-          setTimeout(() => setImageOverlay(null), duration);
+          timers.push(
+            setTimeout(() => {
+              if (!cancelled) setImageOverlay(null);
+            }, duration),
+          );
         }
       },
       onClearOverlays: () => {
+        if (cancelled) return;
         controlRef.current?.clearOverlays();
         setImageOverlay(null);
       },
       onDrawLine: (from, to, color) => {
-        controlRef.current?.drawLine(from, to, color);
+        if (cancelled) return false;
+        return controlRef.current?.drawLine(from, to, color) ?? false;
       },
-      onCharacterPosition: setCharacterPosition,
-    });
+      onCharacterPosition: (pos) => {
+        if (!cancelled) setCharacterPosition(pos);
+      },
+      // 재생 화면에서는 경고를 콘솔에만 남긴다(관람자에게 저작 오류를 노출하지 않는다)
+      onStepWarning: (message) => console.warn("[StarMap]", message),
+    }).catch((e) => console.error("[StarMap] 스텝 실행 실패:", e));
+
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+      cancelNarration();
+    };
   }, [activeProgram, stepIndex]);
+
+  // 페이지를 떠날 때 나레이션이 남아 다른 화면에서 계속 말하는 것을 막는다
+  useEffect(
+    () => () => {
+      if (closingTimerRef.current) clearTimeout(closingTimerRef.current);
+      cancelNarration();
+    },
+    [],
+  );
 
   const nextStep = useCallback(() => {
     if (!activeProgram) return;
@@ -209,7 +267,9 @@ function StarMapInner() {
       setCharacterPosition("bottom-right");
       const closing = "수업이 끝났어! 정말 잘했어! 🌟";
       setCharText(closing);
-      speak(closing);
+      // activeProgram이 null이 되면서 스텝 effect의 cleanup(cancelNarration)이 곧 실행된다.
+      // 마무리 인사가 그 취소에 휩쓸리지 않도록 다음 틱으로 미룬다.
+      closingTimerRef.current = setTimeout(() => speak(closing), 0);
       characterManager.playMotion("happy");
       // programId 쿼리 파라미터 제거
       router.replace("/starmap");
@@ -235,22 +295,29 @@ function StarMapInner() {
 
   const jumpToStep = useCallback(
     (idx: number) => {
+      // 같은 스텝을 다시 누르면 오버레이만 지워지고 재실행은 일어나지 않는다
+      // (effect 의존성이 그대로라서). 그러면 화면이 영구히 빈 채로 남는다.
+      if (idx === stepIndex) return;
       clearAllOverlays();
       setStepIndex(idx);
     },
-    [clearAllOverlays],
+    [stepIndex, clearAllOverlays],
   );
 
   const handleProgramSelect = useCallback(
     async (summary: ProgramSummary) => {
       if (!stelReady) return;
       setLoadingProgram(true);
+      setProgramError(null);
       try {
         const program = await loadProgramById(summary.id);
-        startProgram(program);
+        await startProgram(program);
         incrementProgramView(summary.id).catch(() => {});
       } catch (e) {
         console.error("[StarMap] 프로그램 로드 실패:", e);
+        const msg = programErrorMessage(e);
+        setProgramError(msg);
+        toast.error(msg);
       } finally {
         setLoadingProgram(false);
       }
@@ -344,6 +411,19 @@ function StarMapInner() {
                 </p>
               </div>
               <div className="flex-1 space-y-2 overflow-y-auto p-3">
+                {programError && (
+                  <div className="rounded-xl border border-red-400/40 bg-red-500/10 p-3">
+                    <p className="text-xs leading-relaxed text-red-300">
+                      {programError}
+                    </p>
+                    <button
+                      onClick={() => setProgramError(null)}
+                      className="mt-2 text-[11px] text-white/40 transition-colors hover:text-white/80"
+                    >
+                      닫기
+                    </button>
+                  </div>
+                )}
                 {programs.length === 0 && (
                   <p className="text-center text-xs text-white/30 pt-8">등록된 교육 프로그램이 없습니다.</p>
                 )}
