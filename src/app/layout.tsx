@@ -46,7 +46,13 @@ export const metadata: Metadata = {
     follow: true,
   },
   verification: {
-    google: "Ym-2QxytT69t-FAy10lptmLTYqScPCKQINN9o1f0oUE",
+    // 도메인 변경(byeoldori.com)으로 새로 발급받은 토큰과 기존 토큰을 함께 둔다.
+    // 구글은 한 페이지에 여러 소유확인 토큰을 허용하므로, 기존 속성이
+    // 소유확인 해제되는 일 없이 새 속성을 추가로 확인할 수 있다.
+    google: [
+      "yD5fFcSPnA2UZWNdT9V8NYt5v3MrlCwZw3smKXTNPyY",
+      "Ym-2QxytT69t-FAy10lptmLTYqScPCKQINN9o1f0oUE",
+    ],
     other: {
       "naver-site-verification": "425432fa0bbb7c7a48d0e9088f3d22a0c188585b",
     },
