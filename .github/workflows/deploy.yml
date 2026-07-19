@@ -66,13 +66,42 @@ jobs:
           [ "$fail" -eq 0 ] && echo "Cloudflare 자격증명 확인됨 (값은 출력하지 않음)"
           exit $fail
 
+      # NEXT_PUBLIC_* 가 비면 코드 폴백(localhost 등)이 배포돼 프록시·지도·OAuth 가
+      # 조용히 깨진다. 빌드 전에 누락을 잡는다. 값은 출력하지 않는다.
+      - name: Verify build-time public env present
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_KAKAO_CLIENT_ID: ${{ vars.NEXT_PUBLIC_KAKAO_CLIENT_ID }}
+          NEXT_PUBLIC_NAVER_CLIENT_ID: ${{ vars.NEXT_PUBLIC_NAVER_CLIENT_ID }}
+          NEXT_PUBLIC_NAVER_OAUTH_CLIENT_ID: ${{ vars.NEXT_PUBLIC_NAVER_OAUTH_CLIENT_ID }}
+        run: |
+          fail=0
+          for k in NEXT_PUBLIC_API_URL NEXT_PUBLIC_GOOGLE_CLIENT_ID \
+                   NEXT_PUBLIC_KAKAO_CLIENT_ID NEXT_PUBLIC_NAVER_CLIENT_ID \
+                   NEXT_PUBLIC_NAVER_OAUTH_CLIENT_ID; do
+            if [ -z "$(eval echo \"\$$k\")" ]; then
+              echo "::error::$k 변수가 비어 있습니다. Settings → Secrets and variables → Actions → Variables 에 등록하세요."
+              fail=1
+            fi
+          done
+          [ "$fail" -eq 0 ] && echo "빌드타임 공개 변수 확인됨 (값은 출력하지 않음)"
+          exit $fail
+
       - name: Build & Deploy to Cloudflare Workers
         run: npm run cf:deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # canonical/OG/sitemap 이 정식 도메인으로 나가도록 빌드 시점에 주입
+          # NEXT_PUBLIC_* 는 빌드 시점에 번들로 인라인되므로 여기서 전부 주입해야 한다.
+          # 하나라도 빠지면 코드의 폴백(localhost 등)이 그대로 배포된다.
+          # 값 자체는 브라우저에 노출되는 공개 식별자이므로 secrets 가 아닌 vars 로 관리.
           NEXT_PUBLIC_SITE_URL: https://byeoldori.com
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_KAKAO_CLIENT_ID: ${{ vars.NEXT_PUBLIC_KAKAO_CLIENT_ID }}
+          NEXT_PUBLIC_NAVER_CLIENT_ID: ${{ vars.NEXT_PUBLIC_NAVER_CLIENT_ID }}
+          NEXT_PUBLIC_NAVER_OAUTH_CLIENT_ID: ${{ vars.NEXT_PUBLIC_NAVER_OAUTH_CLIENT_ID }}
 
       - name: Notify Discord - Deploy Success
         if: success()
