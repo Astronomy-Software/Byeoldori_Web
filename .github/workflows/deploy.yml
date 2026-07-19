@@ -1,8 +1,22 @@
-name: Auto Deploy to Vercel
+name: Auto Deploy to Cloudflare Workers
+
+# byeoldori.com 은 Cloudflare Workers(@opennextjs/cloudflare)가 서빙한다.
+# 기존 Vercel 자동배포는 중단하고 CF 배포로 일원화했다.
+# 필요한 secrets: CLOUDFLARE_API_TOKEN(Workers 배포 권한), CLOUDFLARE_ACCOUNT_ID
+# 빌드는 open-next.config.ts 의 buildCommand("next build --webpack")를 따른다.
+# (Turbopack 산출물은 CF에서 SSR 500을 유발하므로 webpack 고정)
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-web-main
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -13,9 +27,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
-      - name: Install Vercel CLI
-        run: npm i -g vercel
+      - name: Install dependencies
+        run: npm ci
 
       - name: Notify Discord - Deploy Start
         env:
@@ -25,27 +40,19 @@ jobs:
           REF: ${{ github.ref_name }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
+          [ -z "$DISCORD_URL" ] && exit 0
           SHORT="${SHA:0:7}"
           curl -s -H "Content-Type: application/json" \
-            -d "{
-              \"embeds\": [{
-                \"title\": \"🚀 별도리 웹 배포 시작\",
-                \"description\": \"새로운 버전 배포를 시작합니다.\",
-                \"color\": 3447003,
-                \"fields\": [
-                  {\"name\": \"브랜치\", \"value\": \"${REF}\", \"inline\": true},
-                  {\"name\": \"커밋\", \"value\": \"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\", \"inline\": true},
-                  {\"name\": \"작업자\", \"value\": \"${ACTOR}\", \"inline\": true}
-                ]
-              }]
-            }" \
-            "$DISCORD_URL"
+            -d "{\"embeds\":[{\"title\":\"🚀 별도리 웹 배포 시작 (Cloudflare)\",\"color\":3447003,\"fields\":[{\"name\":\"브랜치\",\"value\":\"${REF}\",\"inline\":true},{\"name\":\"커밋\",\"value\":\"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\",\"inline\":true},{\"name\":\"작업자\",\"value\":\"${ACTOR}\",\"inline\":true}]}]}" \
+            "$DISCORD_URL" || true
 
-      - name: Deploy to Production
-        run: vercel deploy --prod --yes --token ${{ secrets.VERCEL_TOKEN }}
+      - name: Build & Deploy to Cloudflare Workers
+        run: npm run cf:deploy
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # canonical/OG/sitemap 이 정식 도메인으로 나가도록 빌드 시점에 주입
+          NEXT_PUBLIC_SITE_URL: https://byeoldori.com
 
       - name: Notify Discord - Deploy Success
         if: success()
@@ -55,43 +62,22 @@ jobs:
           ACTOR: ${{ github.actor }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
+          [ -z "$DISCORD_URL" ] && exit 0
           SHORT="${SHA:0:7}"
           curl -s -H "Content-Type: application/json" \
-            -d "{
-              \"embeds\": [{
-                \"title\": \"✅ 별도리 웹 배포 완료\",
-                \"description\": \"새로운 버전이 성공적으로 배포되었습니다.\",
-                \"color\": 3066993,
-                \"fields\": [
-                  {\"name\": \"커밋\", \"value\": \"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\", \"inline\": true},
-                  {\"name\": \"작업자\", \"value\": \"${ACTOR}\", \"inline\": true}
-                ]
-              }]
-            }" \
-            "$DISCORD_URL"
+            -d "{\"embeds\":[{\"title\":\"✅ 별도리 웹 배포 완료 (Cloudflare)\",\"color\":3066993,\"fields\":[{\"name\":\"커밋\",\"value\":\"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\",\"inline\":true},{\"name\":\"작업자\",\"value\":\"${ACTOR}\",\"inline\":true}]}]}" \
+            "$DISCORD_URL" || true
 
       - name: Notify Discord - Deploy Failure
         if: failure()
         env:
           DISCORD_URL: ${{ secrets.DISCORD_WEBHOOK_FRONTEND_URL }}
           SHA: ${{ github.sha }}
-          ACTOR: ${{ github.actor }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          WORKFLOW: ${{ github.workflow }}
         run: |
+          [ -z "$DISCORD_URL" ] && exit 0
           SHORT="${SHA:0:7}"
           curl -s -H "Content-Type: application/json" \
-            -d "{
-              \"embeds\": [{
-                \"title\": \"❌ 별도리 웹 배포 실패\",
-                \"description\": \"배포 중 오류가 발생했습니다. 확인이 필요합니다.\",
-                \"color\": 15158332,
-                \"fields\": [
-                  {\"name\": \"커밋\", \"value\": \"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\", \"inline\": true},
-                  {\"name\": \"작업자\", \"value\": \"${ACTOR}\", \"inline\": true},
-                  {\"name\": \"워크플로우\", \"value\": \"[${WORKFLOW}](${RUN_URL})\", \"inline\": false}
-                ]
-              }]
-            }" \
-            "$DISCORD_URL"
+            -d "{\"embeds\":[{\"title\":\"❌ 별도리 웹 배포 실패 (Cloudflare)\",\"color\":15158332,\"fields\":[{\"name\":\"커밋\",\"value\":\"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\",\"inline\":true},{\"name\":\"로그\",\"value\":\"[확인](${RUN_URL})\",\"inline\":true}]}]}" \
+            "$DISCORD_URL" || true
