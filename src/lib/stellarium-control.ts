@@ -49,6 +49,29 @@ export class StellariumControl {
     });
   }
 
+  /**
+   * 별 카탈로그가 실제로 조회 가능해질 때까지 대기.
+   * isReady()(=__stellariumAPI 존재)가 true여도 카탈로그는 비동기로 나중에 로드되어,
+   * 그 사이 getObj()는 모든 이름에 null을 반환한다. 이 상태에서 프로그램을 시작하면
+   * camera-move·highlight-stars·draw-line 이 조용히 실패한다(브라우저 실측으로 확인).
+   * Rigel 은 기본 밝은별 카탈로그에 항상 포함되므로 준비 판별용 표본으로 쓴다.
+   */
+  waitForCatalog(maxMs = 15000, sample = "Rigel"): Promise<boolean> {
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const check = () => {
+        try {
+          if (this.api?.stel?.getObj(sample)) { resolve(true); return; }
+        } catch {
+          // 엔진 준비 전이면 무시하고 재시도
+        }
+        if (Date.now() - start > maxMs) { resolve(false); return; }
+        setTimeout(check, 400);
+      };
+      check();
+    });
+  }
+
   /** 특정 별/천체로 카메라 이동 */
   gotoStar(name: string, duration = 2.0): boolean {
     const api = this.api;
