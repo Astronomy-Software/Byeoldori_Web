@@ -303,7 +303,17 @@ export default function PostDetailPage() {
                 ))}
               </div>
             )}
-            {post.education.contentUrl && (
+            {post.education.programId ? (
+              <button
+                onClick={() =>
+                  router.push(`/starmap?programId=${post.education!.programId}`)
+                }
+                className="glow-primary mt-2 flex items-center gap-2 rounded-lg bg-interactive-primary px-4 py-2 text-sm text-white transition-colors hover:bg-interactive-primary/90"
+              >
+                <BookOpen className="h-4 w-4" />
+                프로그램 실행
+              </button>
+            ) : post.education.contentUrl ? (
               <button
                 onClick={() => router.push(`/starmap?programId=${postId}`)}
                 className="glow-primary mt-2 flex items-center gap-2 rounded-lg bg-interactive-primary px-4 py-2 text-sm text-white transition-colors hover:bg-interactive-primary/90"
@@ -311,7 +321,7 @@ export default function PostDetailPage() {
                 <BookOpen className="h-4 w-4" />
                 별지도에서 학습하기
               </button>
-            )}
+            ) : null}
           </div>
         )}
 

@@ -117,6 +117,7 @@ export async function createEducationPost(
             .filter(Boolean)
         : [],
       status: "PUBLISHED",
+      ...(body.programId ? { programId: body.programId } : {}),
     },
   };
   return apiFetch<CreatedPostId>("community/EDUCATION/posts", {

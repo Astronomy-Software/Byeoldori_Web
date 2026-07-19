@@ -144,6 +144,8 @@ export interface EducationDto {
   status?: "DRAFT" | "PUBLISHED";
   averageScore?: number;
   contentUrl?: string;
+  // 교육 프로그램(MongoDB) 문서 id. 있으면 별지도에서 해당 프로그램을 실행할 수 있다.
+  programId?: string;
 }
 
 export interface PostDetailResponse {
@@ -185,6 +187,8 @@ export interface CreateEducationRequest {
   objectName: string;
   difficulty: string;
   imageUrls: string[];
+  // 저작 화면에서 만든 교육 프로그램(MongoDB) id — 게시글과 연결
+  programId?: string;
 }
 
 // POST /community/{type}/posts → data: { id: <Long> }

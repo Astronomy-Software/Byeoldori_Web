@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,12 +13,15 @@ import {
 } from "@/lib/api/community";
 import { uploadImage } from "@/lib/api/files";
 import { toast } from "sonner";
-import { ArrowLeft, Upload, X, Star } from "lucide-react";
+import { ArrowLeft, Upload, X, Star, Clapperboard } from "lucide-react";
 
-export default function NewPostPage() {
+function NewPostInner() {
   const params = useParams<{ type: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const type = params.type;
+  // 저작 화면(/community/program/author)에서 넘겨준 교육 프로그램 id
+  const programId = searchParams.get("programId") ?? undefined;
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -78,6 +81,7 @@ export default function NewPostPage() {
           objectName,
           difficulty,
           imageUrls,
+          programId,
         });
         postId = res.id;
       } else {
@@ -177,6 +181,28 @@ export default function NewPostPage() {
                 <option value="ADVANCED">고급</option>
               </select>
             </div>
+
+            {/* 별지도 저작(감독모드) 연동 */}
+            <div className="space-y-2 rounded-xl border border-border-default bg-surface-1 p-3">
+              {programId ? (
+                <p className="text-sm text-text-secondary">
+                  연결된 프로그램:{" "}
+                  <span className="font-mono text-aurora">{programId}</span>
+                </p>
+              ) : (
+                <p className="text-sm text-text-tertiary">
+                  별지도에서 장면·나레이션을 직접 구성한 교육 프로그램을 붙일 수 있습니다.
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => router.push("/community/program/author")}
+                className="flex items-center gap-2 rounded-lg border border-border-default px-3 py-2 text-sm text-text-primary transition-colors hover:border-interactive-primary"
+              >
+                <Clapperboard className="h-4 w-4" />
+                {programId ? "프로그램 다시 제작하기" : "프로그램 제작하기"}
+              </button>
+            </div>
           </>
         )}
 
@@ -237,5 +263,13 @@ export default function NewPostPage() {
         </Button>
       </form>
     </div>
+  );
+}
+
+export default function NewPostPage() {
+  return (
+    <Suspense>
+      <NewPostInner />
+    </Suspense>
   );
 }
