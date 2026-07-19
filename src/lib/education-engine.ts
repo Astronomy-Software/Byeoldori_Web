@@ -1,4 +1,9 @@
-import type { EduStep, CharacterMotion, ImagePosition } from "@/types/education";
+import type {
+  EduStep,
+  CharacterMotion,
+  CharacterPosition,
+  ImagePosition,
+} from "@/types/education";
 import type { StellariumControl } from "@/lib/stellarium-control";
 
 export interface StepCallbacks {
@@ -6,6 +11,7 @@ export interface StepCallbacks {
   onImage: (url: string, position: ImagePosition | undefined, width: string | undefined, duration: number | undefined) => void;
   onClearOverlays: () => void;
   onDrawLine: (from: string, to: string, color: [number, number, number, number]) => void;
+  onCharacterPosition?: (pos: CharacterPosition) => void;
 }
 
 function delay(ms: number): Promise<void> {
@@ -17,6 +23,12 @@ export async function executeStep(
   control: StellariumControl,
   cb: StepCallbacks,
 ): Promise<void> {
+  // 캐릭터 위치는 스텝 타입과 무관한 공통 지시다 — 카메라가 움직이는 동안에도
+  // 별도리가 설명 대상을 가리면 안 되므로 switch 진입 전에 먼저 반영한다.
+  if (step.characterPosition) {
+    cb.onCharacterPosition?.(step.characterPosition);
+  }
+
   switch (step.type) {
     case "camera-move": {
       if (!step.target) break;

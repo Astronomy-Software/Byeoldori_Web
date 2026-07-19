@@ -19,8 +19,20 @@ export type ImagePosition =
   | "bottom-left" | "bottom-center" | "bottom-right"
   | "center-left" | "center-right";
 
+// 별도리(Live2D) 캐릭터의 화면상 위치. 설명 대상을 가리지 않도록 스텝별로 지정한다.
+// 미지정(undefined) 시 직전 스텝의 위치가 유지되며, 프로그램 시작 시 기본값은 "bottom-right".
+export type CharacterPosition =
+  | "bottom-right"
+  | "bottom-left"
+  | "bottom-center"
+  | "hidden";
+
 export interface EduStep {
   id?: string;
+
+  // 모든 스텝 타입 공통 — 이 스텝이 실행될 때 별도리를 옮긴다(카메라 이동 중에도 비켜야 하므로).
+  characterPosition?: CharacterPosition;
+
   type:
     | "camera-move"
     | "look-at"

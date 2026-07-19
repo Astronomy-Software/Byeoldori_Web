@@ -18,9 +18,23 @@ import {
   type ProgramDifficulty,
   type ProgramStatus,
 } from "@/lib/api/education-program";
-import type { CharacterMotion, EduStep } from "@/types/education";
+import type {
+  CharacterMotion,
+  CharacterPosition,
+  EduStep,
+} from "@/types/education";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowUp, ArrowDown, Trash2, Play, Square } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowUp,
+  ArrowDown,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Trash2,
+  Play,
+  Square,
+} from "lucide-react";
 
 const MOTIONS: CharacterMotion[] = [
   "Idle",
@@ -31,6 +45,31 @@ const MOTIONS: CharacterMotion[] = [
   "Appearance",
   "Exit",
 ];
+
+// 스텝 편집기의 "별도리 위치" 4지선다 + 미지정(직전 위치 유지)
+const CHAR_POS_LABEL: Record<CharacterPosition, string> = {
+  "bottom-left": "왼쪽",
+  "bottom-center": "가운데",
+  "bottom-right": "오른쪽",
+  hidden: "숨김",
+};
+
+const CHAR_POS_OPTIONS: { value: CharacterPosition | ""; label: string }[] = [
+  { value: "", label: "유지" },
+  { value: "bottom-left", label: "왼쪽" },
+  { value: "bottom-center", label: "가운데" },
+  { value: "bottom-right", label: "오른쪽" },
+  { value: "hidden", label: "숨김" },
+];
+
+// 저작 화면의 캐릭터는 우측 패널을 침범하면 안 되므로 좌측 별지도 영역 안에 absolute로 둔다
+const AUTHOR_CHAR_BASE =
+  "pointer-events-none absolute bottom-0 z-30 h-44 w-32 md:h-64 md:w-48";
+const AUTHOR_CHAR_POS: Record<Exclude<CharacterPosition, "hidden">, string> = {
+  "bottom-right": "right-0",
+  "bottom-left": "left-0",
+  "bottom-center": "left-1/2 -translate-x-1/2",
+};
 
 // starmap의 stepLabel과 동일한 규칙 + 저작 전용 타입(look-at/set-time/toggle-constellation) 추가
 function stepLabel(step: EduStep): string {
@@ -114,6 +153,13 @@ export default function ProgramAuthorPage() {
   const [playing, setPlaying] = useState(false);
   const [playIndex, setPlayIndex] = useState<number | null>(null);
   const [charText, setCharText] = useState<string | null>(null);
+  // 미리보기 중 별도리가 어디에 서 있는지 — 스텝의 characterPosition을 그대로 반영한다
+  const [charPos, setCharPos] = useState<CharacterPosition>("bottom-right");
+
+  // 상단 메타(제목/부제/난이도) 접기 — 스텝 작업 중 세로 공간 확보용
+  const [metaOpen, setMetaOpen] = useState(true);
+  // 하단 "+ 스텝 추가" 팝오버
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
 
   // Stellarium 컨트롤 초기화 (starmap과 동일 패턴)
   useEffect(() => {
@@ -147,6 +193,7 @@ export default function ProgramAuthorPage() {
       setEditIndex(prev.length);
       return [...prev, step];
     });
+    setAddMenuOpen(false);
   }, []);
 
   const updateStep = useCallback((idx: number, patch: Partial<EduStep>) => {
@@ -157,7 +204,9 @@ export default function ProgramAuthorPage() {
 
   const removeStep = useCallback((idx: number) => {
     setSteps((prev) => prev.filter((_, i) => i !== idx));
-    setEditIndex((cur) => (cur === idx ? null : cur !== null && cur > idx ? cur - 1 : cur));
+    setEditIndex((cur) =>
+      cur === idx ? null : cur !== null && cur > idx ? cur - 1 : cur,
+    );
   }, []);
 
   const moveStep = useCallback((idx: number, dir: -1 | 1) => {
@@ -173,13 +222,16 @@ export default function ProgramAuthorPage() {
 
   // 현재 화면 시점을 look-at 스텝으로 캡처 — 감독모드의 핵심
   const captureView = useCallback(() => {
+    setAddMenuOpen(false);
     const view = controlRef.current?.getCurrentView();
     if (!view) {
       toast.error("현재 시점을 읽지 못했습니다. 별지도 로딩을 기다려주세요.");
       return;
     }
     addStep({ type: "look-at", az: view.az, alt: view.alt, fov: view.fov });
-    toast.success(`시점 캡처: az ${view.az}° / alt ${view.alt}° / fov ${view.fov}°`);
+    toast.success(
+      `시점 캡처: az ${view.az}° / alt ${view.alt}° / fov ${view.fov}°`,
+    );
   }, [addStep]);
 
   const captureTime = useCallback(
@@ -202,6 +254,7 @@ export default function ProgramAuthorPage() {
     setPlaying(false);
     setPlayIndex(null);
     setCharText(null);
+    setCharPos("bottom-right");
   }, []);
 
   const playFrom = useCallback(
@@ -212,6 +265,7 @@ export default function ProgramAuthorPage() {
       const token = playTokenRef.current;
       warmupVoices();
       setPlaying(true);
+      setCharPos("bottom-right");
 
       const snapshot = steps;
       for (let i = start; i < snapshot.length; i++) {
@@ -231,6 +285,7 @@ export default function ProgramAuthorPage() {
           },
           onClearOverlays: () => ctrl.clearOverlays(),
           onDrawLine: (from, to, color) => ctrl.drawLine(from, to, color),
+          onCharacterPosition: setCharPos,
         });
       }
       if (playTokenRef.current === token) {
@@ -312,255 +367,377 @@ export default function ProgramAuthorPage() {
         )}
 
         {charText && (
-          <div className="absolute bottom-4 left-4 z-50 max-w-[280px] rounded-2xl border border-white/20 bg-black/85 p-3 shadow-2xl backdrop-blur-sm">
+          <div className="absolute left-4 top-16 z-50 max-w-[280px] rounded-2xl border border-white/20 bg-black/85 p-3 shadow-2xl backdrop-blur-sm">
             <p className="text-sm leading-relaxed text-white">{charText}</p>
           </div>
         )}
 
-        <Live2DCharacter />
+        {/* 별도리는 별지도 영역 안에만 머문다 — 우측 저작 패널을 가리지 않도록 absolute 배치 */}
+        {charPos !== "hidden" && (
+          <Live2DCharacter
+            className={`${AUTHOR_CHAR_BASE} ${AUTHOR_CHAR_POS[charPos]}`}
+          />
+        )}
       </div>
 
       {/* 우: 저작 패널 */}
       <div className="flex w-full flex-col border-t border-border-default md:h-full md:w-[400px] md:shrink-0 md:border-l md:border-t-0">
-        {/* 헤더 + 메타 정보 */}
-        <div className="space-y-3 border-b border-border-default p-4">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-1 text-sm text-text-tertiary transition-colors hover:text-text-primary"
-          >
-            <ArrowLeft className="h-4 w-4" /> 돌아가기
-          </button>
-
-          <h1 className="text-lg font-bold tracking-tight text-text-primary">
-            교육 프로그램 제작
-          </h1>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="p-title" className="text-text-secondary">제목</Label>
-            <Input
-              id="p-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="여름철 대삼각형 찾기"
-              className={INPUT_CLS}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="p-subtitle" className="text-text-secondary">부제</Label>
-            <Input
-              id="p-subtitle"
-              value={subtitle}
-              onChange={(e) => setSubtitle(e.target.value)}
-              placeholder="선택 입력"
-              className={INPUT_CLS}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="p-difficulty" className="text-text-secondary">난이도</Label>
-            <select
-              id="p-difficulty"
-              value={difficulty}
-              onChange={(e) => setDifficulty(e.target.value as ProgramDifficulty)}
-              className={SELECT_CLS}
+        {/* ① 상단(고정): 헤더 + 접히는 메타 정보 */}
+        <div className="shrink-0 border-b border-border-default p-4">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.back()}
+              aria-label="돌아가기"
+              className="text-text-tertiary transition-colors hover:text-text-primary"
             >
-              <option value="BEGINNER">입문</option>
-              <option value="INTERMEDIATE">중급</option>
-              <option value="ADVANCED">고급</option>
-            </select>
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <h1 className="min-w-0 flex-1 truncate text-base font-bold tracking-tight text-text-primary">
+              {metaOpen
+                ? "교육 프로그램 제작"
+                : title.trim() || "제목 없는 프로그램"}
+            </h1>
+            <button
+              type="button"
+              onClick={() => setMetaOpen((v) => !v)}
+              aria-expanded={metaOpen}
+              className="flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-text-tertiary transition-colors hover:text-text-primary"
+            >
+              {metaOpen ? (
+                <>
+                  접기 <ChevronUp className="h-3.5 w-3.5" />
+                </>
+              ) : (
+                <>
+                  정보 <ChevronDown className="h-3.5 w-3.5" />
+                </>
+              )}
+            </button>
           </div>
 
-          {programId && (
-            <p className="font-mono text-xs text-text-tertiary">
-              프로그램 ID: {programId}
-              {status ? ` · ${status}` : ""}
-            </p>
+          {metaOpen && (
+            <div className="mt-3 space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="p-title" className="text-text-secondary">
+                  제목
+                </Label>
+                <Input
+                  id="p-title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="여름철 대삼각형 찾기"
+                  className={INPUT_CLS}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="p-subtitle" className="text-text-secondary">
+                  부제
+                </Label>
+                <Input
+                  id="p-subtitle"
+                  value={subtitle}
+                  onChange={(e) => setSubtitle(e.target.value)}
+                  placeholder="선택 입력"
+                  className={INPUT_CLS}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="p-difficulty" className="text-text-secondary">
+                  난이도
+                </Label>
+                <select
+                  id="p-difficulty"
+                  value={difficulty}
+                  onChange={(e) =>
+                    setDifficulty(e.target.value as ProgramDifficulty)
+                  }
+                  className={SELECT_CLS}
+                >
+                  <option value="BEGINNER">입문</option>
+                  <option value="INTERMEDIATE">중급</option>
+                  <option value="ADVANCED">고급</option>
+                </select>
+              </div>
+
+              {programId && (
+                <p className="font-mono text-xs text-text-tertiary">
+                  프로그램 ID: {programId}
+                  {status ? ` · ${status}` : ""}
+                </p>
+              )}
+            </div>
           )}
         </div>
 
-        {/* 스텝 추가 버튼 */}
-        <div className="border-b border-border-default p-3">
-          <p className="mb-2 text-xs font-medium text-text-secondary">스텝 추가</p>
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              onClick={captureView}
-              disabled={!stelReady}
-              className="glow-primary col-span-2 rounded-lg bg-interactive-primary px-3 py-2 text-sm text-white transition-colors hover:bg-interactive-primary/90 disabled:opacity-40"
-            >
-              📷 현재 장면 캡처
-            </button>
-            <AddButton onClick={() => addStep({ type: "show-text", text: "", motion: "Idle" })}>
-              💬 나레이션
-            </AddButton>
-            <AddButton
-              onClick={() =>
-                addStep({
-                  type: "highlight-stars",
-                  stars: selectedStar ? [selectedStar] : [],
-                })
-              }
-            >
-              ✦ 별 강조
-            </AddButton>
-            <AddButton
-              onClick={() =>
-                addStep({ type: "draw-line", from: selectedStar ?? "", to: "" })
-              }
-            >
-              — 선 긋기
-            </AddButton>
-            <AddButton onClick={() => addStep({ type: "set-time", timeSpeed: 0 })}>
-              🕐 시간 설정
-            </AddButton>
-            <AddButton
-              onClick={() => addStep({ type: "toggle-constellation", constellationLines: true })}
-            >
-              ✨ 별자리 토글
-            </AddButton>
-            <AddButton onClick={() => addStep({ type: "wait", waitMs: 1000 })}>
-              ⏸ 대기
-            </AddButton>
-            <AddButton onClick={() => addStep({ type: "clear-overlays" })}>
-              ○ 오버레이 초기화
-            </AddButton>
-          </div>
-        </div>
-
-        {/* 스텝 목록 + 인라인 편집 */}
-        <div className="flex-1 overflow-y-auto p-3">
-          <div className="mb-2 flex items-center justify-between">
+        {/* ② 중앙(flex-1, 스크롤): 스텝 목록 — 저작의 주인공 */}
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex shrink-0 items-center justify-between border-b border-border-default px-3 py-2">
             <p className="text-xs font-medium text-text-secondary">
               스텝 <span className="font-mono text-aurora">{steps.length}</span>
             </p>
-            {playing && (
-              <button
-                onClick={stopPlay}
-                className="flex items-center gap-1 text-xs text-error hover:opacity-80"
-              >
-                <Square className="h-3 w-3" /> 정지
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => (playing ? stopPlay() : playFrom(0))}
+              disabled={!stelReady || steps.length === 0}
+              className="flex items-center gap-1 text-xs text-text-secondary transition-colors hover:text-text-primary disabled:opacity-30"
+            >
+              {playing ? (
+                <>
+                  <Square className="h-3 w-3 text-error" /> 정지
+                </>
+              ) : (
+                <>
+                  <Play className="h-3 w-3" /> 처음부터 재생
+                </>
+              )}
+            </button>
           </div>
 
-          {steps.length === 0 && (
-            <p className="py-8 text-center text-xs text-text-tertiary">
-              위 버튼으로 스텝을 추가하세요.
-            </p>
-          )}
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            {steps.length === 0 && (
+              <p className="py-8 text-center text-xs leading-relaxed text-text-tertiary">
+                아직 스텝이 없습니다.
+                <br />
+                아래 <span className="text-text-secondary">＋ 스텝 추가</span>로
+                시작하세요.
+              </p>
+            )}
 
-          <div className="space-y-1.5">
-            {steps.map((step, idx) => (
-              <div
-                key={idx}
-                className={`rounded-xl border transition-colors ${
-                  idx === playIndex
-                    ? "border-aurora bg-surface-2"
-                    : idx === editIndex
-                      ? "border-interactive-primary bg-surface-1"
-                      : "border-border-default bg-surface-1"
-                }`}
-              >
-                <div className="flex items-center gap-1 p-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditIndex(idx === editIndex ? null : idx)}
-                    className="min-w-0 flex-1 truncate text-left text-xs text-text-primary"
-                  >
-                    <span className="mr-1.5 font-mono text-text-tertiary">{idx + 1}.</span>
-                    {stepLabel(step)}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => playFrom(idx)}
-                    aria-label="여기부터 재생"
-                    title="여기부터 재생"
-                    className="p-1 text-text-tertiary transition-colors hover:text-aurora"
-                  >
-                    <Play className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveStep(idx, -1)}
-                    disabled={idx === 0}
-                    aria-label="위로"
-                    className="p-1 text-text-tertiary transition-colors hover:text-text-primary disabled:opacity-25"
-                  >
-                    <ArrowUp className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveStep(idx, 1)}
-                    disabled={idx === steps.length - 1}
-                    aria-label="아래로"
-                    className="p-1 text-text-tertiary transition-colors hover:text-text-primary disabled:opacity-25"
-                  >
-                    <ArrowDown className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeStep(idx)}
-                    aria-label="삭제"
-                    className="p-1 text-text-tertiary transition-colors hover:text-error"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-
-                {idx === editIndex && editing && (
-                  <div className="space-y-2 border-t border-border-default p-3">
-                    <StepEditor
-                      step={editing}
-                      index={idx}
-                      selectedStar={selectedStar}
-                      onChange={updateStep}
-                      onCaptureTime={captureTime}
-                    />
+            <div className="space-y-1.5">
+              {steps.map((step, idx) => (
+                <div
+                  key={idx}
+                  className={`rounded-xl border transition-colors ${
+                    idx === playIndex
+                      ? "border-aurora bg-surface-2"
+                      : idx === editIndex
+                        ? "border-interactive-primary bg-surface-1"
+                        : "border-border-default bg-surface-1"
+                  }`}
+                >
+                  <div className="flex items-center gap-1 p-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditIndex(idx === editIndex ? null : idx)
+                      }
+                      className="min-w-0 flex-1 truncate text-left text-xs text-text-primary"
+                    >
+                      <span className="mr-1.5 font-mono text-text-tertiary">
+                        {idx + 1}.
+                      </span>
+                      {stepLabel(step)}
+                      {step.characterPosition && (
+                        <span className="ml-1.5 text-[10px] text-text-tertiary">
+                          🙋{CHAR_POS_LABEL[step.characterPosition]}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => playFrom(idx)}
+                      aria-label="여기부터 재생"
+                      title="여기부터 재생"
+                      className="p-1 text-text-tertiary transition-colors hover:text-aurora"
+                    >
+                      <Play className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveStep(idx, -1)}
+                      disabled={idx === 0}
+                      aria-label="위로"
+                      className="p-1 text-text-tertiary transition-colors hover:text-text-primary disabled:opacity-25"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveStep(idx, 1)}
+                      disabled={idx === steps.length - 1}
+                      aria-label="아래로"
+                      className="p-1 text-text-tertiary transition-colors hover:text-text-primary disabled:opacity-25"
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeStep(idx)}
+                      aria-label="삭제"
+                      className="p-1 text-text-tertiary transition-colors hover:text-error"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {idx === editIndex && editing && (
+                    <div className="space-y-2 border-t border-border-default p-3">
+                      <StepEditor
+                        step={editing}
+                        index={idx}
+                        selectedStar={selectedStar}
+                        onChange={updateStep}
+                        onCaptureTime={captureTime}
+                      />
+                      {/* 캐릭터 위치는 모든 스텝 타입에서 지정할 수 있다 */}
+                      <div className="space-y-1 pt-1">
+                        <Label className="text-[11px] text-text-secondary">
+                          별도리 위치
+                        </Label>
+                        <div className="grid grid-cols-5 gap-1">
+                          {CHAR_POS_OPTIONS.map((opt) => {
+                            const active =
+                              (editing.characterPosition ?? "") === opt.value;
+                            return (
+                              <button
+                                key={opt.value || "keep"}
+                                type="button"
+                                onClick={() =>
+                                  updateStep(idx, {
+                                    characterPosition: opt.value || undefined,
+                                  })
+                                }
+                                className={`rounded-md border px-1 py-1.5 text-[10px] transition-colors ${
+                                  active
+                                    ? "border-interactive-primary bg-surface-2 text-text-primary"
+                                    : "border-border-default bg-surface-1 text-text-tertiary hover:border-interactive-primary"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* 저장 액션 */}
-        <div className="space-y-2 border-t border-border-default p-3">
-          <div className="flex gap-2">
-            <Button
+        {/* ③ 하단(고정): 캡처 · 스텝 추가 팝오버 · 액션 바 */}
+        <div className="shrink-0 space-y-2 border-t border-border-default p-3">
+          {/* 가장 자주 쓰는 동작 — 항상 노출 */}
+          <button
+            type="button"
+            onClick={captureView}
+            disabled={!stelReady}
+            className="glow-primary w-full rounded-lg bg-interactive-primary px-3 py-2.5 text-sm font-medium text-white transition-colors hover:bg-interactive-primary/90 disabled:opacity-40"
+          >
+            📷 현재 장면 캡처
+          </button>
+
+          <div className="relative">
+            {addMenuOpen && (
+              <>
+                {/* 바깥 클릭 시 닫힘 */}
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setAddMenuOpen(false)}
+                />
+                <div className="absolute bottom-full left-0 z-50 mb-2 w-full overflow-hidden rounded-xl border border-border-default bg-surface-1 shadow-2xl">
+                  <AddMenuItem onClick={captureView} disabled={!stelReady}>
+                    📷 현재 장면 캡처
+                  </AddMenuItem>
+                  <AddMenuItem
+                    onClick={() =>
+                      addStep({ type: "show-text", text: "", motion: "Idle" })
+                    }
+                  >
+                    💬 나레이션
+                  </AddMenuItem>
+                  <AddMenuItem
+                    onClick={() =>
+                      addStep({
+                        type: "highlight-stars",
+                        stars: selectedStar ? [selectedStar] : [],
+                      })
+                    }
+                  >
+                    ✦ 별 강조
+                  </AddMenuItem>
+                  <AddMenuItem
+                    onClick={() =>
+                      addStep({
+                        type: "draw-line",
+                        from: selectedStar ?? "",
+                        to: "",
+                      })
+                    }
+                  >
+                    — 선 긋기
+                  </AddMenuItem>
+                  <AddMenuItem
+                    onClick={() => addStep({ type: "set-time", timeSpeed: 0 })}
+                  >
+                    🕐 시간 설정
+                  </AddMenuItem>
+                  <AddMenuItem
+                    onClick={() =>
+                      addStep({
+                        type: "toggle-constellation",
+                        constellationLines: true,
+                      })
+                    }
+                  >
+                    ✨ 별자리 토글
+                  </AddMenuItem>
+                  <AddMenuItem
+                    onClick={() => addStep({ type: "wait", waitMs: 1000 })}
+                  >
+                    ⏸ 대기
+                  </AddMenuItem>
+                  <AddMenuItem
+                    onClick={() => addStep({ type: "clear-overlays" })}
+                  >
+                    ○ 오버레이 초기화
+                  </AddMenuItem>
+                </div>
+              </>
+            )}
+            <button
               type="button"
-              onClick={() => (playing ? stopPlay() : playFrom(0))}
-              variant="outline"
-              className="flex-1 border-border-default text-text-primary"
-              disabled={!stelReady || steps.length === 0}
+              onClick={() => setAddMenuOpen((v) => !v)}
+              aria-expanded={addMenuOpen}
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border-default bg-surface-1 px-3 py-2 text-sm text-text-primary transition-colors hover:border-interactive-primary"
             >
-              {playing ? "■ 정지" : "▶ 처음부터 재생"}
-            </Button>
+              <Plus className="h-4 w-4" /> 스텝 추가
+            </button>
+          </div>
+
+          <div className="flex gap-1.5">
             <Button
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="glow-primary flex-1 bg-interactive-primary text-white hover:bg-interactive-primary/90"
+              size="sm"
+              className="glow-primary flex-1 bg-interactive-primary text-xs text-white hover:bg-interactive-primary/90"
             >
               {saving ? "저장 중..." : "임시저장"}
             </Button>
-          </div>
-          <div className="flex gap-2">
             <Button
               type="button"
               onClick={handleSubmit}
               variant="outline"
+              size="sm"
               disabled={!programId || saving}
-              className="flex-1 border-border-default text-text-primary"
+              className="flex-1 border-border-default text-xs text-text-primary"
             >
               검수 요청
             </Button>
             <Button
               type="button"
-              onClick={() => router.push(`/community/program/new?programId=${programId}`)}
+              onClick={() =>
+                router.push(`/community/program/new?programId=${programId}`)
+              }
               variant="outline"
+              size="sm"
               disabled={!programId}
-              className="flex-1 border-border-default text-text-primary"
+              className="flex-1 border-border-default text-xs text-text-primary"
             >
-              이 프로그램으로 글쓰기
+              글쓰기
             </Button>
           </div>
         </div>
@@ -569,18 +746,21 @@ export default function ProgramAuthorPage() {
   );
 }
 
-function AddButton({
+function AddMenuItem({
   onClick,
+  disabled,
   children,
 }: {
   onClick: () => void;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-lg border border-border-default bg-surface-1 px-2 py-2 text-xs text-text-primary transition-colors hover:border-interactive-primary"
+      disabled={disabled}
+      className="block w-full border-b border-border-default px-3 py-2.5 text-left text-sm text-text-primary transition-colors last:border-b-0 hover:bg-surface-2 disabled:opacity-40"
     >
       {children}
     </button>
@@ -612,7 +792,10 @@ function StepEditor({
                 value={step[k] ?? ""}
                 onChange={(e) =>
                   onChange(index, {
-                    [k]: e.target.value === "" ? undefined : Number(e.target.value),
+                    [k]:
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
                   })
                 }
                 className={INPUT_CLS}
@@ -626,7 +809,9 @@ function StepEditor({
       return (
         <>
           <div className="space-y-1">
-            <Label className="text-[11px] text-text-secondary">나레이션 텍스트</Label>
+            <Label className="text-[11px] text-text-secondary">
+              나레이션 텍스트
+            </Label>
             <Textarea
               value={step.text ?? ""}
               onChange={(e) => onChange(index, { text: e.target.value })}
@@ -636,7 +821,9 @@ function StepEditor({
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label className="text-[11px] text-text-secondary">캐릭터 모션</Label>
+              <Label className="text-[11px] text-text-secondary">
+                캐릭터 모션
+              </Label>
               <select
                 value={step.motion ?? "Idle"}
                 onChange={(e) =>
@@ -645,19 +832,25 @@ function StepEditor({
                 className={SELECT_CLS}
               >
                 {MOTIONS.map((m) => (
-                  <option key={m} value={m}>{m}</option>
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
                 ))}
               </select>
             </div>
             <div className="space-y-1">
-              <Label className="text-[11px] text-text-secondary">표시 시간(ms)</Label>
+              <Label className="text-[11px] text-text-secondary">
+                표시 시간(ms)
+              </Label>
               <Input
                 type="number"
                 value={step.textDuration ?? ""}
                 onChange={(e) =>
                   onChange(index, {
                     textDuration:
-                      e.target.value === "" ? undefined : Number(e.target.value),
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
                   })
                 }
                 placeholder="4000"
@@ -702,7 +895,8 @@ function StepEditor({
             type="button"
             disabled={!selectedStar}
             onClick={() =>
-              selectedStar && onChange(index, { stars: [...stars, selectedStar] })
+              selectedStar &&
+              onChange(index, { stars: [...stars, selectedStar] })
             }
             className="w-full rounded-lg border border-border-default bg-surface-1 px-2 py-1.5 text-xs text-text-primary transition-colors hover:border-interactive-primary disabled:opacity-40"
           >
@@ -730,7 +924,9 @@ function StepEditor({
                 <button
                   type="button"
                   disabled={!selectedStar}
-                  onClick={() => selectedStar && onChange(index, { [k]: selectedStar })}
+                  onClick={() =>
+                    selectedStar && onChange(index, { [k]: selectedStar })
+                  }
                   className="shrink-0 rounded-lg border border-border-default px-2 text-xs text-text-secondary transition-colors hover:border-interactive-primary disabled:opacity-40"
                 >
                   선택 별
@@ -771,7 +967,8 @@ function StepEditor({
               value={step.timeSpeed ?? ""}
               onChange={(e) =>
                 onChange(index, {
-                  timeSpeed: e.target.value === "" ? undefined : Number(e.target.value),
+                  timeSpeed:
+                    e.target.value === "" ? undefined : Number(e.target.value),
                 })
               }
               className={INPUT_CLS}
@@ -794,7 +991,9 @@ function StepEditor({
               <Label className="text-[11px] text-text-secondary">{label}</Label>
               <select
                 value={triValue(step[key])}
-                onChange={(e) => onChange(index, { [key]: triParse(e.target.value) })}
+                onChange={(e) =>
+                  onChange(index, { [key]: triParse(e.target.value) })
+                }
                 className={SELECT_CLS}
               >
                 <option value="">변경 안 함</option>
@@ -809,13 +1008,16 @@ function StepEditor({
     case "wait":
       return (
         <div className="space-y-1">
-          <Label className="text-[11px] text-text-secondary">대기 시간(ms)</Label>
+          <Label className="text-[11px] text-text-secondary">
+            대기 시간(ms)
+          </Label>
           <Input
             type="number"
             value={step.waitMs ?? ""}
             onChange={(e) =>
               onChange(index, {
-                waitMs: e.target.value === "" ? undefined : Number(e.target.value),
+                waitMs:
+                  e.target.value === "" ? undefined : Number(e.target.value),
               })
             }
             className={INPUT_CLS}
@@ -824,10 +1026,7 @@ function StepEditor({
       );
 
     default:
-      return (
-        <p className="text-xs text-text-tertiary">
-          이 스텝은 별도 설정이 없습니다.
-        </p>
-      );
+      // 이 타입은 타입별 설정이 없다 — 아래 "별도리 위치"만 지정할 수 있다
+      return null;
   }
 }
