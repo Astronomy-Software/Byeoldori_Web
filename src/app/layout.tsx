@@ -54,7 +54,9 @@ export const metadata: Metadata = {
       "Ym-2QxytT69t-FAy10lptmLTYqScPCKQINN9o1f0oUE",
     ],
     other: {
-      "naver-site-verification": "425432fa0bbb7c7a48d0e9088f3d22a0c188585b",
+      // 네이버는 구글과 달리 동일 name 태그가 여러 개면 검증이 어긋날 수 있어
+      // 단일 값으로 교체한다(도메인 변경으로 재발급).
+      "naver-site-verification": "e5bb5d5c349a5024e81809ccbf6a3f6176a44b19",
     },
   },
 };
