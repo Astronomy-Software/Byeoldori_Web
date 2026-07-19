@@ -324,17 +324,19 @@ export default function ObservatoryPage() {
       <div ref={mapRef} className="h-full w-full" />
 
       {/* 데스크톱 좌측 glass 패널: 관측지 리스트 */}
-      <aside className="absolute left-0 top-0 z-20 hidden h-full w-80 flex-col border-r border-border-default glass md:flex">
-        <div className="border-b border-border-default px-5 pb-4 pt-6">
-          <h2 className="text-lg font-bold text-text-primary">관측지</h2>
-          <p className="mt-0.5 font-mono text-xs text-text-tertiary">{sites.length}곳</p>
+      <aside className="absolute left-0 top-0 z-20 hidden h-full w-80 flex-col border-r border-border-strong bg-bg-section/95 backdrop-blur-md md:flex">
+        <div className="border-b border-border-default bg-surface-1/60 px-5 pb-4 pt-6">
+          <h2 className="flex items-center gap-2 text-lg font-bold text-text-primary">
+            <MapPin className="h-4 w-4 text-aurora" aria-hidden="true" /> 관측지
+          </h2>
+          <p className="mt-0.5 font-mono text-xs text-text-tertiary">전국 {sites.length}곳</p>
         </div>
-        <div className="flex-1 overflow-y-auto px-3 py-3">
+        <div className="flex-1 space-y-2 overflow-y-auto px-3 py-3">
           {sites.map((site) => (
             <button
               key={site.id}
               onClick={() => goToDetail(site)}
-              className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-surface-2"
+              className="group flex w-full items-center gap-3 rounded-2xl border border-border-default bg-surface-1 px-3 py-3 text-left transition-colors hover:border-border-strong hover:bg-surface-2"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-1 text-interactive-link">
                 <MapPin className="h-4 w-4" aria-hidden="true" />
