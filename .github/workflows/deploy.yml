@@ -26,8 +26,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          # wrangler 4.x 는 Node 22 이상을 요구한다 (20에서는 배포 단계가 exit 1)
-          node-version: 22
+          # wrangler 4.x 는 Node 22 이상 요구. Actions 러너 기본도 24이므로 24로 맞춘다.
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -46,6 +46,25 @@ jobs:
           curl -s -H "Content-Type: application/json" \
             -d "{\"embeds\":[{\"title\":\"🚀 별도리 웹 배포 시작 (Cloudflare)\",\"color\":3447003,\"fields\":[{\"name\":\"브랜치\",\"value\":\"${REF}\",\"inline\":true},{\"name\":\"커밋\",\"value\":\"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\",\"inline\":true},{\"name\":\"작업자\",\"value\":\"${ACTOR}\",\"inline\":true}]}]}" \
             "$DISCORD_URL" || true
+
+      # 시크릿이 "이름만 있고 값이 빈" 상태면 wrangler 가 "토큰을 설정하라"는
+      # 모호한 메시지로 늦게 실패한다. 값 자체는 출력하지 않고 존재 여부만 먼저 확인.
+      - name: Verify Cloudflare credentials present
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          fail=0
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN 시크릿이 비어 있습니다. GitHub Settings → Secrets and variables → Actions 에서 실제 값을 등록하세요."
+            fail=1
+          fi
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::CLOUDFLARE_ACCOUNT_ID 시크릿이 비어 있습니다."
+            fail=1
+          fi
+          [ "$fail" -eq 0 ] && echo "Cloudflare 자격증명 확인됨 (값은 출력하지 않음)"
+          exit $fail
 
       - name: Build & Deploy to Cloudflare Workers
         run: npm run cf:deploy
