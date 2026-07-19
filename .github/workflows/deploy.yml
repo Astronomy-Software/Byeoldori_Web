@@ -1,8 +1,22 @@
-name: Auto Deploy to Vercel
+name: Auto Deploy to Cloudflare Workers
+
+# byeoldori.com 은 Cloudflare Workers(@opennextjs/cloudflare)가 서빙한다.
+# 기존 Vercel 자동배포는 중단하고 CF 배포로 일원화했다.
+# 필요한 secrets: CLOUDFLARE_API_TOKEN(Workers 배포 권한), CLOUDFLARE_ACCOUNT_ID
+# 빌드는 open-next.config.ts 의 buildCommand("next build --webpack")를 따른다.
+# (Turbopack 산출물은 CF에서 SSR 500을 유발하므로 webpack 고정)
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-web-main
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -12,10 +26,12 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # wrangler 4.x 는 Node 22 이상 요구. Actions 러너 기본도 24이므로 24로 맞춘다.
+          node-version: 24
+          cache: npm
 
-      - name: Install Vercel CLI
-        run: npm i -g vercel
+      - name: Install dependencies
+        run: npm ci
 
       - name: Notify Discord - Deploy Start
         env:
@@ -25,27 +41,67 @@ jobs:
           REF: ${{ github.ref_name }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
+          [ -z "$DISCORD_URL" ] && exit 0
           SHORT="${SHA:0:7}"
           curl -s -H "Content-Type: application/json" \
-            -d "{
-              \"embeds\": [{
-                \"title\": \"🚀 별도리 웹 배포 시작\",
-                \"description\": \"새로운 버전 배포를 시작합니다.\",
-                \"color\": 3447003,
-                \"fields\": [
-                  {\"name\": \"브랜치\", \"value\": \"${REF}\", \"inline\": true},
-                  {\"name\": \"커밋\", \"value\": \"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\", \"inline\": true},
-                  {\"name\": \"작업자\", \"value\": \"${ACTOR}\", \"inline\": true}
-                ]
-              }]
-            }" \
-            "$DISCORD_URL"
+            -d "{\"embeds\":[{\"title\":\"🚀 별도리 웹 배포 시작 (Cloudflare)\",\"color\":3447003,\"fields\":[{\"name\":\"브랜치\",\"value\":\"${REF}\",\"inline\":true},{\"name\":\"커밋\",\"value\":\"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\",\"inline\":true},{\"name\":\"작업자\",\"value\":\"${ACTOR}\",\"inline\":true}]}]}" \
+            "$DISCORD_URL" || true
 
-      - name: Deploy to Production
-        run: vercel deploy --prod --yes --token ${{ secrets.VERCEL_TOKEN }}
+      # 시크릿이 "이름만 있고 값이 빈" 상태면 wrangler 가 "토큰을 설정하라"는
+      # 모호한 메시지로 늦게 실패한다. 값 자체는 출력하지 않고 존재 여부만 먼저 확인.
+      - name: Verify Cloudflare credentials present
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          fail=0
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN 시크릿이 비어 있습니다. GitHub Settings → Secrets and variables → Actions 에서 실제 값을 등록하세요."
+            fail=1
+          fi
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::CLOUDFLARE_ACCOUNT_ID 시크릿이 비어 있습니다."
+            fail=1
+          fi
+          [ "$fail" -eq 0 ] && echo "Cloudflare 자격증명 확인됨 (값은 출력하지 않음)"
+          exit $fail
+
+      # NEXT_PUBLIC_* 가 비면 코드 폴백(localhost 등)이 배포돼 프록시·지도·OAuth 가
+      # 조용히 깨진다. 빌드 전에 누락을 잡는다. 값은 출력하지 않는다.
+      - name: Verify build-time public env present
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_KAKAO_CLIENT_ID: ${{ vars.NEXT_PUBLIC_KAKAO_CLIENT_ID }}
+          NEXT_PUBLIC_NAVER_CLIENT_ID: ${{ vars.NEXT_PUBLIC_NAVER_CLIENT_ID }}
+          NEXT_PUBLIC_NAVER_OAUTH_CLIENT_ID: ${{ vars.NEXT_PUBLIC_NAVER_OAUTH_CLIENT_ID }}
+        run: |
+          fail=0
+          for k in NEXT_PUBLIC_API_URL NEXT_PUBLIC_GOOGLE_CLIENT_ID \
+                   NEXT_PUBLIC_KAKAO_CLIENT_ID NEXT_PUBLIC_NAVER_CLIENT_ID \
+                   NEXT_PUBLIC_NAVER_OAUTH_CLIENT_ID; do
+            if [ -z "$(eval echo \"\$$k\")" ]; then
+              echo "::error::$k 변수가 비어 있습니다. Settings → Secrets and variables → Actions → Variables 에 등록하세요."
+              fail=1
+            fi
+          done
+          [ "$fail" -eq 0 ] && echo "빌드타임 공개 변수 확인됨 (값은 출력하지 않음)"
+          exit $fail
+
+      - name: Build & Deploy to Cloudflare Workers
+        run: npm run cf:deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # NEXT_PUBLIC_* 는 빌드 시점에 번들로 인라인되므로 여기서 전부 주입해야 한다.
+          # 하나라도 빠지면 코드의 폴백(localhost 등)이 그대로 배포된다.
+          # 값 자체는 브라우저에 노출되는 공개 식별자이므로 secrets 가 아닌 vars 로 관리.
+          NEXT_PUBLIC_SITE_URL: https://byeoldori.com
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_KAKAO_CLIENT_ID: ${{ vars.NEXT_PUBLIC_KAKAO_CLIENT_ID }}
+          NEXT_PUBLIC_NAVER_CLIENT_ID: ${{ vars.NEXT_PUBLIC_NAVER_CLIENT_ID }}
+          NEXT_PUBLIC_NAVER_OAUTH_CLIENT_ID: ${{ vars.NEXT_PUBLIC_NAVER_OAUTH_CLIENT_ID }}
 
       - name: Notify Discord - Deploy Success
         if: success()
@@ -55,43 +111,22 @@ jobs:
           ACTOR: ${{ github.actor }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
+          [ -z "$DISCORD_URL" ] && exit 0
           SHORT="${SHA:0:7}"
           curl -s -H "Content-Type: application/json" \
-            -d "{
-              \"embeds\": [{
-                \"title\": \"✅ 별도리 웹 배포 완료\",
-                \"description\": \"새로운 버전이 성공적으로 배포되었습니다.\",
-                \"color\": 3066993,
-                \"fields\": [
-                  {\"name\": \"커밋\", \"value\": \"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\", \"inline\": true},
-                  {\"name\": \"작업자\", \"value\": \"${ACTOR}\", \"inline\": true}
-                ]
-              }]
-            }" \
-            "$DISCORD_URL"
+            -d "{\"embeds\":[{\"title\":\"✅ 별도리 웹 배포 완료 (Cloudflare)\",\"color\":3066993,\"fields\":[{\"name\":\"커밋\",\"value\":\"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\",\"inline\":true},{\"name\":\"작업자\",\"value\":\"${ACTOR}\",\"inline\":true}]}]}" \
+            "$DISCORD_URL" || true
 
       - name: Notify Discord - Deploy Failure
         if: failure()
         env:
           DISCORD_URL: ${{ secrets.DISCORD_WEBHOOK_FRONTEND_URL }}
           SHA: ${{ github.sha }}
-          ACTOR: ${{ github.actor }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          WORKFLOW: ${{ github.workflow }}
         run: |
+          [ -z "$DISCORD_URL" ] && exit 0
           SHORT="${SHA:0:7}"
           curl -s -H "Content-Type: application/json" \
-            -d "{
-              \"embeds\": [{
-                \"title\": \"❌ 별도리 웹 배포 실패\",
-                \"description\": \"배포 중 오류가 발생했습니다. 확인이 필요합니다.\",
-                \"color\": 15158332,
-                \"fields\": [
-                  {\"name\": \"커밋\", \"value\": \"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\", \"inline\": true},
-                  {\"name\": \"작업자\", \"value\": \"${ACTOR}\", \"inline\": true},
-                  {\"name\": \"워크플로우\", \"value\": \"[${WORKFLOW}](${RUN_URL})\", \"inline\": false}
-                ]
-              }]
-            }" \
-            "$DISCORD_URL"
+            -d "{\"embeds\":[{\"title\":\"❌ 별도리 웹 배포 실패 (Cloudflare)\",\"color\":15158332,\"fields\":[{\"name\":\"커밋\",\"value\":\"[\`${SHORT}\`](${REPO_URL}/commit/${SHA})\",\"inline\":true},{\"name\":\"로그\",\"value\":\"[확인](${RUN_URL})\",\"inline\":true}]}]}" \
+            "$DISCORD_URL" || true
