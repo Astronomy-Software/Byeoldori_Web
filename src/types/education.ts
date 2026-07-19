@@ -23,6 +23,7 @@ export interface EduStep {
   id?: string;
   type:
     | "camera-move"
+    | "look-at"
     | "highlight-stars"
     | "draw-line"
     | "show-text"
@@ -36,6 +37,11 @@ export interface EduStep {
   // camera-move
   target?: string;
   duration?: number;
+
+  // look-at (감독모드에서 캡처한 임의 시점. 度 단위)
+  az?: number;
+  alt?: number;
+  fov?: number;
 
   // highlight-stars
   stars?: string[];

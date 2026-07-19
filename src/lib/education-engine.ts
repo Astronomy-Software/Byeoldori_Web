@@ -25,6 +25,15 @@ export async function executeStep(
       break;
     }
 
+    case "look-at": {
+      if (step.az === undefined || step.alt === undefined) break;
+      control.lookAt({ az: step.az, alt: step.alt, fov: step.fov });
+      if (step.duration && step.duration > 0) {
+        await delay(step.duration * 1000);
+      }
+      break;
+    }
+
     case "highlight-stars": {
       if (!step.stars?.length) break;
       control.highlightStars(
