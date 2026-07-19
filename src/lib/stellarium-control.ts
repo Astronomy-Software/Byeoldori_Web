@@ -187,6 +187,49 @@ export class StellariumControl {
     }
   }
 
+  /**
+   * 현재 화면 시점을 그대로 읽어온다 (감독모드 "이 장면 캡처"의 핵심).
+   * 엔진은 observer.yaw(방위각)·observer.pitch(고도)·core.fov 를 라디안으로
+   * 읽고 쓸 수 있다(sw_helpers 의 공유링크 생성과 동일한 방식). 저작 편의를 위해 度로 변환해 담는다.
+   */
+  getCurrentView(): { az: number; alt: number; fov: number; time: string } | null {
+    try {
+      const api = this.api;
+      if (!api) return null;
+      const core = api.stel.core;
+      const R = 180 / Math.PI;
+      // observer.utc 는 MJD-UTC → Unix ms 역변환
+      const unixMs = (core.observer.utc - 40587) * 86400000;
+      return {
+        az: +(core.observer.yaw * R).toFixed(4),
+        alt: +(core.observer.pitch * R).toFixed(4),
+        fov: +(core.fov * R).toFixed(4),
+        time: new Date(unixMs).toISOString(),
+      };
+    } catch (e) {
+      console.error("[Stel] getCurrentView 오류:", e);
+      return null;
+    }
+  }
+
+  /**
+   * 캡처해둔 시점으로 이동 (度 입력). 별 이름이 아닌 임의 방향을 가리킬 수 있어
+   * gotoStar 로 표현 못 하는 장면(성운 주변·빈 하늘 구도 등)도 재현된다.
+   */
+  lookAt(view: { az: number; alt: number; fov?: number }): void {
+    try {
+      const api = this.api;
+      if (!api) return;
+      const core = api.stel.core;
+      const D = Math.PI / 180;
+      core.observer.yaw = view.az * D;
+      core.observer.pitch = view.alt * D;
+      if (view.fov !== undefined) core.fov = view.fov * D;
+    } catch (e) {
+      console.error("[Stel] lookAt 오류:", e);
+    }
+  }
+
   /** 별자리 선/이름/그림 on-off */
   toggleConstellations(opts: {
     lines?: boolean;
