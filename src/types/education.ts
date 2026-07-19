@@ -1,4 +1,19 @@
-export type CharacterMotion = "Idle" | "happy" | "angry" | "crying" | "standing";
+// 표준 모션 그룹명(byeoldori.model3.json). 런타임은 characterManager가 대소문자·별칭을
+// 정규화하므로 아래 legacy 별칭(소문자/standing)도 계속 동작한다.
+export type CharacterMotion =
+  // 표준 그룹 (신규 저작 권장)
+  | "Idle"
+  | "Happy"
+  | "Angry"
+  | "Crying"
+  | "Her"
+  | "Appearance"
+  | "Exit"
+  // legacy 별칭 (기존 콘텐츠 하위호환)
+  | "happy"
+  | "angry"
+  | "crying"
+  | "standing";
 export type ImagePosition =
   | "top-left" | "top-center" | "top-right"
   | "bottom-left" | "bottom-center" | "bottom-right"
@@ -12,6 +27,8 @@ export interface EduStep {
     | "draw-line"
     | "show-text"
     | "show-image"
+    | "set-time"
+    | "toggle-constellation"
     | "clear-overlays"
     | "wait"
     | "composite";
@@ -39,6 +56,15 @@ export interface EduStep {
   imagePosition?: ImagePosition;
   imageWidth?: string;
   imageDuration?: number;
+
+  // set-time (ISO 문자열 또는 "sunset"/"night" 등 프리셋. speed=시간흐름 배속)
+  time?: string;
+  timeSpeed?: number;
+
+  // toggle-constellation
+  constellationLines?: boolean;
+  constellationLabels?: boolean;
+  constellationImages?: boolean;
 
   // wait
   waitMs?: number;

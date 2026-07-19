@@ -57,6 +57,24 @@ export async function executeStep(
       break;
     }
 
+    case "set-time": {
+      if (step.time) {
+        const d = new Date(step.time);
+        if (!Number.isNaN(d.getTime())) control.setTime(d);
+      }
+      if (step.timeSpeed !== undefined) control.setTimeSpeed(step.timeSpeed);
+      break;
+    }
+
+    case "toggle-constellation": {
+      control.toggleConstellations({
+        lines: step.constellationLines,
+        labels: step.constellationLabels,
+        images: step.constellationImages,
+      });
+      break;
+    }
+
     case "clear-overlays": {
       cb.onClearOverlays();
       break;
