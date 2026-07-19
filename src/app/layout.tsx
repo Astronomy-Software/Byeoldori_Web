@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// 컷오버(byeoldori.com) 시 NEXT_PUBLIC_SITE_URL 환경변수로 교체한다.
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://byeoldori-web.vercel.app";
+// 프로덕션 정식 도메인. 프리뷰 등에서만 NEXT_PUBLIC_SITE_URL로 오버라이드한다.
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://byeoldori.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -47,6 +47,9 @@ export const metadata: Metadata = {
   },
   verification: {
     google: "Ym-2QxytT69t-FAy10lptmLTYqScPCKQINN9o1f0oUE",
+    other: {
+      "naver-site-verification": "425432fa0bbb7c7a48d0e9088f3d22a0c188585b",
+    },
   },
 };
 
