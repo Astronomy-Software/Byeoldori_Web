@@ -222,6 +222,13 @@ export class StellariumControl {
       if (!api) return;
       const core = api.stel.core;
       const D = Math.PI / 180;
+      // gotoStar(pointAndLock)로 대상이 lock 되어 있으면 엔진이 매 프레임 시점을
+      // 그 대상으로 되돌려 yaw/pitch 쓰기가 무효화된다. 먼저 lock을 푼다.
+      try {
+        core.lock = null;
+      } catch {
+        // lock 속성이 없는 빌드면 무시
+      }
       core.observer.yaw = view.az * D;
       core.observer.pitch = view.alt * D;
       if (view.fov !== undefined) core.fov = view.fov * D;

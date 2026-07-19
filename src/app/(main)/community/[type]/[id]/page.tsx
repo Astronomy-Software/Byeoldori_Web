@@ -313,15 +313,11 @@ export default function PostDetailPage() {
                 <BookOpen className="h-4 w-4" />
                 프로그램 실행
               </button>
-            ) : post.education.contentUrl ? (
-              <button
-                onClick={() => router.push(`/starmap?programId=${postId}`)}
-                className="glow-primary mt-2 flex items-center gap-2 rounded-lg bg-interactive-primary px-4 py-2 text-sm text-white transition-colors hover:bg-interactive-primary/90"
-              >
-                <BookOpen className="h-4 w-4" />
-                별지도에서 학습하기
-              </button>
             ) : null}
+            {/* 예전에는 contentUrl(JSON 링크) 방식이라 게시글 번호를 넘겼지만,
+                프로그램이 MongoDB로 분리되면서 starmap 은 programId 를 Mongo id 로
+                해석한다. 게시글 번호를 넘기면 반드시 실패하므로 레거시 버튼은 제거했다.
+                기존 글은 저작 화면에서 프로그램을 만들어 연결하면 다시 실행할 수 있다. */}
           </div>
         )}
 
