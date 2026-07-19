@@ -13,7 +13,31 @@ import {
 import { Live2DCharacter } from "@/components/live2d-character";
 import { characterManager } from "@/lib/character-manager";
 import { speak, cancelNarration, warmupVoices } from "@/lib/narration";
-import type { EducationProgram, EduStep, ImagePosition } from "@/types/education";
+import type {
+  CharacterPosition,
+  EducationProgram,
+  EduStep,
+  ImagePosition,
+} from "@/types/education";
+
+// 별도리 캐릭터 위치. "hidden"은 렌더 자체를 생략하므로 맵에 없다.
+// bottom-right 값은 Live2DCharacter의 기본 className과 동일해야 하위호환이 유지된다.
+const CHARACTER_BASE = "pointer-events-none fixed z-40 h-64 w-48 md:h-80 md:w-64";
+const CHARACTER_POS: Record<Exclude<CharacterPosition, "hidden">, string> = {
+  "bottom-right": "bottom-16 right-0 md:bottom-0",
+  "bottom-left": "bottom-16 left-0 md:bottom-0",
+  "bottom-center": "bottom-16 left-1/2 -translate-x-1/2 md:bottom-0",
+};
+
+// 말풍선은 캐릭터 머리 위에 붙어야 하므로 같은 축을 따라간다.
+const BUBBLE_POS: Record<CharacterPosition, string> = {
+  "bottom-right": "bottom-[280px] right-[16px] md:bottom-[340px] md:right-[20px]",
+  "bottom-left": "bottom-[280px] left-[16px] md:bottom-[340px] md:left-[20px]",
+  "bottom-center":
+    "bottom-[280px] left-1/2 -translate-x-1/2 md:bottom-[340px]",
+  // 캐릭터가 숨겨져도 자막은 읽혀야 한다 — 화면 하단 중앙에 남긴다.
+  hidden: "bottom-6 left-1/2 -translate-x-1/2",
+};
 
 const IMAGE_POS: Record<ImagePosition, string> = {
   "top-left": "top-4 left-4",
@@ -69,6 +93,8 @@ function StarMapInner() {
   const [imageOverlay, setImageOverlay] = useState<ImageOverlay | null>(null);
   const [selectedStar, setSelectedStar] = useState<string | null>(null);
   const [loadingProgram, setLoadingProgram] = useState(false);
+  const [characterPosition, setCharacterPosition] =
+    useState<CharacterPosition>("bottom-right");
 
   // 교육 프로그램(MongoDB) 공개 목록 로드
   useEffect(() => {
@@ -111,6 +137,7 @@ function StarMapInner() {
       warmupVoices(); // 사용자 제스처 시점에 음성 목록 로드
       clearAllOverlays();
       setCharText(null);
+      setCharacterPosition("bottom-right"); // 프로그램마다 기본 위치에서 시작
       // 별 카탈로그가 아직 로드 중이면 getObj가 null을 반환해 카메라 이동·별 강조가
       // 조용히 실패한다. 첫 스텝 실행 전에 조회 가능해질 때까지 기다린다.
       await controlRef.current?.waitForCatalog();
@@ -166,6 +193,7 @@ function StarMapInner() {
       onDrawLine: (from, to, color) => {
         controlRef.current?.drawLine(from, to, color);
       },
+      onCharacterPosition: setCharacterPosition,
     });
   }, [activeProgram, stepIndex]);
 
@@ -177,6 +205,8 @@ function StarMapInner() {
       setActiveProgram(null);
       setStepIndex(0);
       clearAllOverlays();
+      // 마지막 스텝이 캐릭터를 숨겼을 수 있으므로 마무리 인사 전에 되돌린다
+      setCharacterPosition("bottom-right");
       const closing = "수업이 끝났어! 정말 잘했어! 🌟";
       setCharText(closing);
       speak(closing);
@@ -198,6 +228,7 @@ function StarMapInner() {
     setActiveProgram(null);
     setStepIndex(0);
     setCharText(null);
+    setCharacterPosition("bottom-right");
     clearAllOverlays();
     router.replace("/starmap");
   }, [clearAllOverlays, router]);
@@ -256,7 +287,9 @@ function StarMapInner() {
 
       {/* 캐릭터 말풍선 */}
       {charText && (
-        <div className="fixed bottom-[280px] right-[16px] z-50 w-[220px] rounded-2xl border border-white/20 bg-black/85 p-3 shadow-2xl backdrop-blur-sm md:bottom-[340px] md:right-[20px]">
+        <div
+          className={`fixed z-50 w-[220px] rounded-2xl border border-white/20 bg-black/85 p-3 shadow-2xl backdrop-blur-sm ${BUBBLE_POS[characterPosition]}`}
+        >
           <p className="text-sm leading-relaxed text-white">{charText}</p>
           <button
             className="mt-2 text-[11px] text-white/40 hover:text-white/80 transition-colors"
@@ -267,8 +300,12 @@ function StarMapInner() {
         </div>
       )}
 
-      {/* Live2D 캐릭터 */}
-      <Live2DCharacter />
+      {/* Live2D 캐릭터 — 스텝이 지정한 위치로 이동, "hidden"이면 렌더 생략 */}
+      {characterPosition !== "hidden" && (
+        <Live2DCharacter
+          className={`${CHARACTER_BASE} ${CHARACTER_POS[characterPosition]}`}
+        />
+      )}
 
       {/* 교육 모드 토글 */}
       <button
