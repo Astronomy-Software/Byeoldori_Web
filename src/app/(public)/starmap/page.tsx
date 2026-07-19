@@ -107,10 +107,13 @@ function StarMapInner() {
   }, []);
 
   const startProgram = useCallback(
-    (program: EducationProgram) => {
+    async (program: EducationProgram) => {
       warmupVoices(); // 사용자 제스처 시점에 음성 목록 로드
       clearAllOverlays();
       setCharText(null);
+      // 별 카탈로그가 아직 로드 중이면 getObj가 null을 반환해 카메라 이동·별 강조가
+      // 조용히 실패한다. 첫 스텝 실행 전에 조회 가능해질 때까지 기다린다.
+      await controlRef.current?.waitForCatalog();
       setActiveProgram(program);
       setStepIndex(0);
       setEduMode(true);
