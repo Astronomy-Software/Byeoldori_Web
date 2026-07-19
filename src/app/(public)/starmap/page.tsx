@@ -8,6 +8,7 @@ import { loadEducationProgram } from "@/lib/education-program-loader";
 import { getPostDetail, getEducationPosts } from "@/lib/api/community";
 import { Live2DCharacter } from "@/components/live2d-character";
 import { characterManager } from "@/lib/character-manager";
+import { speak, cancelNarration, warmupVoices } from "@/lib/narration";
 import type { EducationProgram, EduStep, ImagePosition } from "@/types/education";
 import type { EducationPostSummary } from "@/types/api";
 
@@ -104,6 +105,7 @@ function StarMapInner() {
 
   const startProgram = useCallback(
     (program: EducationProgram) => {
+      warmupVoices(); // 사용자 제스처 시점에 음성 목록 로드
       clearAllOverlays();
       setCharText(null);
       setActiveProgram(program);
@@ -144,6 +146,7 @@ function StarMapInner() {
     executeStep(step, controlRef.current, {
       onText: (text, motion, duration) => {
         setCharText(text);
+        speak(text); // 자막 + 음성 나레이션(ko-KR)
         if (motion) characterManager.playMotion(motion);
         if (duration && duration > 0) {
           setTimeout(() => setCharText(null), duration);
@@ -173,7 +176,9 @@ function StarMapInner() {
       setActiveProgram(null);
       setStepIndex(0);
       clearAllOverlays();
-      setCharText("수업이 끝났어! 정말 잘했어! 🌟");
+      const closing = "수업이 끝났어! 정말 잘했어! 🌟";
+      setCharText(closing);
+      speak(closing);
       characterManager.playMotion("happy");
       // programId 쿼리 파라미터 제거
       router.replace("/starmap");
@@ -188,6 +193,7 @@ function StarMapInner() {
   }, [stepIndex, clearAllOverlays]);
 
   const exitProgram = useCallback(() => {
+    cancelNarration();
     setActiveProgram(null);
     setStepIndex(0);
     setCharText(null);
