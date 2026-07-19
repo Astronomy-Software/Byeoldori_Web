@@ -4,13 +4,16 @@ import { useEffect, useRef, useState, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { StellariumControl } from "@/lib/stellarium-control";
 import { executeStep } from "@/lib/education-engine";
-import { loadEducationProgram } from "@/lib/education-program-loader";
-import { getPostDetail, getEducationPosts } from "@/lib/api/community";
+import { loadProgramById } from "@/lib/education-program-loader";
+import {
+  listPrograms,
+  incrementProgramView,
+  type ProgramSummary,
+} from "@/lib/api/education-program";
 import { Live2DCharacter } from "@/components/live2d-character";
 import { characterManager } from "@/lib/character-manager";
 import { speak, cancelNarration, warmupVoices } from "@/lib/narration";
 import type { EducationProgram, EduStep, ImagePosition } from "@/types/education";
-import type { EducationPostSummary } from "@/types/api";
 
 const IMAGE_POS: Record<ImagePosition, string> = {
   "top-left": "top-4 left-4",
@@ -59,7 +62,7 @@ function StarMapInner() {
 
   const [stelReady, setStelReady] = useState(false);
   const [eduMode, setEduMode] = useState(false);
-  const [programs, setPrograms] = useState<EducationPostSummary[]>([]);
+  const [programs, setPrograms] = useState<ProgramSummary[]>([]);
   const [activeProgram, setActiveProgram] = useState<EducationProgram | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [charText, setCharText] = useState<string | null>(null);
@@ -67,9 +70,9 @@ function StarMapInner() {
   const [selectedStar, setSelectedStar] = useState<string | null>(null);
   const [loadingProgram, setLoadingProgram] = useState(false);
 
-  // 교육 프로그램 목록 로드
+  // 교육 프로그램(MongoDB) 공개 목록 로드
   useEffect(() => {
-    getEducationPosts(0, 20)
+    listPrograms({ size: 20 })
       .then((r) => setPrograms(r.content))
       .catch(console.error);
   }, []);
@@ -121,15 +124,10 @@ function StarMapInner() {
     if (!programId || !stelReady) return;
 
     setLoadingProgram(true);
-    getPostDetail(Number(programId))
-      .then(async (post) => {
-        const contentUrl = post.education?.contentUrl;
-        if (!contentUrl) {
-          console.warn("[StarMap] contentUrl 없음", programId);
-          return;
-        }
-        const program = await loadEducationProgram(contentUrl);
+    loadProgramById(programId)
+      .then((program) => {
         startProgram(program);
+        incrementProgramView(programId).catch(() => {});
       })
       .catch((e) => console.error("[StarMap] 프로그램 로드 실패:", e))
       .finally(() => setLoadingProgram(false));
@@ -210,16 +208,13 @@ function StarMapInner() {
   );
 
   const handleProgramSelect = useCallback(
-    async (post: EducationPostSummary) => {
+    async (summary: ProgramSummary) => {
       if (!stelReady) return;
-      // contentUrl 없을 경우 상세 페이지에서 가져오기
       setLoadingProgram(true);
       try {
-        const detail = await getPostDetail(post.id);
-        const contentUrl = detail.education?.contentUrl;
-        if (!contentUrl) return;
-        const program = await loadEducationProgram(contentUrl);
+        const program = await loadProgramById(summary.id);
         startProgram(program);
+        incrementProgramView(summary.id).catch(() => {});
       } catch (e) {
         console.error("[StarMap] 프로그램 로드 실패:", e);
       } finally {
@@ -312,27 +307,24 @@ function StarMapInner() {
                 {programs.length === 0 && (
                   <p className="text-center text-xs text-white/30 pt-8">등록된 교육 프로그램이 없습니다.</p>
                 )}
-                {programs.map((post) => (
+                {programs.map((prog) => (
                   <button
-                    key={post.id}
-                    onClick={() => handleProgramSelect(post)}
+                    key={prog.id}
+                    onClick={() => handleProgramSelect(prog)}
                     disabled={!stelReady || loadingProgram}
                     className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-left transition-colors hover:bg-white/10 disabled:opacity-40"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-sm font-medium text-white">{post.title}</span>
-                      {post.score != null && (
-                        <span className={`shrink-0 text-xs ${
-                          post.score >= 4 ? "text-green-400" :
-                          post.score >= 2.5 ? "text-yellow-400" : "text-red-400"
-                        }`}>
-                          ★ {post.score.toFixed(1)}
+                      <span className="text-sm font-medium text-white">{prog.title}</span>
+                      {prog.difficulty && (
+                        <span className={`shrink-0 text-xs ${DIFF_COLOR[prog.difficulty]}`}>
+                          {DIFF_LABEL[prog.difficulty]}
                         </span>
                       )}
                     </div>
-                    {post.contentSummary && (
-                      <p className="mt-1 text-xs text-white/50 line-clamp-2">{post.contentSummary}</p>
-                    )}
+                    <p className="mt-1 text-xs text-white/40">
+                      {prog.authorName ?? "별도리"} · 조회 {prog.viewCount}
+                    </p>
                   </button>
                 ))}
               </div>
