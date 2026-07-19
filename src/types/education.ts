@@ -27,6 +27,8 @@ export interface EduStep {
     | "draw-line"
     | "show-text"
     | "show-image"
+    | "set-time"
+    | "toggle-constellation"
     | "clear-overlays"
     | "wait"
     | "composite";
@@ -54,6 +56,15 @@ export interface EduStep {
   imagePosition?: ImagePosition;
   imageWidth?: string;
   imageDuration?: number;
+
+  // set-time (ISO 문자열 또는 "sunset"/"night" 등 프리셋. speed=시간흐름 배속)
+  time?: string;
+  timeSpeed?: number;
+
+  // toggle-constellation
+  constellationLines?: boolean;
+  constellationLabels?: boolean;
+  constellationImages?: boolean;
 
   // wait
   waitMs?: number;

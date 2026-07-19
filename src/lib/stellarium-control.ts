@@ -164,6 +164,47 @@ export class StellariumControl {
     return false;
   }
 
+  /** 관측 시각 설정 (JS Date → MJD-UTC). observer.utc가 MJD-UTC 값(sw_helpers:251) */
+  setTime(date: Date): void {
+    try {
+      const api = this.api;
+      if (!api) return;
+      const mjd = date.getTime() / 86400000 + 40587; // Unix ms → MJD(UTC)
+      api.stel.core.observer.utc = mjd;
+    } catch (e) {
+      console.error("[Stel] setTime 오류:", e);
+    }
+  }
+
+  /** 시간 흐름 속도 (1=실시간, 0=정지, 3600=1초에 1시간). 미지정 시 정지 */
+  setTimeSpeed(speed = 0): void {
+    try {
+      const api = this.api;
+      if (!api) return;
+      api.stel.core.time_speed = speed;
+    } catch (e) {
+      console.error("[Stel] setTimeSpeed 오류:", e);
+    }
+  }
+
+  /** 별자리 선/이름/그림 on-off */
+  toggleConstellations(opts: {
+    lines?: boolean;
+    labels?: boolean;
+    images?: boolean;
+  }): void {
+    try {
+      const api = this.api;
+      if (!api) return;
+      const c = api.stel.core.constellations;
+      if (opts.lines !== undefined) c.lines_visible = opts.lines;
+      if (opts.labels !== undefined) c.labels_visible = opts.labels;
+      if (opts.images !== undefined) c.images_visible = opts.images;
+    } catch (e) {
+      console.error("[Stel] toggleConstellations 오류:", e);
+    }
+  }
+
   /** 모든 교육용 오버레이 제거 */
   clearOverlays(): void {
     const api = this.api;
