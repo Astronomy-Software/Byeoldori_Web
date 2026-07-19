@@ -15,9 +15,11 @@ import {
   createProgram,
   updateProgram,
   submitProgram,
+  publishProgram,
   type ProgramDifficulty,
   type ProgramStatus,
 } from "@/lib/api/education-program";
+import { ApiError } from "@/lib/api/client";
 import type {
   CharacterMotion,
   CharacterPosition,
@@ -125,6 +127,24 @@ function triParse(v: string): boolean | undefined {
   return v === "" ? undefined : v === "on";
 }
 
+// 서버가 준 실패 사유를 그대로 보여준다. 401만 로그인 안내로 치환하고,
+// 나머지는 body(JSON이면 message, 아니면 원문)를 노출해야 원인을 알 수 있다.
+function apiMessage(e: unknown, fallback: string): string {
+  if (!(e instanceof ApiError)) return fallback;
+  if (e.status === 401) return "로그인이 필요합니다. 로그인 상태를 확인해주세요.";
+  const raw = e.body?.trim();
+  if (!raw) return fallback;
+  try {
+    const parsed = JSON.parse(raw) as { message?: unknown };
+    if (typeof parsed?.message === "string" && parsed.message.trim()) {
+      return parsed.message;
+    }
+  } catch {
+    // JSON이 아니면 원문을 그대로 쓴다
+  }
+  return raw;
+}
+
 const INPUT_CLS =
   "border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary";
 const SELECT_CLS =
@@ -136,6 +156,8 @@ export default function ProgramAuthorPage() {
   const controlRef = useRef<StellariumControl | null>(null);
   // 재생 세션 토큰 — 정지/재시작 시 이전 루프를 무효화한다
   const playTokenRef = useRef(0);
+  // 미리보기 중 예약한 자막 숨김 타이머 — 정지·재시작·언마운트 시 모두 걷어낸다
+  const playTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const [stelReady, setStelReady] = useState(false);
   const [selectedStar, setSelectedStar] = useState<string | null>(null);
@@ -248,14 +270,31 @@ export default function ProgramAuthorPage() {
   );
 
   // ── 미리보기 재생 ──────────────────────────────────────────
+  const clearPlayTimers = useCallback(() => {
+    playTimersRef.current.forEach(clearTimeout);
+    playTimersRef.current = [];
+  }, []);
+
   const stopPlay = useCallback(() => {
     playTokenRef.current += 1;
+    clearPlayTimers();
     cancelNarration();
     setPlaying(false);
     setPlayIndex(null);
     setCharText(null);
     setCharPos("bottom-right");
-  }, []);
+  }, [clearPlayTimers]);
+
+  // 화면을 떠나도 타이머·나레이션이 살아남지 않도록 정리
+  useEffect(
+    () => () => {
+      playTokenRef.current += 1;
+      playTimersRef.current.forEach(clearTimeout);
+      playTimersRef.current = [];
+      cancelNarration();
+    },
+    [],
+  );
 
   const playFrom = useCallback(
     async (start: number) => {
@@ -263,37 +302,68 @@ export default function ProgramAuthorPage() {
       if (!ctrl) return;
       playTokenRef.current += 1;
       const token = playTokenRef.current;
+      clearPlayTimers();
+      cancelNarration();
       warmupVoices();
       setPlaying(true);
       setCharPos("bottom-right");
 
+      // 별 카탈로그가 아직 로드 중이면 getObj가 null이라 카메라 이동·별 강조·선 긋기가
+      // 조용히 무시된다. starmap과 동일하게 조회 가능해질 때까지 기다린다.
+      const ok = await ctrl.waitForCatalog();
+      if (playTokenRef.current !== token) return;
+      if (!ok) {
+        toast.error(
+          "별 데이터 로딩이 끝나지 않았습니다. 잠시 후 다시 재생해주세요.",
+        );
+        setPlaying(false);
+        setPlayIndex(null);
+        return;
+      }
+
+      const alive = () => playTokenRef.current === token;
+
       const snapshot = steps;
       for (let i = start; i < snapshot.length; i++) {
-        if (playTokenRef.current !== token) return;
+        if (!alive()) return;
         setPlayIndex(i);
         await executeStep(snapshot[i], ctrl, {
           onText: (text, motion, duration) => {
+            if (!alive()) return;
             setCharText(text);
             speak(text);
             if (motion) characterManager.playMotion(motion);
             if (duration && duration > 0) {
-              setTimeout(() => setCharText(null), duration);
+              playTimersRef.current.push(
+                setTimeout(() => {
+                  if (alive()) setCharText(null);
+                }, duration),
+              );
             }
           },
           onImage: () => {
             // 저작 화면에서는 이미지 스텝을 추가하지 않으므로 미리보기 생략
           },
-          onClearOverlays: () => ctrl.clearOverlays(),
-          onDrawLine: (from, to, color) => ctrl.drawLine(from, to, color),
-          onCharacterPosition: setCharPos,
+          onClearOverlays: () => {
+            if (alive()) ctrl.clearOverlays();
+          },
+          onDrawLine: (from, to, color) =>
+            alive() ? ctrl.drawLine(from, to, color) : false,
+          onCharacterPosition: (pos) => {
+            if (alive()) setCharPos(pos);
+          },
+          // 별 이름 오타를 저작자가 즉시 알 수 있어야 한다
+          onStepWarning: (message) => {
+            if (alive()) toast.warning(message);
+          },
         });
       }
-      if (playTokenRef.current === token) {
+      if (alive()) {
         setPlaying(false);
         setPlayIndex(null);
       }
     },
-    [steps],
+    [steps, clearPlayTimers],
   );
 
   // ── 저장 ───────────────────────────────────────────────────
@@ -316,8 +386,8 @@ export default function ProgramAuthorPage() {
       setProgramId(res.id);
       setStatus(res.status);
       toast.success("임시저장되었습니다.");
-    } catch {
-      toast.error("저장에 실패했습니다. 로그인 상태를 확인해주세요.");
+    } catch (e) {
+      toast.error(apiMessage(e, "저장에 실패했습니다."));
     } finally {
       setSaving(false);
     }
@@ -333,12 +403,41 @@ export default function ProgramAuthorPage() {
       const res = await submitProgram(programId);
       setStatus(res.status);
       toast.success("검수를 요청했습니다.");
-    } catch {
-      toast.error("검수 요청에 실패했습니다.");
+    } catch (e) {
+      toast.error(apiMessage(e, "검수 요청에 실패했습니다."));
     } finally {
       setSaving(false);
     }
   }, [programId]);
+
+  // PREVIEW → PUBLISHED. moderation이 켜져 있으면 ADMIN만 통과하고,
+  // 권한이 없으면 서버가 403을 주므로 그 메시지를 그대로 보여준다.
+  const handlePublish = useCallback(async () => {
+    if (!programId) {
+      toast.error("먼저 임시저장을 해주세요.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await publishProgram(programId);
+      setStatus(res.status);
+      toast.success("발행되었습니다.");
+    } catch (e) {
+      toast.error(apiMessage(e, "발행에 실패했습니다."));
+    } finally {
+      setSaving(false);
+    }
+  }, [programId]);
+
+  // 상태에 따라 하나의 진행 버튼이 다음 단계를 안내한다:
+  // DRAFT → 검수 요청, PREVIEW → 발행, PUBLISHED → 비활성("발행됨")
+  const published = status === "PUBLISHED";
+  const stageAction: { label: string; onClick: () => void; disabled: boolean } =
+    published
+      ? { label: "발행됨", onClick: () => {}, disabled: true }
+      : status === "PREVIEW"
+        ? { label: "발행", onClick: handlePublish, disabled: false }
+        : { label: "검수 요청", onClick: handleSubmit, disabled: false };
 
   const editing = editIndex !== null ? steps[editIndex] : undefined;
 
@@ -719,13 +818,20 @@ export default function ProgramAuthorPage() {
             </Button>
             <Button
               type="button"
-              onClick={handleSubmit}
+              onClick={stageAction.onClick}
               variant="outline"
               size="sm"
-              disabled={!programId || saving}
+              disabled={!programId || saving || stageAction.disabled}
+              title={
+                published
+                  ? "이미 발행된 프로그램입니다"
+                  : status === "PREVIEW"
+                    ? "발행하면 모두가 볼 수 있습니다"
+                    : "검수를 요청합니다"
+              }
               className="flex-1 border-border-default text-xs text-text-primary"
             >
-              검수 요청
+              {stageAction.label}
             </Button>
             <Button
               type="button"
@@ -734,12 +840,24 @@ export default function ProgramAuthorPage() {
               }
               variant="outline"
               size="sm"
-              disabled={!programId}
+              // 미발행 프로그램은 백엔드가 글 연결을 400으로 거부한다 — UI에서 먼저 막는다
+              disabled={!programId || !published}
+              title={
+                published ? "이 프로그램으로 글쓰기" : "발행 후 글을 쓸 수 있습니다"
+              }
               className="flex-1 border-border-default text-xs text-text-primary"
             >
               글쓰기
             </Button>
           </div>
+
+          {programId && !published && (
+            <p className="text-center text-[11px] leading-relaxed text-text-tertiary">
+              {status === "PREVIEW"
+                ? "검수 대기 중입니다. 발행 후 글을 쓸 수 있습니다."
+                : "검수 요청 → 발행을 마쳐야 다른 사람이 볼 수 있고, 글을 쓸 수 있습니다."}
+            </p>
+          )}
         </div>
       </div>
     </div>

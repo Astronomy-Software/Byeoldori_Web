@@ -10,8 +10,15 @@ export interface StepCallbacks {
   onText: (text: string, motion: CharacterMotion | undefined, duration: number | undefined) => void;
   onImage: (url: string, position: ImagePosition | undefined, width: string | undefined, duration: number | undefined) => void;
   onClearOverlays: () => void;
-  onDrawLine: (from: string, to: string, color: [number, number, number, number]) => void;
+  // 선 긋기 성공 여부를 돌려주면(false) 실행기가 onStepWarning으로 알린다.
+  onDrawLine: (
+    from: string,
+    to: string,
+    color: [number, number, number, number],
+  ) => boolean | void;
   onCharacterPosition?: (pos: CharacterPosition) => void;
+  // 스텝이 조용히 실패했을 때(별 이름 오타 등) 저작자에게 알리기 위한 경고 채널
+  onStepWarning?: (message: string) => void;
 }
 
 function delay(ms: number): Promise<void> {
@@ -32,7 +39,8 @@ export async function executeStep(
   switch (step.type) {
     case "camera-move": {
       if (!step.target) break;
-      control.gotoStar(step.target, step.duration ?? 2.0);
+      const ok = control.gotoStar(step.target, step.duration ?? 2.0);
+      if (!ok) cb.onStepWarning?.(`별을 찾지 못했습니다: ${step.target}`);
       await delay((step.duration ?? 2.0) * 1000 + 300);
       break;
     }
@@ -57,7 +65,14 @@ export async function executeStep(
 
     case "draw-line": {
       if (!step.from || !step.to) break;
-      cb.onDrawLine(step.from, step.to, step.lineColor ?? [1, 0.3, 0.3, 0.9]);
+      const drawn = cb.onDrawLine(
+        step.from,
+        step.to,
+        step.lineColor ?? [1, 0.3, 0.3, 0.9],
+      );
+      if (drawn === false) {
+        cb.onStepWarning?.(`선을 긋지 못했습니다: ${step.from} → ${step.to}`);
+      }
       break;
     }
 
