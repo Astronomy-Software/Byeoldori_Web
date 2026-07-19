@@ -1,6 +1,6 @@
 import { AuthGuard } from "@/components/auth-guard";
 import { NavBar } from "@/components/nav-bar";
-import { Live2DCharacter } from "@/components/live2d-character";
+import { GlobalMascot } from "@/components/global-mascot";
 
 export default function MainLayout({
   children,
@@ -26,8 +26,8 @@ export default function MainLayout({
         </div>
       </div>
 
-      {/* Live2D 마스코트 오버레이 */}
-      <Live2DCharacter />
+      {/* Live2D 마스코트 오버레이 (자체 캐릭터를 두는 화면에서는 렌더 안 함) */}
+      <GlobalMascot />
     </AuthGuard>
   );
 }
