@@ -409,9 +409,15 @@ export interface FeedbackRequest {
   comment: string;
 }
 
-// File
+// File — 백엔드 POST /files/upload · /files/image 응답.
+// 실제 필드는 url·filename·size·contentType 4개다.
+// imageUrl은 구 백엔드/일부 이미지 엔드포인트 호환용(선택).
 export interface FileUploadResponse {
-  imageUrl: string;
+  url: string;
+  filename: string;
+  size: number;
+  contentType: string;
+  imageUrl?: string;
 }
 
 // Star

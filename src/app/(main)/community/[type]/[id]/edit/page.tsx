@@ -1,13 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { getPostDetail, updatePost } from "@/lib/api/community";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { editorStateHasContent } from "@/components/editor/shared";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+
+// 리치 텍스트 에디터는 브라우저 전용(SSR 비활성).
+const LexicalEditor = dynamic(
+  () => import("@/components/editor/lexical-editor"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[300px] rounded-lg border border-border-default bg-surface-1 p-3 text-sm text-text-tertiary">
+        에디터 로딩 중...
+      </div>
+    ),
+  },
+);
 
 export default function EditPostPage() {
   const params = useParams<{ type: string; id: string }>();
@@ -36,7 +50,7 @@ export default function EditPostPage() {
   }, [postId, router]);
 
   async function handleSubmit() {
-    if (!title.trim() || !content.trim()) {
+    if (!title.trim() || !editorStateHasContent(content)) {
       toast.error("제목과 내용을 입력해주세요.");
       return;
     }
@@ -88,12 +102,7 @@ export default function EditPostPage() {
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-text-secondary">내용</label>
-          <Textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="내용을 입력하세요"
-            className="min-h-[300px] border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
-          />
+          <LexicalEditor value={content} onChange={setContent} />
         </div>
         <Button
           onClick={handleSubmit}

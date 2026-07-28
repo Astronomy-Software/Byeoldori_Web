@@ -1,19 +1,33 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import dynamic from "next/dynamic";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   createFreePost,
   createReviewPost,
   createEducationPost,
 } from "@/lib/api/community";
 import { uploadImage } from "@/lib/api/files";
+import { editorStateHasContent } from "@/components/editor/shared";
 import { toast } from "sonner";
 import { ArrowLeft, Upload, X, Star, Clapperboard } from "lucide-react";
+
+// 리치 텍스트 에디터는 브라우저 전용(SSR 비활성).
+const LexicalEditor = dynamic(
+  () => import("@/components/editor/lexical-editor"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[220px] rounded-lg border border-border-default bg-surface-1 p-3 text-sm text-text-tertiary">
+        에디터 로딩 중...
+      </div>
+    ),
+  },
+);
 
 function NewPostInner() {
   const params = useParams<{ type: string }>();
@@ -47,7 +61,7 @@ function NewPostInner() {
     try {
       for (const file of Array.from(files)) {
         const res = await uploadImage(file);
-        setImageUrls((prev) => [...prev, res.imageUrl]);
+        setImageUrls((prev) => [...prev, res.url]);
       }
     } catch {
       toast.error("이미지 업로드에 실패했습니다.");
@@ -62,6 +76,10 @@ function NewPostInner() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!editorStateHasContent(content)) {
+      toast.error("내용을 입력해주세요.");
+      return;
+    }
     setIsSubmitting(true);
     try {
       let postId: number;
@@ -207,14 +225,8 @@ function NewPostInner() {
         )}
 
         <div className="space-y-2">
-          <Label htmlFor="content" className="text-text-secondary">내용</Label>
-          <Textarea
-            id="content"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="min-h-[200px] border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
-            required
-          />
+          <Label className="text-text-secondary">내용</Label>
+          <LexicalEditor value={content} onChange={setContent} />
         </div>
 
         {/* 이미지 업로드 */}
