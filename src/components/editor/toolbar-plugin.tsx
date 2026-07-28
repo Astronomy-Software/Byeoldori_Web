@@ -21,6 +21,7 @@ import {
 } from "@lexical/list";
 import { TOGGLE_LINK_COMMAND } from "@lexical/link";
 import { toast } from "sonner";
+import { isSafeUrl } from "@/components/editor/url-safe";
 import {
   Bold,
   Italic,
@@ -96,7 +97,12 @@ export function ToolbarPlugin({
   function insertLink() {
     const url = window.prompt("링크 URL을 입력하세요");
     if (!url) return;
-    editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
+    // javascript:/data: 등 위험 스킴 차단(LinkNode가 렌더 시 무력화하지만 입력 단계에서 명확히 거부).
+    if (!isSafeUrl(url)) {
+      toast.error("허용되지 않은 URL입니다. http(s) 또는 mailto만 가능합니다.");
+      return;
+    }
+    editor.dispatchCommand(TOGGLE_LINK_COMMAND, url.trim());
   }
 
   async function handleImageSelected(e: React.ChangeEvent<HTMLInputElement>) {

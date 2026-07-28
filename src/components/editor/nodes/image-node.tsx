@@ -9,6 +9,7 @@ import {
   type Spread,
 } from "lexical";
 import type { JSX } from "react";
+import { isSafeUrl } from "@/components/editor/url-safe";
 
 export type SerializedImageNode = Spread<
   {
@@ -82,6 +83,15 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
   }
 
   decorate(): JSX.Element {
+    // 저장된 JSON에 javascript:/data: 스킴이 섞여도 렌더하지 않는다.
+    // 업로드 이미지는 항상 http(s) URL 이므로 정상 케이스엔 영향 없다.
+    if (!isSafeUrl(this.__src)) {
+      return (
+        <span className="my-2 block text-xs text-text-tertiary">
+          [표시할 수 없는 이미지]
+        </span>
+      );
+    }
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img

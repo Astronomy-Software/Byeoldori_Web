@@ -7,6 +7,7 @@ import {
 } from "lexical";
 import type { JSX } from "react";
 import { Paperclip, Download } from "lucide-react";
+import { safeUrl } from "@/components/editor/url-safe";
 
 export type SerializedFileNode = Spread<
   {
@@ -98,9 +99,12 @@ export class FileNode extends DecoratorNode<JSX.Element> {
   }
 
   decorate(): JSX.Element {
+    // 저장된 JSON에 javascript:/data: 스킴이 섞여 역직렬화돼도 실행되지 않도록
+    // http(s)/mailto 외에는 "#"으로 무력화한다(FileNode는 라이브러리 새니타이즈가 없음).
+    const href = safeUrl(this.__url);
     return (
       <a
-        href={this.__url}
+        href={href}
         target="_blank"
         rel="noopener noreferrer"
         download={this.__fileName}

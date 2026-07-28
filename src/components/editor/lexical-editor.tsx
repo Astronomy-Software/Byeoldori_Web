@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { uploadImage } from "@/lib/api/files";
 import { ApiError } from "@/lib/api/client";
 import { $createImageNode } from "./nodes/image-node";
+import { isSafeUrl } from "./url-safe";
 import { ToolbarPlugin } from "./toolbar-plugin";
 import {
   editorNodes,
@@ -176,7 +177,7 @@ export default function LexicalEditor({
         </div>
         <HistoryPlugin />
         <ListPlugin />
-        <LinkPlugin />
+        <LinkPlugin validateUrl={isSafeUrl} />
         <OnChangePlugin onChange={handleChange} />
         <ImagePasteDropPlugin onUploadingChange={setIsUploading} />
       </LexicalComposer>
