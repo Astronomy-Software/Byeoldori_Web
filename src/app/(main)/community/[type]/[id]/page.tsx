@@ -1,9 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+
+// 본문 뷰어는 브라우저 전용(SSR 비활성). content는 어차피 클라이언트에서
+// fetch하므로 SSR HTML에 포함되지 않는다.
+const LexicalViewer = dynamic(
+  () =>
+    import("@/components/editor/lexical-viewer").then((m) => m.LexicalViewer),
+  { ssr: false },
+);
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -321,10 +330,9 @@ export default function PostDetailPage() {
           </div>
         )}
 
-        {/* 본문 */}
-        <div className="whitespace-pre-wrap text-base leading-relaxed text-text-secondary">
-          {post.content}
-        </div>
+        {/* 본문 — Lexical JSON이면 리치 렌더, 평문(구버전)이면 폴백 렌더 */}
+        <LexicalViewer content={post.content} fallbackText={post.content} />
+
 
         {post.images && post.images.length > 0 && (
           <div className="grid grid-cols-2 gap-2">
