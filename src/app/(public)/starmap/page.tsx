@@ -13,7 +13,13 @@ import {
 import { ApiError } from "@/lib/api/client";
 import { Live2DCharacter } from "@/components/live2d-character";
 import { characterManager } from "@/lib/character-manager";
-import { speak, cancelNarration, warmupVoices } from "@/lib/narration";
+import {
+  speak,
+  cancelNarration,
+  warmupVoices,
+  isNarrationEnabled,
+  setNarrationEnabled,
+} from "@/lib/narration";
 import { toast } from "sonner";
 import type {
   CharacterPosition,
@@ -25,20 +31,26 @@ import type {
 // 별도리 캐릭터 위치. "hidden"은 렌더 자체를 생략하므로 맵에 없다.
 // bottom-right 값은 Live2DCharacter의 기본 className과 동일해야 하위호환이 유지된다.
 const CHARACTER_BASE = "pointer-events-none fixed z-40 h-64 w-48 md:h-80 md:w-64";
-const CHARACTER_POS: Record<Exclude<CharacterPosition, "hidden">, string> = {
-  "bottom-right": "bottom-16 right-0 md:bottom-0",
-  "bottom-left": "bottom-16 left-0 md:bottom-0",
-  "bottom-center": "bottom-16 left-1/2 -translate-x-1/2 md:bottom-0",
+// 수평(x)만 담는다 — 수직(bottom)은 모바일 하단 시트 유무에 따라 런타임에 결정한다.
+const CHARACTER_X: Record<Exclude<CharacterPosition, "hidden">, string> = {
+  "bottom-right": "right-0",
+  "bottom-left": "left-0",
+  "bottom-center": "left-1/2 -translate-x-1/2",
 };
 
-// 말풍선은 캐릭터 머리 위에 붙어야 하므로 같은 축을 따라간다.
-const BUBBLE_POS: Record<CharacterPosition, string> = {
-  "bottom-right": "bottom-[280px] right-[16px] md:bottom-[340px] md:right-[20px]",
-  "bottom-left": "bottom-[280px] left-[16px] md:bottom-[340px] md:left-[20px]",
-  "bottom-center":
-    "bottom-[280px] left-1/2 -translate-x-1/2 md:bottom-[340px]",
-  // 캐릭터가 숨겨져도 자막은 읽혀야 한다 — 화면 하단 중앙에 남긴다.
-  hidden: "bottom-6 left-1/2 -translate-x-1/2",
+// 말풍선은 캐릭터와 같은 축(x)을 따라간다. 캐릭터가 숨겨져도 자막은 읽혀야 하므로 중앙.
+const BUBBLE_X: Record<CharacterPosition, string> = {
+  "bottom-right": "right-[16px] md:right-[20px]",
+  "bottom-left": "left-[16px] md:left-[20px]",
+  "bottom-center": "left-1/2 -translate-x-1/2",
+  hidden: "left-1/2 -translate-x-1/2",
+};
+// 데스크톱에서 말풍선 수직 위치(캐릭터 머리 위). 모바일은 하단 시트 위로 도킹한다.
+const BUBBLE_Y_DESKTOP: Record<CharacterPosition, string> = {
+  "bottom-right": "md:bottom-[340px]",
+  "bottom-left": "md:bottom-[340px]",
+  "bottom-center": "md:bottom-[340px]",
+  hidden: "md:bottom-6",
 };
 
 const IMAGE_POS: Record<ImagePosition, string> = {
@@ -109,6 +121,21 @@ function StarMapInner() {
   const [programError, setProgramError] = useState<string | null>(null);
   const [characterPosition, setCharacterPosition] =
     useState<CharacterPosition>("bottom-right");
+  // 나레이션 음소거(WCAG 1.4.2). 초기값은 마운트 후 localStorage에서 읽어 하이드레이션 불일치를 피한다.
+  const [narrationMuted, setNarrationMuted] = useState(false);
+
+  useEffect(() => {
+    setNarrationMuted(!isNarrationEnabled());
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    setNarrationMuted((muted) => {
+      const next = !muted;
+      // enabled = !muted. off로 끄면 setNarrationEnabled 내부에서 cancelNarration까지 처리한다.
+      setNarrationEnabled(!next);
+      return next;
+    });
+  }, []);
 
   // 교육 프로그램(MongoDB) 공개 목록 로드
   useEffect(() => {
@@ -325,6 +352,17 @@ function StarMapInner() {
     [stelReady, startProgram],
   );
 
+  // 모바일에서 교육 패널이 하단 시트(높이 50vh)로 열리면 별지도가 최소 절반 보이도록,
+  // 캐릭터·말풍선을 시트 위로 올리거나(말풍선) 숨긴다(캐릭터). 데스크톱(md+)은 기존 그대로.
+  const bubbleMobileBottom = eduMode
+    ? "bottom-[calc(50vh+0.75rem)]"
+    : characterPosition === "hidden"
+      ? "bottom-6"
+      : "bottom-[280px]";
+  const charVertical = eduMode
+    ? "hidden md:block md:bottom-0" // 모바일 하단 시트와 겹치므로 숨김, 데스크톱은 유지
+    : "bottom-16 md:bottom-0";
+
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black">
       {/* Stellarium iframe */}
@@ -332,7 +370,7 @@ function StarMapInner() {
         ref={iframeRef}
         src="/stellarium/index.html"
         className={`absolute left-0 top-0 h-full border-0 transition-[width] duration-300 ${
-          eduMode ? "w-[calc(100%-320px)]" : "w-full"
+          eduMode ? "w-full md:w-[calc(100%-320px)]" : "w-full"
         }`}
         allow="gyroscope; accelerometer"
         title="Stellarium 별지도"
@@ -352,10 +390,12 @@ function StarMapInner() {
         </div>
       )}
 
-      {/* 캐릭터 말풍선 */}
+      {/* 캐릭터 말풍선 — 별도리 대사가 스크린리더로 읽히도록 status 라이브 영역 */}
       {charText && (
         <div
-          className={`fixed z-50 w-[220px] rounded-2xl border border-white/20 bg-black/85 p-3 shadow-2xl backdrop-blur-sm ${BUBBLE_POS[characterPosition]}`}
+          role="status"
+          aria-live="polite"
+          className={`fixed z-50 w-[220px] rounded-2xl border border-white/20 bg-black/85 p-3 shadow-2xl backdrop-blur-sm ${bubbleMobileBottom} ${BUBBLE_Y_DESKTOP[characterPosition]} ${BUBBLE_X[characterPosition]}`}
         >
           <p className="text-sm leading-relaxed text-white">{charText}</p>
           <button
@@ -370,13 +410,15 @@ function StarMapInner() {
       {/* Live2D 캐릭터 — 스텝이 지정한 위치로 이동, "hidden"이면 렌더 생략 */}
       {characterPosition !== "hidden" && (
         <Live2DCharacter
-          className={`${CHARACTER_BASE} ${CHARACTER_POS[characterPosition]}`}
+          className={`${CHARACTER_BASE} ${CHARACTER_X[characterPosition]} ${charVertical}`}
         />
       )}
 
-      {/* 교육 모드 토글 */}
+      {/* 교육 모드 토글 — 모바일에서 하단 시트가 열리면 시트에 가리지 않게 위로 올린다 */}
       <button
-        className="fixed bottom-4 left-4 z-50 rounded-full bg-indigo-600/90 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-indigo-500"
+        className={`fixed left-4 z-50 rounded-full bg-indigo-600/90 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-indigo-500 ${
+          eduMode ? "bottom-[calc(50vh+1rem)] md:bottom-4" : "bottom-4"
+        }`}
         onClick={() => setEduMode((v) => !v)}
       >
         {eduMode ? "✕ 교육 모드 닫기" : "★ 교육 모드"}
@@ -400,7 +442,7 @@ function StarMapInner() {
 
       {/* 교육 패널 */}
       {eduMode && (
-        <div className="fixed right-0 top-0 z-40 flex h-full w-80 flex-col overflow-hidden border-l border-white/10 bg-gray-950/95 backdrop-blur-sm">
+        <div className="fixed z-40 flex flex-col overflow-hidden bg-gray-950/95 backdrop-blur-sm inset-x-0 bottom-0 h-[50vh] border-t border-white/10 md:inset-x-auto md:right-0 md:top-0 md:h-full md:w-80 md:border-l md:border-t-0">
           {!activeProgram ? (
             /* 프로그램 선택 */
             <>
@@ -453,14 +495,31 @@ function StarMapInner() {
             /* 진행 중 프로그램 패널 */
             <>
               <div className="border-b border-white/10 p-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-white">{activeProgram.title}</h2>
-                  <button
-                    onClick={exitProgram}
-                    className="text-xs text-white/40 transition-colors hover:text-white"
-                  >
-                    닫기
-                  </button>
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+                    {activeProgram.title}
+                  </h2>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      onClick={toggleMute}
+                      aria-pressed={narrationMuted}
+                      aria-label={
+                        narrationMuted ? "나레이션 음소거 해제" : "나레이션 음소거"
+                      }
+                      title={
+                        narrationMuted ? "나레이션 음소거 해제" : "나레이션 음소거"
+                      }
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-base text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                    >
+                      {narrationMuted ? "🔇" : "🔊"}
+                    </button>
+                    <button
+                      onClick={exitProgram}
+                      className="text-xs text-white/40 transition-colors hover:text-white"
+                    >
+                      닫기
+                    </button>
+                  </div>
                 </div>
                 <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
                   <div
@@ -470,7 +529,11 @@ function StarMapInner() {
                     }}
                   />
                 </div>
-                <p className="mt-1 text-xs text-white/40">
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className="mt-1 text-xs text-white/40"
+                >
                   {stepIndex + 1} / {activeProgram.steps.length}
                 </p>
               </div>
