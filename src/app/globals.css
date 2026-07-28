@@ -120,7 +120,7 @@
   --surface-glass: rgba(255, 255, 255, 0.06);
   --text-primary: #F5F7FF;
   --text-secondary: #AEB4D6;
-  --text-tertiary: #6B7299;
+  --text-tertiary: #7E86AC; /* 대비 상향: #6B7299는 surface-1 대비 ~3.6:1로 WCAG AA 미달 → ~4.7:1 (P1-6) */
   --text-on-primary: #FFFFFF;
   --interactive-primary: #8459C9;
   --interactive-link: #B399DE;
