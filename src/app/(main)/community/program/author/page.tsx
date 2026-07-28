@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import { Live2DCharacter } from "@/components/live2d-character";
 import { characterManager } from "@/lib/character-manager";
 import { speak, cancelNarration, warmupVoices } from "@/lib/narration";
 import {
+  getProgram,
   createProgram,
   updateProgram,
   submitProgram,
@@ -150,8 +151,45 @@ const INPUT_CLS =
 const SELECT_CLS =
   "w-full rounded-md border border-border-default bg-surface-1 px-3 py-2 text-sm text-text-primary";
 
-export default function ProgramAuthorPage() {
+// 저작 중 작업 유실 방지용 로컬 스냅샷 키(서버에 아직 저장 안 된 새 초안만 보호)
+const DRAFT_KEY = "byeoldori_authoring_draft";
+
+type DraftSnapshot = {
+  title: string;
+  subtitle: string;
+  difficulty: ProgramDifficulty;
+  steps: EduStep[];
+  savedAt: number;
+};
+
+// 스텝에 부여하는 안정적 id — 순서 이동·삭제·편집 시 편집 대상이 인덱스로 어긋나지 않게 한다.
+function makeStepId(): string {
+  return `st_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`;
+}
+
+// 로드/복원한 스텝에 id를 채운다(composite 내부까지 재귀).
+function withIds(steps: EduStep[]): EduStep[] {
+  return steps.map((s) => ({
+    ...s,
+    id: s.id ?? makeStepId(),
+    steps: s.type === "composite" && s.steps ? withIds(s.steps) : s.steps,
+  }));
+}
+
+// dirty 판정·스냅샷 기준값. 저장 시점과 현재 상태를 같은 형식으로 직렬화해 비교한다.
+function serializeContent(
+  title: string,
+  subtitle: string,
+  difficulty: ProgramDifficulty,
+  steps: EduStep[],
+): string {
+  return JSON.stringify({ title, subtitle, difficulty, steps });
+}
+
+function ProgramAuthorInner() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const controlRef = useRef<StellariumControl | null>(null);
   // 재생 세션 토큰 — 정지/재시작 시 이전 루프를 무효화한다
@@ -183,6 +221,23 @@ export default function ProgramAuthorPage() {
   // 하단 "+ 스텝 추가" 팝오버
   const [addMenuOpen, setAddMenuOpen] = useState(false);
 
+  // 마지막 저장(또는 로드) 시점의 직렬화 스냅샷 — dirty 판정 기준.
+  const savedSnapshotRef = useRef<string>(
+    serializeContent("", "", "BEGINNER", []),
+  );
+  // 새 스텝 추가 후 목록을 그 위치로 스크롤하기 위한 대상 id
+  const pendingScrollRef = useRef<string | null>(null);
+  // ?id 로드/스냅샷 복원을 한 번만 수행
+  const initedRef = useRef(false);
+  // ?id 없이 진입했을 때 발견한 이전 작성 초안(복원 배너)
+  const [restorable, setRestorable] = useState<DraftSnapshot | null>(null);
+
+  // 저장 이후 변경이 있는지(dirty) — beforeunload/자동저장 판단에 쓴다.
+  const serialized = serializeContent(title, subtitle, difficulty, steps);
+  const dirty = serialized !== savedSnapshotRef.current;
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+
   // Stellarium 컨트롤 초기화 (starmap과 동일 패턴)
   useEffect(() => {
     if (!iframeRef.current) return;
@@ -210,13 +265,112 @@ export default function ProgramAuthorPage() {
     return () => window.removeEventListener("message", handler);
   }, []);
 
-  const addStep = useCallback((step: EduStep) => {
-    setSteps((prev) => {
-      setEditIndex(prev.length);
-      return [...prev, step];
-    });
-    setAddMenuOpen(false);
+  // 진입 초기화(1회): ?id=면 기존 프로그램 재편집, 아니면 로컬 스냅샷 복원 배너.
+  useEffect(() => {
+    if (initedRef.current) return;
+    initedRef.current = true;
+    const id = searchParams.get("id");
+    if (id) {
+      (async () => {
+        try {
+          const detail = await getProgram(id);
+          const loadedSteps = withIds(detail.steps ?? []);
+          const diff = detail.difficulty ?? "BEGINNER";
+          setTitle(detail.title ?? "");
+          setSubtitle(detail.subtitle ?? "");
+          setDifficulty(diff);
+          setSteps(loadedSteps);
+          setProgramId(detail.id);
+          setStatus(detail.status);
+          savedSnapshotRef.current = serializeContent(
+            detail.title ?? "",
+            detail.subtitle ?? "",
+            diff,
+            loadedSteps,
+          );
+        } catch (e) {
+          toast.error(apiMessage(e, "프로그램을 불러오지 못했습니다."));
+        }
+      })();
+      return;
+    }
+    // ?id 없음 → 이전에 작성 중이던 로컬 초안이 있으면 복원 제안
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const snap = JSON.parse(raw) as DraftSnapshot;
+        if (snap && (snap.title?.trim() || snap.steps?.length)) {
+          setRestorable(snap);
+        }
+      }
+    } catch {
+      // 손상된 스냅샷은 무시
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // 자동저장: 서버에 아직 저장 안 된 새 초안만 로컬 스냅샷으로 보호(디바운스 1.5s).
+  useEffect(() => {
+    if (programId) return; // 저장된 프로그램은 서버가 보관 + URL에 ?id 존재
+    if (!title.trim() && !subtitle.trim() && steps.length === 0) return;
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          DRAFT_KEY,
+          JSON.stringify({
+            title,
+            subtitle,
+            difficulty,
+            steps,
+            savedAt: Date.now(),
+          } satisfies DraftSnapshot),
+        );
+      } catch {
+        // 용량 초과 등은 조용히 무시
+      }
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [title, subtitle, difficulty, steps, programId]);
+
+  // 저장되지 않은 변경이 있을 때만 이탈 경고
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!dirtyRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
   }, []);
+
+  // 새로 추가/삽입한 스텝을 목록에서 화면 안으로 스크롤
+  useEffect(() => {
+    const id = pendingScrollRef.current;
+    if (!id) return;
+    pendingScrollRef.current = null;
+    requestAnimationFrame(() => {
+      document
+        .getElementById(`author-step-${id}`)
+        ?.scrollIntoView({ block: "nearest" });
+    });
+  }, [steps]);
+
+  const addStep = useCallback(
+    (step: EduStep) => {
+      const withId: EduStep = { ...step, id: step.id ?? makeStepId() };
+      // 현재 편집 중인 스텝 바로 다음에 삽입(없으면 끝에 추가)
+      const insertAt = editIndex !== null ? editIndex + 1 : steps.length;
+      setSteps((prev) => {
+        const copy = [...prev];
+        copy.splice(Math.min(insertAt, copy.length), 0, withId);
+        return copy;
+      });
+      setEditIndex(insertAt);
+      pendingScrollRef.current = withId.id ?? null;
+      setAddMenuOpen(false);
+    },
+    [editIndex, steps.length],
+  );
 
   const updateStep = useCallback((idx: number, patch: Partial<EduStep>) => {
     setSteps((prev) =>
@@ -224,23 +378,50 @@ export default function ProgramAuthorPage() {
     );
   }, []);
 
-  const removeStep = useCallback((idx: number) => {
-    setSteps((prev) => prev.filter((_, i) => i !== idx));
-    setEditIndex((cur) =>
-      cur === idx ? null : cur !== null && cur > idx ? cur - 1 : cur,
-    );
-  }, []);
+  const removeStep = useCallback(
+    (idx: number) => {
+      const removed = steps[idx];
+      setSteps((prev) => prev.filter((_, i) => i !== idx));
+      setEditIndex((cur) =>
+        cur === idx ? null : cur !== null && cur > idx ? cur - 1 : cur,
+      );
+      if (!removed) return;
+      // 실수 삭제 복구 — 삭제한 스텝과 위치를 잠시 보관했다가 실행취소로 복원
+      toast("스텝을 삭제했어요.", {
+        action: {
+          label: "실행취소",
+          onClick: () => {
+            setSteps((prev) => {
+              const copy = [...prev];
+              copy.splice(Math.min(idx, copy.length), 0, removed);
+              return copy;
+            });
+            setEditIndex((cur) =>
+              cur !== null && cur >= idx ? cur + 1 : cur,
+            );
+          },
+        },
+      });
+    },
+    [steps],
+  );
 
-  const moveStep = useCallback((idx: number, dir: -1 | 1) => {
-    setSteps((prev) => {
+  const moveStep = useCallback(
+    (idx: number, dir: -1 | 1) => {
       const next = idx + dir;
-      if (next < 0 || next >= prev.length) return prev;
-      const copy = [...prev];
-      [copy[idx], copy[next]] = [copy[next], copy[idx]];
-      return copy;
-    });
-    setEditIndex((cur) => (cur === idx ? idx + dir : cur));
-  }, []);
+      if (next < 0 || next >= steps.length) return;
+      setSteps((prev) => {
+        const copy = [...prev];
+        [copy[idx], copy[next]] = [copy[next], copy[idx]];
+        return copy;
+      });
+      // 편집 중인 스텝이 이동에 따라 올바르게 따라가도록 보정(양쪽 다 처리)
+      setEditIndex((cur) =>
+        cur === idx ? next : cur === next ? idx : cur,
+      );
+    },
+    [steps.length],
+  );
 
   // 현재 화면 시점을 look-at 스텝으로 캡처 — 감독모드의 핵심
   const captureView = useCallback(() => {
@@ -380,18 +561,33 @@ export default function ProgramAuthorPage() {
         difficulty,
         steps,
       };
+      const isNew = !programId;
       const res = programId
         ? await updateProgram(programId, payload)
         : await createProgram(payload);
       setProgramId(res.id);
       setStatus(res.status);
+      // 저장 성공 → dirty 기준 갱신 + 로컬 초안 정리 + URL 동기화(?id).
+      // 이후 저장은 같은 프로그램을 update하고, 새로고침 시 서버에서 다시 로드된다.
+      savedSnapshotRef.current = serializeContent(
+        title,
+        subtitle,
+        difficulty,
+        steps,
+      );
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch {
+        // no-op
+      }
+      if (isNew) router.replace(`${pathname}?id=${res.id}`);
       toast.success("임시저장되었습니다.");
     } catch (e) {
       toast.error(apiMessage(e, "저장에 실패했습니다."));
     } finally {
       setSaving(false);
     }
-  }, [title, subtitle, difficulty, steps, programId]);
+  }, [title, subtitle, difficulty, steps, programId, router, pathname]);
 
   const handleSubmit = useCallback(async () => {
     if (!programId) {
@@ -439,6 +635,28 @@ export default function ProgramAuthorPage() {
         ? { label: "발행", onClick: handlePublish, disabled: false }
         : { label: "검수 요청", onClick: handleSubmit, disabled: false };
 
+  const applyRestore = useCallback(() => {
+    if (!restorable) return;
+    const restoredSteps = withIds(restorable.steps ?? []);
+    setTitle(restorable.title ?? "");
+    setSubtitle(restorable.subtitle ?? "");
+    setDifficulty(restorable.difficulty ?? "BEGINNER");
+    setSteps(restoredSteps);
+    setEditIndex(null);
+    // 복원 내용은 아직 서버에 저장되지 않았으므로 dirty로 둔다(저장 유도 + 이탈 경고).
+    savedSnapshotRef.current = "";
+    setRestorable(null);
+  }, [restorable]);
+
+  const dismissRestore = useCallback(() => {
+    setRestorable(null);
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      // no-op
+    }
+  }, []);
+
   const editing = editIndex !== null ? steps[editIndex] : undefined;
 
   return (
@@ -481,13 +699,37 @@ export default function ProgramAuthorPage() {
 
       {/* 우: 저작 패널 */}
       <div className="flex w-full flex-col border-t border-border-default md:h-full md:w-[400px] md:shrink-0 md:border-l md:border-t-0">
+        {/* 이전 작성 초안 복원 배너 */}
+        {restorable && (
+          <div className="shrink-0 border-b border-interactive-primary/40 bg-surface-2 p-3">
+            <p className="text-xs leading-relaxed text-text-secondary">
+              이전에 작성 중이던 내용이 있습니다. 불러올까요?
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={applyRestore}
+                className="rounded-md bg-interactive-primary px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-interactive-primary/90"
+              >
+                불러오기
+              </button>
+              <button
+                type="button"
+                onClick={dismissRestore}
+                className="rounded-md border border-border-default px-3 py-1.5 text-xs text-text-secondary transition-colors hover:text-text-primary"
+              >
+                새로 시작
+              </button>
+            </div>
+          </div>
+        )}
         {/* ① 상단(고정): 헤더 + 접히는 메타 정보 */}
         <div className="shrink-0 border-b border-border-default p-4">
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.back()}
               aria-label="돌아가기"
-              className="text-text-tertiary transition-colors hover:text-text-primary"
+              className="-ml-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-tertiary transition-colors hover:text-text-primary"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
@@ -605,7 +847,8 @@ export default function ProgramAuthorPage() {
             <div className="space-y-1.5">
               {steps.map((step, idx) => (
                 <div
-                  key={idx}
+                  key={step.id ?? idx}
+                  id={step.id ? `author-step-${step.id}` : undefined}
                   className={`rounded-xl border transition-colors ${
                     idx === playIndex
                       ? "border-aurora bg-surface-2"
@@ -637,7 +880,7 @@ export default function ProgramAuthorPage() {
                       onClick={() => playFrom(idx)}
                       aria-label="여기부터 재생"
                       title="여기부터 재생"
-                      className="p-1 text-text-tertiary transition-colors hover:text-aurora"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-tertiary transition-colors hover:text-aurora"
                     >
                       <Play className="h-3.5 w-3.5" />
                     </button>
@@ -646,7 +889,7 @@ export default function ProgramAuthorPage() {
                       onClick={() => moveStep(idx, -1)}
                       disabled={idx === 0}
                       aria-label="위로"
-                      className="p-1 text-text-tertiary transition-colors hover:text-text-primary disabled:opacity-25"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-tertiary transition-colors hover:text-text-primary disabled:opacity-25"
                     >
                       <ArrowUp className="h-3.5 w-3.5" />
                     </button>
@@ -655,7 +898,7 @@ export default function ProgramAuthorPage() {
                       onClick={() => moveStep(idx, 1)}
                       disabled={idx === steps.length - 1}
                       aria-label="아래로"
-                      className="p-1 text-text-tertiary transition-colors hover:text-text-primary disabled:opacity-25"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-tertiary transition-colors hover:text-text-primary disabled:opacity-25"
                     >
                       <ArrowDown className="h-3.5 w-3.5" />
                     </button>
@@ -663,7 +906,7 @@ export default function ProgramAuthorPage() {
                       type="button"
                       onClick={() => removeStep(idx)}
                       aria-label="삭제"
-                      className="p-1 text-text-tertiary transition-colors hover:text-error"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-tertiary transition-colors hover:text-error"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -861,6 +1104,14 @@ export default function ProgramAuthorPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProgramAuthorPage() {
+  return (
+    <Suspense>
+      <ProgramAuthorInner />
+    </Suspense>
   );
 }
 
