@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getPosts, getReviewPosts, getEducationPosts } from "@/lib/api/community";
+import { previewSummary } from "@/components/editor/shared";
 import type { PostSummary } from "@/types/api";
 import { Eye, Heart, MessageSquare, Star, ImageIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -324,7 +325,7 @@ function BoardLayout({
                   {post.title}
                 </p>
                 <p className="mt-1 text-sm text-text-secondary line-clamp-2">
-                  {post.contentSummary}
+                  {previewSummary(post.contentSummary)}
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-text-tertiary">
                   <span className="text-text-secondary">{post.authorNickname}</span>

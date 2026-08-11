@@ -214,7 +214,21 @@ function NewPostInner() {
               )}
               <button
                 type="button"
-                onClick={() => router.push("/community/program/author")}
+                onClick={() => {
+                  // 저작 화면으로 이동하면 이 폼(제목·본문)은 언마운트되어 사라진다.
+                  // 작성 중인 내용이 있으면 유실 전에 확인받는다.
+                  const hasDraft =
+                    title.trim().length > 0 || editorStateHasContent(content);
+                  if (
+                    hasDraft &&
+                    !window.confirm(
+                      "작성 중인 제목·내용이 저장되지 않고 사라집니다. 프로그램 제작 화면으로 이동할까요?",
+                    )
+                  ) {
+                    return;
+                  }
+                  router.push("/community/program/author");
+                }}
                 className="flex items-center gap-2 rounded-lg border border-border-default px-3 py-2 text-sm text-text-primary transition-colors hover:border-interactive-primary"
               >
                 <Clapperboard className="h-4 w-4" />
