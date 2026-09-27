@@ -21,15 +21,6 @@ async function prefetchImages(steps: EduStep[]): Promise<void> {
   }
 }
 
-export async function loadEducationProgram(
-  contentUrl: string,
-): Promise<EducationProgram> {
-  const program: EducationProgram = await fetch(contentUrl).then((r) =>
-    r.json(),
-  );
-  await prefetchImages(program.steps);
-  return program;
-}
 
 /** ProgramDetail(백엔드 응답) → 재생용 EducationProgram (이미지 프리패치 포함). */
 export function detailToProgram(detail: ProgramDetail): EducationProgram {

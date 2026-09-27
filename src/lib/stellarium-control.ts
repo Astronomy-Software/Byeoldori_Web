@@ -32,7 +32,6 @@ export type SkyImageParams = {
 const BACKEND_HOSTS = [
   process.env.NEXT_PUBLIC_API_URL,
   "https://api.byeoldori.com",
-  "https://byeoldori.duckdns.org",
 ]
   .filter((h): h is string => !!h)
   .map((h) => h.replace(/\/+$/, ""));
