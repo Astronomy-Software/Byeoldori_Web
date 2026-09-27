@@ -1,16 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { StellariumControl } from "@/lib/stellarium-control";
 import { executeStep } from "@/lib/education-engine";
 import { loadProgramById } from "@/lib/education-program-loader";
 import {
   listPrograms,
   incrementProgramView,
+  submitQuizAttempt,
   type ProgramSummary,
 } from "@/lib/api/education-program";
 import { ApiError } from "@/lib/api/client";
+import { getAccessToken } from "@/lib/auth/token";
+import { QuizCard } from "@/components/education/quiz-card";
 import { Live2DCharacter } from "@/components/live2d-character";
 import { characterManager } from "@/lib/character-manager";
 import {
@@ -86,11 +89,27 @@ function stepLabel(step: EduStep): string {
     case "clear-overlays": return `○ 오버레이 초기화`;
     case "wait": return `⏸ 대기 ${step.waitMs ?? 0}ms`;
     case "composite": return `◈ 복합 (${step.steps?.length ?? 0}개)`;
+    case "sky-image": return `🌌 하늘 이미지`;
+    case "quiz": return `❓ ${step.question ? step.question.slice(0, 20) + "…" : "퀴즈"}`;
     default: return step.type;
   }
 }
 
 type ImageOverlay = { url: string; position: ImagePosition; width: string };
+
+// 프로그램을 마친 뒤 교육 패널에 보여줄 퀴즈 결과.
+// recorded: true=서버에 기록됨, false=기록 안 됨(미발행 미리보기), null=비로그인이라 제출 안 함
+type QuizSummary = {
+  title: string;
+  score: number;
+  total: number;
+  recorded: boolean | null;
+  failed?: boolean;
+};
+
+function quizStepsOf(program: EducationProgram): EduStep[] {
+  return program.steps.filter((s) => s.type === "quiz" && s.id);
+}
 
 // 프로그램 로드 실패를 사용자에게 설명 가능한 문구로 바꾼다.
 // 403은 아직 PUBLISHED 가 아닌 프로그램(작성자 외 접근 불가)이 대부분이다.
@@ -104,7 +123,6 @@ function programErrorMessage(e: unknown): string {
 
 function StarMapInner() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const controlRef = useRef<StellariumControl | null>(null);
   const closingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -123,6 +141,9 @@ function StarMapInner() {
     useState<CharacterPosition>("bottom-right");
   // 나레이션 음소거(WCAG 1.4.2). 초기값은 마운트 후 localStorage에서 읽어 하이드레이션 불일치를 피한다.
   const [narrationMuted, setNarrationMuted] = useState(false);
+  // 퀴즈 스텝 id → 고른 보기. 첫 응답만 기록한다(되돌리기 없음).
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
+  const [quizSummary, setQuizSummary] = useState<QuizSummary | null>(null);
 
   useEffect(() => {
     setNarrationMuted(!isNarrationEnabled());
@@ -180,6 +201,8 @@ function StarMapInner() {
       setCharText(null);
       setProgramError(null);
       setCharacterPosition("bottom-right"); // 프로그램마다 기본 위치에서 시작
+      setQuizAnswers({});
+      setQuizSummary(null);
       // 별 카탈로그가 아직 로드 중이면 getObj가 null을 반환해 카메라 이동·별 강조가
       // 조용히 실패한다. 첫 스텝 실행 전에 조회 가능해질 때까지 기다린다.
       await controlRef.current?.waitForCatalog();
@@ -262,6 +285,10 @@ function StarMapInner() {
       onCharacterPosition: (pos) => {
         if (!cancelled) setCharacterPosition(pos);
       },
+      // 문제 카드는 현재 스텝이 quiz 인지로 렌더한다. 여기서는 문제를 읽어주기만 한다.
+      onQuiz: (quiz) => {
+        if (!cancelled && quiz.question) speak(quiz.question);
+      },
       // 재생 화면에서는 경고를 콘솔에만 남긴다(관람자에게 저작 오류를 노출하지 않는다)
       onStepWarning: (message) => console.warn("[StarMap]", message),
     }).catch((e) => console.error("[StarMap] 스텝 실행 실패:", e));
@@ -282,11 +309,41 @@ function StarMapInner() {
     [],
   );
 
+  // 마지막 스텝을 넘기면 퀴즈 응답을 제출한다. 채점은 서버가 저장된 정답으로 다시 한다.
+  const finishQuiz = useCallback(
+    (program: EducationProgram, answers: Record<string, number>) => {
+      const quizzes = quizStepsOf(program);
+      if (quizzes.length === 0) return;
+      const localScore = quizzes.filter(
+        (q) => answers[q.id!] !== undefined && answers[q.id!] === q.answerIndex,
+      ).length;
+      const base = { title: program.title, score: localScore, total: quizzes.length };
+      if (!getAccessToken()) {
+        setQuizSummary({ ...base, recorded: null });
+        return;
+      }
+      setQuizSummary({ ...base, recorded: null, failed: false });
+      submitQuizAttempt(
+        program.id,
+        quizzes.map((q) => ({ quizId: q.id!, choice: answers[q.id!] ?? null })),
+      )
+        .then((res) =>
+          setQuizSummary({ ...base, score: res.score, total: res.total, recorded: res.recorded }),
+        )
+        .catch((e) => {
+          console.error("[StarMap] 퀴즈 제출 실패:", e);
+          setQuizSummary({ ...base, recorded: false, failed: true });
+        });
+    },
+    [],
+  );
+
   const nextStep = useCallback(() => {
     if (!activeProgram) return;
     if (stepIndex < activeProgram.steps.length - 1) {
       setStepIndex((i) => i + 1);
     } else {
+      finishQuiz(activeProgram, quizAnswers);
       setActiveProgram(null);
       setStepIndex(0);
       clearAllOverlays();
@@ -298,10 +355,11 @@ function StarMapInner() {
       // 마무리 인사가 그 취소에 휩쓸리지 않도록 다음 틱으로 미룬다.
       closingTimerRef.current = setTimeout(() => speak(closing), 0);
       characterManager.playMotion("happy");
-      // programId 쿼리 파라미터 제거
-      router.replace("/starmap");
+      // programId 쿼리 파라미터 제거 — 네이티브 replaceState 는 Next 라우터와 동기화되면서
+      // 서버 요청·리렌더 없이 URL 만 바꾼다(퀴즈 결과 요약 상태가 유지돼야 한다).
+      window.history.replaceState(null, "", "/starmap");
     }
-  }, [activeProgram, stepIndex, clearAllOverlays, router]);
+  }, [activeProgram, stepIndex, clearAllOverlays, finishQuiz, quizAnswers]);
 
   const prevStep = useCallback(() => {
     if (stepIndex > 0) {
@@ -317,8 +375,8 @@ function StarMapInner() {
     setCharText(null);
     setCharacterPosition("bottom-right");
     clearAllOverlays();
-    router.replace("/starmap");
-  }, [clearAllOverlays, router]);
+    window.history.replaceState(null, "", "/starmap");
+  }, [clearAllOverlays]);
 
   const jumpToStep = useCallback(
     (idx: number) => {
@@ -359,6 +417,13 @@ function StarMapInner() {
     : characterPosition === "hidden"
       ? "bottom-6"
       : "bottom-[280px]";
+  const currentStep = activeProgram?.steps[stepIndex];
+  const quizStep = currentStep?.type === "quiz" && currentStep.id ? currentStep : null;
+  const chooseQuiz = useCallback((quizId: string, choice: number) => {
+    // 첫 응답만 인정한다
+    setQuizAnswers((prev) => (quizId in prev ? prev : { ...prev, [quizId]: choice }));
+  }, []);
+
   const charVertical = eduMode
     ? "hidden md:block md:bottom-0" // 모바일 하단 시트와 겹치므로 숨김, 데스크톱은 유지
     : "bottom-16 md:bottom-0";
@@ -386,6 +451,21 @@ function StarMapInner() {
             src={imageOverlay.url}
             alt="교육 이미지"
             className="rounded-xl shadow-2xl border border-white/20"
+          />
+        </div>
+      )}
+
+      {/* 퀴즈 카드 — 별지도 상단 중앙(교육 패널 폭을 뺀 영역) */}
+      {quizStep && (
+        <div
+          className={`fixed top-16 z-50 flex justify-center ${
+            eduMode ? "inset-x-0 md:right-80" : "inset-x-0"
+          }`}
+        >
+          <QuizCard
+            step={quizStep}
+            chosen={quizAnswers[quizStep.id!]}
+            onChoose={(c) => chooseQuiz(quizStep.id!, c)}
           />
         </div>
       )}
@@ -460,6 +540,35 @@ function StarMapInner() {
                     </p>
                     <button
                       onClick={() => setProgramError(null)}
+                      className="mt-2 text-[11px] text-white/40 transition-colors hover:text-white/80"
+                    >
+                      닫기
+                    </button>
+                  </div>
+                )}
+                {quizSummary && (
+                  <div
+                    role="status"
+                    className="rounded-xl border border-indigo-400/40 bg-indigo-500/10 p-3"
+                  >
+                    <p className="text-xs text-white/50">{quizSummary.title} · 퀴즈 결과</p>
+                    <p className="mt-1 text-lg font-semibold text-white">
+                      {quizSummary.score} / {quizSummary.total}
+                      <span className="ml-1 text-xs font-normal text-white/50">문제 정답</span>
+                    </p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-white/50">
+                      {quizSummary.failed
+                        ? "기록 저장에 실패했어요. 결과는 이 화면에서만 볼 수 있어요."
+                        : quizSummary.recorded === true
+                          ? "학습 기록에 저장했어요. 마이페이지에서 볼 수 있어요."
+                          : quizSummary.recorded === false
+                            ? "발행 전 미리보기라 기록하지 않았어요."
+                            : getAccessToken()
+                              ? "기록을 저장하는 중..."
+                              : "로그인하면 학습 기록이 저장돼요."}
+                    </p>
+                    <button
+                      onClick={() => setQuizSummary(null)}
                       className="mt-2 text-[11px] text-white/40 transition-colors hover:text-white/80"
                     >
                       닫기
