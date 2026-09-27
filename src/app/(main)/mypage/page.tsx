@@ -27,6 +27,8 @@ import {
   LogOut,
   Camera,
   ChevronRight,
+  GraduationCap,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function MyPageScreen() {
@@ -200,6 +202,10 @@ export default function MyPageScreen() {
         <div className="space-y-2">
           <MenuLink href="/mypage/schedule" icon={Calendar} label="관측 일정 관리" />
           <MenuLink href="/mypage/likes" icon={Heart} label="좋아요한 글" />
+          <MenuLink href="/mypage/learning" icon={GraduationCap} label="학습 기록" />
+          {user?.roles?.includes("ADMIN") && (
+            <MenuLink href="/admin/programs" icon={ShieldCheck} label="교육 프로그램 검수" />
+          )}
           <MenuLink href="/mypage/settings" icon={Settings} label="설정" />
         </div>
 

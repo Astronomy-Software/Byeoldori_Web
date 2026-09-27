@@ -21,6 +21,11 @@ import {
   type ProgramStatus,
 } from "@/lib/api/education-program";
 import { ApiError } from "@/lib/api/client";
+import {
+  SkyImageEditor,
+  QuizEditor,
+  quizProblem,
+} from "@/components/education/step-editors";
 import type {
   CharacterMotion,
   CharacterPosition,
@@ -99,6 +104,10 @@ function stepLabel(step: EduStep): string {
       return `⏸ 대기 ${step.waitMs ?? 0}ms`;
     case "composite":
       return `◈ 복합 (${step.steps?.length ?? 0}개)`;
+    case "sky-image":
+      return `🌌 하늘 이미지${step.imageUrl ? "" : " (이미지 없음)"}`;
+    case "quiz":
+      return `❓ ${step.question ? step.question.slice(0, 20) + "…" : "퀴즈"}`;
     default:
       return step.type;
   }
@@ -208,6 +217,8 @@ function ProgramAuthorInner() {
 
   const [programId, setProgramId] = useState<string | null>(null);
   const [status, setStatus] = useState<ProgramStatus | null>(null);
+  // 관리자가 반려하며 남긴 사유 — DRAFT 로 돌아온 프로그램에 배너로 보여준다
+  const [rejectReason, setRejectReason] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [playing, setPlaying] = useState(false);
@@ -282,6 +293,7 @@ function ProgramAuthorInner() {
           setSteps(loadedSteps);
           setProgramId(detail.id);
           setStatus(detail.status);
+          setRejectReason(detail.rejectReason ?? null);
           savedSnapshotRef.current = serializeContent(
             detail.title ?? "",
             detail.subtitle ?? "",
@@ -533,11 +545,20 @@ function ProgramAuthorInner() {
           onCharacterPosition: (pos) => {
             if (alive()) setCharPos(pos);
           },
+          // 미리보기는 응답을 기다리지 않는다 — 문제를 말풍선으로 보여주고 잠시 머문다
+          onQuiz: (quiz) => {
+            if (!alive()) return;
+            setCharText(`Q. ${quiz.question ?? ""}`);
+            if (quiz.question) speak(quiz.question);
+          },
           // 별 이름 오타를 저작자가 즉시 알 수 있어야 한다
           onStepWarning: (message) => {
             if (alive()) toast.warning(message);
           },
         });
+        if (snapshot[i].type === "quiz") {
+          await new Promise((r) => setTimeout(r, 3000));
+        }
       }
       if (alive()) {
         setPlaying(false);
@@ -551,6 +572,11 @@ function ProgramAuthorInner() {
   const handleSave = useCallback(async () => {
     if (!title.trim()) {
       toast.error("제목을 입력해주세요.");
+      return;
+    }
+    const problem = quizProblem(steps);
+    if (problem) {
+      toast.error(problem);
       return;
     }
     setSaving(true);
@@ -598,6 +624,7 @@ function ProgramAuthorInner() {
     try {
       const res = await submitProgram(programId);
       setStatus(res.status);
+      setRejectReason(null);
       toast.success("검수를 요청했습니다.");
     } catch (e) {
       toast.error(apiMessage(e, "검수 요청에 실패했습니다."));
@@ -658,6 +685,40 @@ function ProgramAuthorInner() {
   }, []);
 
   const editing = editIndex !== null ? steps[editIndex] : undefined;
+
+  // 하늘 이미지 스텝을 편집하는 동안 별지도에 실시간 미리보기(입력 디바운스 250ms).
+  // 재생 중에는 스텝 실행기가 직접 붙이므로 미리보기를 끈다.
+  const skyPreview =
+    !playing &&
+    editing?.type === "sky-image" &&
+    editing.imageUrl &&
+    editing.ra !== undefined &&
+    editing.dec !== undefined
+      ? {
+          url: editing.imageUrl,
+          ra: editing.ra,
+          dec: editing.dec,
+          sizeDeg: editing.sizeDeg ?? 10,
+          rotation: editing.rotation ?? 0,
+        }
+      : null;
+  const skyPreviewKey = skyPreview ? JSON.stringify(skyPreview) : "";
+  useEffect(() => {
+    const ctrl = controlRef.current;
+    if (!ctrl || !stelReady) return;
+    if (!skyPreviewKey) {
+      ctrl.previewSkyImage(null);
+      return;
+    }
+    const t = setTimeout(() => {
+      ctrl.previewSkyImage(JSON.parse(skyPreviewKey)).then((ok) => {
+        if (!ok) console.warn("[Author] 하늘 이미지 미리보기 실패");
+      });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [skyPreviewKey, stelReady]);
+
+  const hasQuiz = steps.some((s) => s.type === "quiz");
 
   return (
     <div className="flex min-h-screen flex-col bg-bg-page md:h-screen md:flex-row md:overflow-hidden">
@@ -721,6 +782,20 @@ function ProgramAuthorInner() {
                 새로 시작
               </button>
             </div>
+          </div>
+        )}
+        {status === "DRAFT" && rejectReason && (
+          <div
+            role="status"
+            className="shrink-0 border-b border-error/40 bg-surface-2 p-3"
+          >
+            <p className="text-xs font-medium text-error">검수에서 반려되었습니다</p>
+            <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-text-secondary">
+              {rejectReason}
+            </p>
+            <p className="mt-1 text-[11px] text-text-tertiary">
+              수정한 뒤 다시 검수를 요청해주세요.
+            </p>
           </div>
         )}
         {/* ① 상단(고정): 헤더 + 접히는 메타 정보 */}
@@ -920,6 +995,7 @@ function ProgramAuthorInner() {
                         selectedStar={selectedStar}
                         onChange={updateStep}
                         onCaptureTime={captureTime}
+                        control={controlRef.current}
                       />
                       {/* 캐릭터 위치는 모든 스텝 타입에서 지정할 수 있다 */}
                       <div className="space-y-1 pt-1">
@@ -1027,6 +1103,33 @@ function ProgramAuthorInner() {
                     ✨ 별자리 토글
                   </AddMenuItem>
                   <AddMenuItem
+                    onClick={() => {
+                      // 지금 보고 있는 화면 중심에 놓고 시작한다
+                      const c = controlRef.current?.getViewCenterRaDec();
+                      addStep({
+                        type: "sky-image",
+                        ra: c?.ra,
+                        dec: c?.dec,
+                        sizeDeg: 10,
+                        rotation: 0,
+                      });
+                    }}
+                  >
+                    🌌 하늘 이미지
+                  </AddMenuItem>
+                  <AddMenuItem
+                    onClick={() =>
+                      addStep({
+                        type: "quiz",
+                        question: "",
+                        choices: ["", "", ""],
+                        answerIndex: 0,
+                      })
+                    }
+                  >
+                    ❓ 퀴즈
+                  </AddMenuItem>
+                  <AddMenuItem
                     onClick={() => addStep({ type: "wait", waitMs: 1000 })}
                   >
                     ⏸ 대기
@@ -1094,6 +1197,15 @@ function ProgramAuthorInner() {
             </Button>
           </div>
 
+          {programId && published && hasQuiz && (
+            <button
+              type="button"
+              onClick={() => router.push(`/community/program/stats?id=${programId}`)}
+              className="w-full text-center text-[11px] text-text-secondary underline-offset-2 transition-colors hover:text-text-primary hover:underline"
+            >
+              📊 퀴즈 통계 보기
+            </button>
+          )}
           {programId && !published && (
             <p className="text-center text-[11px] leading-relaxed text-text-tertiary">
               {status === "PREVIEW"
@@ -1142,14 +1254,29 @@ function StepEditor({
   selectedStar,
   onChange,
   onCaptureTime,
+  control,
 }: {
   step: EduStep;
   index: number;
   selectedStar: string | null;
   onChange: (idx: number, patch: Partial<EduStep>) => void;
   onCaptureTime: (idx: number) => void;
+  control: StellariumControl | null;
 }) {
   switch (step.type) {
+    case "sky-image":
+      return (
+        <SkyImageEditor
+          step={step}
+          onChange={(patch) => onChange(index, patch)}
+          control={control}
+          selectedStar={selectedStar}
+        />
+      );
+
+    case "quiz":
+      return <QuizEditor step={step} onChange={(patch) => onChange(index, patch)} />;
+
     case "look-at":
       return (
         <div className="grid grid-cols-3 gap-2">

@@ -44,7 +44,9 @@ export interface EduStep {
     | "toggle-constellation"
     | "clear-overlays"
     | "wait"
-    | "composite";
+    | "composite"
+    | "sky-image"
+    | "quiz";
 
   // camera-move
   target?: string;
@@ -86,6 +88,19 @@ export interface EduStep {
 
   // wait
   waitMs?: number;
+
+  // sky-image — 하늘(적도좌표)에 고정되는 이미지. imageUrl 을 함께 쓴다.
+  // 별지도를 돌려도 그 자리에 붙어 있다(스텔라리움 photo 오브젝트). 단위는 度.
+  ra?: number;
+  dec?: number;
+  sizeDeg?: number; // 이미지 가로폭이 하늘에서 차지하는 각도
+  rotation?: number; // 시계 반대 방향 회전
+
+  // quiz — 사지선다형 등 객관식. 채점은 서버가 저장된 answerIndex 로 다시 한다.
+  question?: string;
+  choices?: string[];
+  answerIndex?: number;
+  explanation?: string;
 
   // composite
   steps?: EduStep[];

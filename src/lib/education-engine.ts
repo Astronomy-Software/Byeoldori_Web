@@ -17,6 +17,9 @@ export interface StepCallbacks {
     color: [number, number, number, number],
   ) => boolean | void;
   onCharacterPosition?: (pos: CharacterPosition) => void;
+  // quiz 스텝 — 재생 화면이 문제 카드를 띄운다. 실행기는 응답을 기다리지 않는다
+  // (관람자가 "다음"을 누를 때까지 스텝이 머무르므로).
+  onQuiz?: (step: EduStep) => void;
   // 스텝이 조용히 실패했을 때(별 이름 오타 등) 저작자에게 알리기 위한 경고 채널
   onStepWarning?: (message: string) => void;
 }
@@ -113,6 +116,27 @@ export async function executeStep(
 
     case "clear-overlays": {
       cb.onClearOverlays();
+      break;
+    }
+
+    case "sky-image": {
+      if (!step.imageUrl || step.ra === undefined || step.dec === undefined) {
+        cb.onStepWarning?.("하늘 이미지: 이미지와 위치(적경·적위)를 지정해주세요.");
+        break;
+      }
+      const ok = await control.addSkyImage({
+        url: step.imageUrl,
+        ra: step.ra,
+        dec: step.dec,
+        sizeDeg: step.sizeDeg ?? 10,
+        rotation: step.rotation,
+      });
+      if (!ok) cb.onStepWarning?.("하늘 이미지를 불러오지 못했습니다(JPG/PNG만 지원).");
+      break;
+    }
+
+    case "quiz": {
+      cb.onQuiz?.(step);
       break;
     }
 

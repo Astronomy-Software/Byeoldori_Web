@@ -19,10 +19,57 @@ function getAPI(iframe: HTMLIFrameElement): StelAPI | null {
   }
 }
 
+export type SkyImageParams = {
+  url: string;
+  ra: number; // 度 (ICRF)
+  dec: number; // 度 (ICRF)
+  sizeDeg: number; // 이미지 가로폭이 하늘에서 차지하는 각도
+  rotation?: number; // 度
+};
+
+// 백엔드 파일 서버 호스트. 엔진(iframe)은 이미지를 fetch 로 받아 wasm 안에서 디코딩하므로
+// 다른 출처 URL 은 CORS 에 막힌다. 이 호스트들의 URL 은 같은 출처 프록시(/api/...)로 돌린다.
+const BACKEND_HOSTS = [
+  process.env.NEXT_PUBLIC_API_URL,
+  "https://api.byeoldori.com",
+  "https://byeoldori.duckdns.org",
+]
+  .filter((h): h is string => !!h)
+  .map((h) => h.replace(/\/+$/, ""));
+
+/** 엔진이 읽을 수 있는 같은 출처 URL 로 바꾼다. blob:/data: 와 이미 같은 출처인 URL 은 그대로 둔다. */
+export function toEngineImageUrl(url: string): string {
+  const trimmed = url.trim();
+  if (typeof window === "undefined") return trimmed;
+  if (/^(blob:|data:)/.test(trimmed)) return trimmed;
+  for (const host of BACKEND_HOSTS) {
+    if (trimmed.startsWith(host + "/")) {
+      return `${window.location.origin}/api${trimmed.slice(host.length)}`;
+    }
+  }
+  if (trimmed.startsWith("/")) return `${window.location.origin}${trimmed}`;
+  return trimmed;
+}
+
+// 엔진 photo 는 크기를 "픽셀당 각초(pixscale)"로 받으므로 이미지 픽셀폭이 필요하다.
+function loadImageSize(url: string): Promise<{ w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () =>
+      resolve(img.naturalWidth > 0 ? { w: img.naturalWidth, h: img.naturalHeight } : null);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
 export class StellariumControl {
   private iframe: HTMLIFrameElement;
   private circleHandles: any[] = [];
   private geojsonHandles: any[] = [];
+  private photoHandles: any[] = [];
+  // 저작 화면에서 편집 중인 하늘 이미지 1장. 값이 바뀔 때마다 새로 만들어 교체한다.
+  private previewHandle: any = null;
+  private previewSeq = 0;
 
   constructor(iframe: HTMLIFrameElement) {
     this.iframe = iframe;
@@ -187,6 +234,124 @@ export class StellariumControl {
     return false;
   }
 
+  /**
+   * 하늘(적도좌표)에 고정되는 이미지를 붙인다 — 엔진 네이티브 photo 오브젝트.
+   * 엔진은 투영 행렬을 첫 렌더 때 한 번만 계산하므로, 위치·크기를 바꾸려면 새로 만들어야 한다.
+   * 엔진 디코더(stb_image)는 JPG/PNG 만 읽는다.
+   */
+  async addSkyImage(p: SkyImageParams): Promise<boolean> {
+    const handle = await this.createPhoto(p);
+    if (!handle) return false;
+    this.photoHandles.push(handle);
+    return true;
+  }
+
+  /** 저작 미리보기 — 직전 미리보기를 지우고 새 값으로 다시 붙인다. 빠른 연속 입력에선 마지막 것만 남긴다. */
+  async previewSkyImage(p: SkyImageParams | null): Promise<boolean> {
+    const seq = ++this.previewSeq;
+    if (!p) {
+      this.removePreview();
+      return true;
+    }
+    const handle = await this.createPhoto(p);
+    if (seq !== this.previewSeq) {
+      // 기다리는 사이 더 새로운 미리보기 요청이 왔다 — 이 결과는 버린다
+      if (handle) this.removeHandle(handle);
+      return false;
+    }
+    this.removePreview();
+    this.previewHandle = handle;
+    return !!handle;
+  }
+
+  private removePreview(): void {
+    if (this.previewHandle) this.removeHandle(this.previewHandle);
+    this.previewHandle = null;
+  }
+
+  private removeHandle(h: any): void {
+    try {
+      this.api?.eduLayer.remove(h);
+    } catch {
+      // 이미 제거된 핸들
+    }
+  }
+
+  private async createPhoto(p: SkyImageParams): Promise<any | null> {
+    if (!this.api || !p.url || !(p.sizeDeg > 0)) return null;
+    const url = toEngineImageUrl(p.url);
+    if (url.length > 1000) {
+      // 엔진의 url 버퍼가 1024바이트다
+      console.warn("[Stel] 하늘 이미지 URL 이 너무 깁니다");
+      return null;
+    }
+    const size = await loadImageSize(url);
+    if (!size) {
+      console.warn(`[Stel] 하늘 이미지 로드 실패: ${url}`);
+      return null;
+    }
+    const api = this.api;
+    if (!api) return null;
+    try {
+      const handle = api.eduLayer.add("photo", {
+        url,
+        // 배열로 감싸야 한다. 엔진의 photo_fn_calibration 은 인자를 배열로 보고 첫 원소를
+        // 읽는데, 객체를 그대로 넘기면 union 을 잘못 해석해 값이 전부 0 이 된다(브라우저 실측).
+        calibration: [
+          {
+            ra: p.ra,
+            dec: p.dec,
+            orientation: p.rotation ?? 0,
+            pixscale: (p.sizeDeg * 3600) / size.w, // 각초/픽셀
+          },
+        ],
+      });
+      if (!handle) return null;
+      try {
+        handle.visible = true; // 페이더가 서서히 나타나게 한다
+      } catch {
+        // visible 속성이 없는 빌드면 기본값으로 둔다
+      }
+      return handle;
+    } catch (e) {
+      console.error("[Stel] 하늘 이미지 추가 오류:", e);
+      return null;
+    }
+  }
+
+  /** 현재 화면 중심의 적경·적위(度, ICRF). 저작 시 "화면 중심에 배치"에 쓴다. */
+  getViewCenterRaDec(): { ra: number; dec: number } | null {
+    try {
+      const api = this.api;
+      if (!api) return null;
+      const { stel } = api;
+      const obs = stel.core.observer;
+      const v = stel.s2c(obs.yaw, obs.pitch);
+      const icrf = stel.convertFrame(obs, "OBSERVED", "ICRF", v);
+      const [theta, phi] = stel.c2s(icrf);
+      const R = 180 / Math.PI;
+      return { ra: +(stel.anp(theta) * R).toFixed(4), dec: +(phi * R).toFixed(4) };
+    } catch (e) {
+      console.error("[Stel] getViewCenterRaDec 오류:", e);
+      return null;
+    }
+  }
+
+  /** 천체 이름의 적경·적위(度, ICRF). */
+  getObjectRaDec(name: string): { ra: number; dec: number } | null {
+    try {
+      const api = this.api;
+      if (!api) return null;
+      const obj = api.stel.getObj(name);
+      if (!obj) return null;
+      const [theta, phi] = api.stel.c2s(obj.getInfo("radec"));
+      const R = 180 / Math.PI;
+      return { ra: +(api.stel.anp(theta) * R).toFixed(4), dec: +(phi * R).toFixed(4) };
+    } catch {
+      return null;
+    }
+  }
+
   /** 관측 시각 설정 (JS Date → MJD-UTC). observer.utc가 MJD-UTC 값(sw_helpers:251) */
   setTime(date: Date): void {
     try {
@@ -289,8 +454,14 @@ export class StellariumControl {
     for (const h of this.geojsonHandles) {
       try { eduLayer.remove(h); } catch {}
     }
+    for (const h of this.photoHandles) {
+      try { eduLayer.remove(h); } catch {}
+    }
     this.circleHandles = [];
     this.geojsonHandles = [];
+    this.photoHandles = [];
+    this.previewSeq++;
+    this.removePreview();
   }
 
   /** 별 선택 콜백 등록 */

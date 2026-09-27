@@ -26,6 +26,8 @@ export interface ProgramSummary {
   authorName: string | null;
   viewCount: number;
   updatedAt: string | null;
+  // 관리자가 반려하며 남긴 사유(DRAFT 로 돌아온 경우)
+  rejectReason?: string | null;
 }
 
 // GET /education/programs/{id} (상세) — ProgramDetailResponse
@@ -38,6 +40,8 @@ export interface ProgramDetail {
   steps: EduStep[];
   status: ProgramStatus;
   authorId: number;
+  authorName?: string | null;
+  rejectReason?: string | null;
 }
 
 export interface CreateProgramRequest {
@@ -98,10 +102,11 @@ export function publishProgram(id: string): Promise<ProgramDetail> {
   });
 }
 
-// PREVIEW → DRAFT (ADMIN 반려)
-export function rejectProgram(id: string): Promise<ProgramDetail> {
+// PREVIEW → DRAFT (ADMIN 반려). reason 은 작성자에게 보여줄 사유(선택)
+export function rejectProgram(id: string, reason?: string): Promise<ProgramDetail> {
   return apiFetch<ProgramDetail>(`education/programs/${id}/reject`, {
     method: "POST",
+    body: JSON.stringify({ reason: reason?.trim() || undefined }),
   });
 }
 
@@ -111,4 +116,80 @@ export function deleteProgram(id: string): Promise<void> {
 
 export function incrementProgramView(id: string): Promise<void> {
   return apiFetch<void>(`education/programs/${id}/view`, { method: "POST" });
+}
+
+// ── 퀴즈 ────────────────────────────────────────────────
+export interface QuizAnswerInput {
+  quizId: string;
+  choice: number | null; // null = 풀지 않고 넘어감
+}
+
+export interface QuizResult {
+  attemptId: string | null;
+  recorded: boolean; // 미발행(미리보기)이면 false — 채점만 하고 저장하지 않는다
+  score: number;
+  total: number;
+  results: { quizId: string; choice: number | null; correct: boolean; answerIndex: number }[];
+}
+
+export interface QuizQuestionStats {
+  quizId: string;
+  question: string;
+  choices: string[];
+  answerIndex: number;
+  answered: number;
+  correct: number;
+  choiceCounts: number[];
+}
+
+export interface QuizStats {
+  programId: string;
+  attempts: number;
+  uniqueUsers: number;
+  averageRate: number | null;
+  sampled: number;
+  questions: QuizQuestionStats[];
+}
+
+export interface MyQuizAttempt {
+  attemptId: string | null;
+  programId: string;
+  programTitle: string | null;
+  score: number;
+  total: number;
+  createdAt: string | null;
+}
+
+export function submitQuizAttempt(
+  programId: string,
+  answers: QuizAnswerInput[],
+): Promise<QuizResult> {
+  return apiFetch<QuizResult>(`education/programs/${programId}/quiz-attempts`, {
+    method: "POST",
+    body: JSON.stringify({ answers }),
+  });
+}
+
+export function getQuizStats(programId: string): Promise<QuizStats> {
+  return apiFetch<QuizStats>(`education/programs/${programId}/quiz-stats`);
+}
+
+export function listMyQuizAttempts(page = 0, size = 20): Promise<Page<MyQuizAttempt>> {
+  return apiFetch<Page<MyQuizAttempt>>(
+    `education/quiz-attempts/me?page=${page}&size=${size}`,
+  );
+}
+
+// ── 관리자 설정 ─────────────────────────────────────────
+export const MODERATION_KEY = "moderation.required";
+
+export function getAdminConfig(): Promise<Record<string, string>> {
+  return apiFetch<Record<string, string>>("admin/config");
+}
+
+export function setAdminConfig(key: string, value: string): Promise<void> {
+  return apiFetch<void>("admin/config", {
+    method: "PUT",
+    body: JSON.stringify({ key, value }),
+  });
 }
