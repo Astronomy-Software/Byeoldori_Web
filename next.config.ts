@@ -17,7 +17,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://openapi.map.naver.com https://oapi.map.naver.com https://*.map.naver.com https://*.pstatic.net https://*.navercorp.com https://api.byeoldori.com https://byeoldori.duckdns.org https://storage.googleapis.com https://navermaps.github.io",
+  "connect-src 'self' https://openapi.map.naver.com https://oapi.map.naver.com https://*.map.naver.com https://*.pstatic.net https://*.navercorp.com https://api.byeoldori.com https://storage.googleapis.com https://navermaps.github.io",
   "frame-src 'self'",
   "worker-src 'self' blob:",
 ]
@@ -31,11 +31,6 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "api.byeoldori.com",
-      },
-      {
-        // 전환기 호환 — 구 백엔드 도메인의 기존 이미지 URL
-        protocol: "https",
-        hostname: "byeoldori.duckdns.org",
       },
       {
         protocol: "https",
