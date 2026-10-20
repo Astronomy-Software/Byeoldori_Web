@@ -11,6 +11,7 @@ import {
 import { getSiteById } from "@/lib/api/observation-sites";
 import { getLiveWeather, getForecastData } from "@/lib/api/weather";
 import { getReviewPosts } from "@/lib/api/community";
+import { authorLabel } from "@/lib/community/comments";
 import type {
   ObservationSiteDetail,
   UltraForecastItem,
@@ -204,9 +205,10 @@ export default function ObservatoryDetailPage() {
       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border-default glass px-4 py-3">
         <button
           onClick={() => router.back()}
+          aria-label="뒤로 가기"
           className="rounded-full p-1.5 transition-colors hover:bg-surface-2"
         >
-          <ArrowLeft className="h-5 w-5 text-text-primary" />
+          <ArrowLeft className="h-5 w-5 text-text-primary" aria-hidden="true" />
         </button>
         <h1 className="text-lg font-bold text-text-primary">{site.name}</h1>
       </div>
@@ -506,7 +508,7 @@ export default function ObservatoryDetailPage() {
                   <div className="p-2">
                     <p className="line-clamp-2 text-xs font-medium text-text-primary">{post.title}</p>
                     <div className="mt-1 flex items-center justify-between text-xs text-text-tertiary">
-                      <span className="truncate">{post.authorNickname}</span>
+                      <span className="truncate">{authorLabel(post.authorNickname)}</span>
                       {post.score != null && (
                         <span className="ml-1 flex shrink-0 items-center gap-0.5 font-mono text-warning">
                           <Star className="h-3 w-3 fill-current" />

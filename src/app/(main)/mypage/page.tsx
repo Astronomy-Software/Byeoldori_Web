@@ -109,14 +109,14 @@ export default function MyPageScreen() {
                   {(user.nickname ?? user.name)[0]}
                 </AvatarFallback>
               </Avatar>
-              <label className="glow-primary absolute -bottom-1 -right-1 cursor-pointer rounded-full bg-interactive-primary p-1.5">
+              <label className="glow-primary absolute -bottom-1 -right-1 cursor-pointer rounded-full bg-interactive-primary p-1.5 focus-within:ring-2 focus-within:ring-aurora">
                 <Camera className="h-3.5 w-3.5 text-text-on-primary" aria-hidden="true" />
                 <span className="sr-only">프로필 이미지 변경</span>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleImageChange}
-                  className="hidden"
+                  className="sr-only"
                   aria-label="프로필 이미지 변경"
                 />
               </label>

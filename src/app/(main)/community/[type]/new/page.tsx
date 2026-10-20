@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,9 @@ import {
   createEducationPost,
 } from "@/lib/api/community";
 import { uploadImage } from "@/lib/api/files";
+import { getSitesByKeyword } from "@/lib/api/observation-sites";
+import { findSiteByExactName } from "@/lib/community/review-site";
+import type { ObservationSite } from "@/types/api";
 import { editorStateHasContent } from "@/components/editor/shared";
 import { toast } from "sonner";
 import { ArrowLeft, Upload, X, Star, Clapperboard } from "lucide-react";
@@ -40,6 +43,7 @@ function NewPostInner() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [siteName, setSiteName] = useState("");
+  const [siteSuggestions, setSiteSuggestions] = useState<ObservationSite[]>([]);
   const [rating, setRating] = useState(5);
   const [objectName, setObjectName] = useState("");
   const [difficulty, setDifficulty] = useState("BEGINNER");
@@ -53,6 +57,38 @@ function NewPostInner() {
       : type === "program"
         ? "교육 프로그램"
         : "자유게시판";
+
+  // 관측지 이름 자동완성(등록된 관측지). 고르면 리뷰가 그 관측지에 연결된다.
+  useEffect(() => {
+    if (type !== "review") return;
+    const q = siteName.trim();
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (!q) {
+        setSiteSuggestions([]);
+        return;
+      }
+      getSitesByKeyword(q)
+        .then((sites) => {
+          if (!cancelled) setSiteSuggestions(sites.slice(0, 10));
+        })
+        .catch(() => {});
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [siteName, type]);
+
+  async function resolveObservationSiteId(name: string) {
+    const fromSuggestions = findSiteByExactName(siteSuggestions, name);
+    if (fromSuggestions) return fromSuggestions.id;
+    try {
+      return findSiteByExactName(await getSitesByKeyword(name.trim()), name)?.id;
+    } catch {
+      return undefined; // 연결 실패는 글 작성을 막지 않는다(이름만 저장)
+    }
+  }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
@@ -84,12 +120,14 @@ function NewPostInner() {
     try {
       let postId: number;
       if (type === "review") {
+        const observationSiteId = await resolveObservationSiteId(siteName);
         const res = await createReviewPost({
           title,
           content,
           siteName,
           rating,
           imageUrls,
+          observationSiteId,
         });
         postId = res.id;
       } else if (type === "program") {
@@ -149,8 +187,19 @@ function NewPostInner() {
                 value={siteName}
                 onChange={(e) => setSiteName(e.target.value)}
                 required
+                list="site-suggestions"
+                autoComplete="off"
+                aria-describedby="siteName-help"
                 className="border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
               />
+              <datalist id="site-suggestions">
+                {siteSuggestions.map((site) => (
+                  <option key={site.id} value={site.name} />
+                ))}
+              </datalist>
+              <p id="siteName-help" className="text-xs text-text-tertiary">
+                목록의 관측지를 고르면 관측지 페이지에 리뷰가 함께 표시됩니다.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="rating" className="text-text-secondary">평점 (1~5)</Label>
@@ -258,20 +307,21 @@ function NewPostInner() {
                   type="button"
                   onClick={() => removeImage(i)}
                   aria-label="이미지 삭제"
-                  className="absolute -right-1 -top-1 rounded-full bg-error p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  className="absolute -right-1 -top-1 rounded-full bg-error p-0.5 text-white opacity-100 transition-opacity focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-3 w-3" aria-hidden="true" />
                 </button>
               </div>
             ))}
-            <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-lg border border-dashed border-border-strong bg-surface-1 transition-colors hover:border-interactive-primary">
-              <Upload className="h-5 w-5 text-text-tertiary" />
+            <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-lg border border-dashed border-border-strong bg-surface-1 transition-colors focus-within:ring-2 focus-within:ring-interactive-primary hover:border-interactive-primary">
+              <Upload className="h-5 w-5 text-text-tertiary" aria-hidden="true" />
               <input
                 type="file"
                 accept="image/*"
                 multiple
                 onChange={handleImageUpload}
-                className="hidden"
+                aria-label="이미지 추가"
+                className="sr-only"
               />
             </label>
           </div>

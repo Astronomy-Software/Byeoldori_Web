@@ -91,6 +91,9 @@ export async function createReviewPost(
     review: {
       location: body.siteName,
       score: body.rating,
+      ...(body.observationSiteId != null
+        ? { observationSiteId: body.observationSiteId }
+        : {}),
     },
   };
   return apiFetch<CreatedPostId>("community/REVIEW/posts", {

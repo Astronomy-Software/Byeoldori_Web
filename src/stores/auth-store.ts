@@ -5,6 +5,7 @@ import {
   getAccessToken,
   setAccessToken,
   clearTokens,
+  SESSION_EXPIRED_EVENT,
 } from "@/lib/auth/token";
 import { login as apiLogin } from "@/lib/api/auth";
 import { getMyProfile, logOut as logoutOnServer } from "@/lib/api/user";
@@ -83,3 +84,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 }));
+
+// apiFetch에서 refresh가 실패하면(세션 만료) 로그인 상태를 내린다.
+// AuthGuard는 isSignedIn=false를 보고 /login으로 이동한다.
+if (typeof window !== "undefined") {
+  window.addEventListener(SESSION_EXPIRED_EVENT, () => {
+    useAuthStore.setState({ user: null, isSignedIn: false });
+  });
+}

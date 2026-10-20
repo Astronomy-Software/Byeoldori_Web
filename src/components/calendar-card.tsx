@@ -45,14 +45,14 @@ export function CalendarCard({
   return (
     <div className="rounded-2xl border border-border-default bg-surface-1 p-4">
       <div className="mb-4 flex items-center justify-between">
-        <Button variant="ghost" size="icon" onClick={onPrev}>
-          <ChevronLeft className="h-4 w-4" />
+        <Button variant="ghost" size="icon" onClick={onPrev} aria-label="이전 달">
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
         </Button>
         <span className="font-mono text-sm font-semibold text-text-primary">
           {year}년 {month}월
         </span>
-        <Button variant="ghost" size="icon" onClick={onNext}>
-          <ChevronRight className="h-4 w-4" />
+        <Button variant="ghost" size="icon" onClick={onNext} aria-label="다음 달">
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,19 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth-store";
+import {
+  authorInitial,
+  authorLabel,
+  buildCommentTree,
+  canReplyTo,
+  markCommentDeleted,
+  mergeComments,
+  updateComment as updateCommentInList,
+  type CommentNode,
+} from "@/lib/community/comments";
+
+// 댓글은 서버에서 평면 목록(대댓글 포함)으로 페이지 단위로 온다.
+const COMMENT_PAGE_SIZE = 50;
 
 export default function PostDetailPage() {
   const params = useParams<{ type: string; id: string }>();
@@ -55,7 +68,11 @@ export default function PostDetailPage() {
   const postId = Number(params.id);
 
   const [post, setPost] = useState<PostDetailResponse | null>(null);
+  // 서버가 준 평면 목록 그대로 보관하고, 렌더 시 트리로 묶는다.
   const [comments, setComments] = useState<CommentResponse[]>([]);
+  const [commentPage, setCommentPage] = useState(0);
+  const [commentTotalPages, setCommentTotalPages] = useState(0);
+  const [loadingMoreComments, setLoadingMoreComments] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [replyTo, setReplyTo] = useState<number | null>(null);
   const [postError, setPostError] = useState<string | null>(null);
@@ -72,16 +89,39 @@ export default function PostDetailPage() {
         toast.error("게시글을 불러오지 못했습니다.");
       });
 
-    getComments(postId)
-      .then((r) => setComments(r.content))
+    getComments(postId, 0, COMMENT_PAGE_SIZE)
+      .then((r) => {
+        setComments(r.content);
+        setCommentPage(0);
+        setCommentTotalPages(r.totalPages);
+      })
       .catch(() => setCommentsError("댓글을 불러오지 못했습니다."));
   }, [postId]);
+
+  const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
+  const hasMoreComments = commentPage + 1 < commentTotalPages;
+
+  async function handleLoadMoreComments() {
+    if (loadingMoreComments) return;
+    setLoadingMoreComments(true);
+    try {
+      const next = commentPage + 1;
+      const r = await getComments(postId, next, COMMENT_PAGE_SIZE);
+      setComments((prev) => mergeComments(prev, r.content));
+      setCommentPage(next);
+      setCommentTotalPages(r.totalPages);
+    } catch {
+      toast.error("댓글을 더 불러오지 못했습니다.");
+    } finally {
+      setLoadingMoreComments(false);
+    }
+  }
 
   async function handleLike() {
     if (!post) return;
     try {
       const res: LikeToggleResponse = await toggleLike(postId);
-      setPost({ ...post, liked: res.liked, likeCount: res.likeCount });
+      setPost({ ...post, liked: res.liked, likeCount: res.likes });
     } catch {
       toast.error("좋아요 처리에 실패했습니다.");
     }
@@ -94,9 +134,7 @@ export default function PostDetailPage() {
         content: newComment,
         parentId: replyTo ?? undefined,
       });
-      setComments((prev) =>
-        replyTo ? insertReply(prev, replyTo, res) : [...prev, res],
-      );
+      setComments((prev) => mergeComments(prev, [res]));
       setNewComment("");
       setReplyTo(null);
       if (post) setPost({ ...post, commentCount: post.commentCount + 1 });
@@ -117,10 +155,13 @@ export default function PostDetailPage() {
   }
 
   async function handleDeleteComment(commentId: number) {
+    const target = comments.find((c) => c.id === commentId);
+    if (!target || target.deleted) return;
     try {
       await deleteComment(postId, commentId);
-      setComments((prev) => removeInTree(prev, commentId));
-      if (post) setPost({ ...post, commentCount: post.commentCount - 1 });
+      // 서버는 soft delete — 대댓글은 남고 본문만 "삭제된 댓글입니다."로 바뀐다.
+      setComments((prev) => markCommentDeleted(prev, commentId));
+      if (post) setPost({ ...post, commentCount: Math.max(0, post.commentCount - 1) });
     } catch {
       toast.error("댓글 삭제에 실패했습니다.");
     }
@@ -130,7 +171,7 @@ export default function PostDetailPage() {
     try {
       const res = await updateComment(postId, commentId, { content });
       setComments((prev) =>
-        updateCommentTree(prev, commentId, (c) => ({
+        updateCommentInList(prev, commentId, (c) => ({
           ...c,
           content: res.content,
         })),
@@ -144,10 +185,10 @@ export default function PostDetailPage() {
     try {
       const res = await toggleCommentLike(postId, commentId);
       setComments((prev) =>
-        updateCommentTree(prev, commentId, (c) => ({
+        updateCommentInList(prev, commentId, (c) => ({
           ...c,
           liked: res.liked,
-          likeCount: res.likeCount,
+          likeCount: res.likes,
         })),
       );
     } catch {
@@ -211,12 +252,18 @@ export default function PostDetailPage() {
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label="게시글 수정"
                 onClick={() => router.push(`/community/${params.type}/${postId}/edit`)}
               >
-                <Pencil className="h-4 w-4 text-text-tertiary" />
+                <Pencil className="h-4 w-4 text-text-tertiary" aria-hidden="true" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={handleDeletePost}>
-                <Trash2 className="h-4 w-4 text-error" />
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="게시글 삭제"
+                onClick={handleDeletePost}
+              >
+                <Trash2 className="h-4 w-4 text-error" aria-hidden="true" />
               </Button>
             </div>
           )}
@@ -225,10 +272,10 @@ export default function PostDetailPage() {
         <div className="flex items-center gap-3 text-sm text-text-secondary">
           <Avatar className="h-7 w-7">
             <AvatarFallback className="bg-interactive-primary text-xs text-white">
-              {post.authorNickname[0]}
+              {authorInitial(post.authorNickname)}
             </AvatarFallback>
           </Avatar>
-          <span className="text-text-primary">{post.authorNickname}</span>
+          <span className="text-text-primary">{authorLabel(post.authorNickname)}</span>
           <span className="font-mono text-text-tertiary">
             {new Date(post.createdAt).toLocaleDateString("ko-KR")}
           </span>
@@ -294,7 +341,8 @@ export default function PostDetailPage() {
                    post.education.difficulty === "INTERMEDIATE" ? "중급" : "고급"}
                 </span>
               )}
-              {post.education.averageScore && (
+              {post.education.averageScore != null &&
+                post.education.averageScore > 0 && (
                 <span className="flex items-center gap-1 font-mono text-aurora">
                   <Star className="h-3 w-3 fill-aurora" />
                   {post.education.averageScore.toFixed(1)}
@@ -351,11 +399,16 @@ export default function PostDetailPage() {
         <div className="flex items-center gap-5 border-t border-border-default pt-4 text-sm">
           <button
             onClick={handleLike}
+            aria-label="게시글 좋아요"
+            aria-pressed={post.liked}
             className={`flex items-center gap-1.5 font-mono transition-colors ${
               post.liked ? "text-error" : "text-text-tertiary hover:text-error"
             }`}
           >
-            <Heart className={`h-4 w-4 ${post.liked ? "fill-current" : ""}`} />
+            <Heart
+              className={`h-4 w-4 ${post.liked ? "fill-current" : ""}`}
+              aria-hidden="true"
+            />
             {post.likeCount}
           </button>
           <span className="flex items-center gap-1.5 font-mono text-text-tertiary">
@@ -376,6 +429,7 @@ export default function PostDetailPage() {
         {/* 댓글 입력 */}
         <div className="flex gap-2">
           <Textarea
+            aria-label={replyTo ? "답글 입력" : "댓글 입력"}
             placeholder={
               replyTo ? "답글을 입력하세요..." : "댓글을 입력하세요..."
             }
@@ -387,8 +441,9 @@ export default function PostDetailPage() {
             size="icon"
             className="glow-primary bg-interactive-primary text-white hover:bg-interactive-primary/90"
             onClick={handleComment}
+            aria-label={replyTo ? "답글 등록" : "댓글 등록"}
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-4 w-4" aria-hidden="true" />
           </Button>
         </div>
         {replyTo && (
@@ -405,7 +460,7 @@ export default function PostDetailPage() {
           <p className="text-xs text-error">{commentsError}</p>
         )}
         <div className="space-y-3">
-          {comments.map((comment) => (
+          {commentTree.map((comment) => (
             <CommentItem
               key={comment.id}
               comment={comment}
@@ -417,6 +472,16 @@ export default function PostDetailPage() {
             />
           ))}
         </div>
+        {hasMoreComments && (
+          <button
+            type="button"
+            onClick={handleLoadMoreComments}
+            disabled={loadingMoreComments}
+            className="w-full rounded-xl border border-border-default py-2 text-xs text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50"
+          >
+            {loadingMoreComments ? "불러오는 중..." : "댓글 더보기"}
+          </button>
+        )}
       </section>
     </div>
   );
@@ -431,7 +496,7 @@ function CommentItem({
   onLike,
   depth = 0,
 }: {
-  comment: CommentResponse;
+  comment: CommentNode;
   currentUserId?: number;
   onReply: (id: number) => void;
   onDelete: (id: number) => void;
@@ -443,7 +508,9 @@ function CommentItem({
   const [editContent, setEditContent] = useState(comment.content);
   const [isSaving, setIsSaving] = useState(false);
   const isAuthor =
-    currentUserId !== undefined && currentUserId === comment.authorId;
+    currentUserId !== undefined &&
+    currentUserId === comment.authorId &&
+    !comment.deleted;
 
   async function handleSaveEdit() {
     if (!editContent.trim()) return;
@@ -460,29 +527,34 @@ function CommentItem({
           <div className="flex items-center gap-2 text-xs text-text-tertiary">
             <Avatar className="h-6 w-6">
               <AvatarFallback className="bg-interactive-primary text-[10px] text-white">
-                {comment.authorNickname[0]}
+                {authorInitial(comment.authorNickname)}
               </AvatarFallback>
             </Avatar>
             <span className="font-medium text-text-primary">
-              {comment.authorNickname}
+              {authorLabel(comment.authorNickname)}
             </span>
             <span className="font-mono">
               {new Date(comment.createdAt).toLocaleDateString("ko-KR")}
             </span>
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onLike(comment.id)}
-              className={`text-xs ${comment.liked ? "text-error" : "text-text-tertiary"}`}
-            >
-              <Heart
-                className={`h-3 w-3 ${comment.liked ? "fill-current" : ""}`}
-              />
-            </button>
-            <span className="font-mono text-xs text-text-tertiary">
-              {comment.likeCount}
-            </span>
-          </div>
+          {!comment.deleted && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => onLike(comment.id)}
+                aria-label="댓글 좋아요"
+                aria-pressed={comment.liked}
+                className={`text-xs ${comment.liked ? "text-error" : "text-text-tertiary"}`}
+              >
+                <Heart
+                  className={`h-3 w-3 ${comment.liked ? "fill-current" : ""}`}
+                  aria-hidden="true"
+                />
+              </button>
+              <span className="font-mono text-xs text-text-tertiary">
+                {comment.likeCount}
+              </span>
+            </div>
+          )}
         </div>
 
         {isEditing ? (
@@ -509,17 +581,25 @@ function CommentItem({
             </div>
           </div>
         ) : (
-          <p className="mt-2 text-sm leading-relaxed text-text-secondary">{comment.content}</p>
+          <p
+            className={`mt-2 text-sm leading-relaxed ${
+              comment.deleted ? "italic text-text-tertiary" : "text-text-secondary"
+            }`}
+          >
+            {comment.content}
+          </p>
         )}
 
-        {!isEditing && (
+        {!isEditing && (canReplyTo(comment) || isAuthor) && (
           <div className="mt-2 flex gap-3 text-xs">
-            <button
-              onClick={() => onReply(comment.id)}
-              className="text-text-tertiary hover:text-text-primary"
-            >
-              답글
-            </button>
+            {canReplyTo(comment) && (
+              <button
+                onClick={() => onReply(comment.id)}
+                className="text-text-tertiary hover:text-text-primary"
+              >
+                답글
+              </button>
+            )}
             {isAuthor && (
               <>
                 <button
@@ -539,7 +619,7 @@ function CommentItem({
           </div>
         )}
       </div>
-      {comment.children?.map((child) => (
+      {comment.children.map((child) => (
         <CommentItem
           key={child.id}
           comment={child}
@@ -553,50 +633,4 @@ function CommentItem({
       ))}
     </div>
   );
-}
-
-// 댓글 트리(대댓글 포함)를 재귀적으로 순회하며 특정 댓글만 갱신
-function updateCommentTree(
-  comments: CommentResponse[],
-  id: number,
-  updater: (c: CommentResponse) => CommentResponse,
-): CommentResponse[] {
-  return comments.map((c) => {
-    if (c.id === id) return updater(c);
-    if (c.children?.length) {
-      return { ...c, children: updateCommentTree(c.children, id, updater) };
-    }
-    return c;
-  });
-}
-
-// 댓글 트리에서 특정 댓글(및 그 하위)을 재귀적으로 제거
-function removeInTree(
-  comments: CommentResponse[],
-  id: number,
-): CommentResponse[] {
-  return comments
-    .filter((c) => c.id !== id)
-    .map((c) =>
-      c.children?.length
-        ? { ...c, children: removeInTree(c.children, id) }
-        : c,
-    );
-}
-
-// 대댓글을 부모 댓글의 children에 재귀적으로 삽입
-function insertReply(
-  comments: CommentResponse[],
-  parentId: number,
-  reply: CommentResponse,
-): CommentResponse[] {
-  return comments.map((c) => {
-    if (c.id === parentId) {
-      return { ...c, children: [...(c.children ?? []), reply] };
-    }
-    if (c.children?.length) {
-      return { ...c, children: insertReply(c.children, parentId, reply) };
-    }
-    return c;
-  });
 }
