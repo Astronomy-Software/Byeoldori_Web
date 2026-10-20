@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { OG_IMAGE } from "@/lib/seo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,14 +33,7 @@ export const metadata: Metadata = {
       "천체 관측 초보자를 위한 교육 플랫폼. 별지도, 관측지 추천, 커뮤니티를 제공합니다.",
     url: siteUrl,
     locale: "ko_KR",
-    images: [
-      {
-        url: "/byeoldori.png",
-        width: 1200,
-        height: 630,
-        alt: "별도리",
-      },
-    ],
+    images: [OG_IMAGE],
   },
   robots: {
     index: true,

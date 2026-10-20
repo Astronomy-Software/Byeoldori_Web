@@ -1,3 +1,12 @@
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata({
+  title: "서비스 이용약관",
+  description:
+    "별도리(Byeoldori) 천체 관측 교육 플랫폼의 이용 조건, 계정 관리, 금지 행위와 콘텐츠 책임을 안내합니다.",
+  path: "/terms",
+});
+
 export default function TermsPage() {
   return (
     <article className="mx-auto max-w-2xl space-y-8 px-4 py-10 text-sm text-foreground">

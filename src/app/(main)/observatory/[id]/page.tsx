@@ -11,6 +11,7 @@ import {
 import { getSiteById } from "@/lib/api/observation-sites";
 import { getLiveWeather, getForecastData } from "@/lib/api/weather";
 import { getReviewPosts } from "@/lib/api/community";
+import { collectPages } from "@/lib/api/paginate";
 import { authorLabel } from "@/lib/community/comments";
 import type {
   ObservationSiteDetail,
@@ -77,6 +78,9 @@ type HourlyItem = {
   suit: number;
 };
 
+const REVIEW_SCAN_SIZE = 50;
+const REVIEW_SCAN_PAGES = 10;
+
 export default function ObservatoryDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -88,6 +92,9 @@ export default function ObservatoryDetailPage() {
   const [forecastLoading, setForecastLoading] = useState(false);
   const [forecastError, setForecastError] = useState(false);
   const [reviews, setReviews] = useState<PostSummary[]>([]);
+  // 리뷰 목록 API에 관측지 필터가 없어 최신순으로 넘겨 가며 이 관측지 리뷰만 모은다.
+  // partial = 상한(REVIEW_SCAN_PAGES)까지 봤는데도 reviewCount만큼 못 찾음.
+  const [reviewsStatus, setReviewsStatus] = useState<"loading" | "done" | "partial" | "error">("loading");
   const [address, setAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -128,9 +135,21 @@ export default function ObservatoryDetailPage() {
           }
         }).finally(() => setForecastLoading(false));
 
-        getReviewPosts(0, 20, "LATEST")
-          .then((r) => setReviews(r.content.filter((p) => p.observationSiteId === id)))
-          .catch(() => {});
+        if (data.reviewCount > 0) {
+          collectPages((page) => getReviewPosts(page, REVIEW_SCAN_SIZE, "LATEST"), {
+            maxPages: REVIEW_SCAN_PAGES,
+            keep: (p) => p.observationSiteId === id,
+            enough: (kept) => kept.length >= data.reviewCount,
+          })
+            .then(({ items, complete }) => {
+              setReviews(items);
+              setReviewsStatus(complete ? "done" : "partial");
+            })
+            .catch(() => setReviewsStatus("error"));
+        } else {
+          setReviews([]);
+          setReviewsStatus("done");
+        }
 
         const clientId = (process.env.NEXT_PUBLIC_NAVER_CLIENT_ID ?? "").trim();
         if (!clientId) return;
@@ -491,7 +510,13 @@ export default function ObservatoryDetailPage() {
             )}
           </h2>
           {reviews.length === 0 ? (
-            <p className="text-sm text-text-tertiary">아직 리뷰가 없습니다.</p>
+            <p className="text-sm text-text-tertiary">
+              {site.reviewCount === 0
+                ? "아직 리뷰가 없습니다."
+                : reviewsStatus === "loading"
+                  ? "리뷰를 불러오는 중..."
+                  : `리뷰 ${site.reviewCount}개를 불러오지 못했습니다.`}
+            </p>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {reviews.map((post) => (
@@ -501,7 +526,7 @@ export default function ObservatoryDetailPage() {
                   className="overflow-hidden rounded-2xl bg-surface-1 transition-colors hover:bg-surface-2"
                 >
                   <img
-                    src={post.thumbnailUrl ?? "/byeoldori.png"}
+                    src={post.thumbnailUrl ?? "/byeoldori-thumb.webp"}
                     alt={post.title}
                     className="aspect-square w-full object-cover"
                   />

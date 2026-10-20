@@ -569,15 +569,16 @@ function ProgramAuthorInner() {
   );
 
   // ── 저장 ───────────────────────────────────────────────────
-  const handleSave = useCallback(async () => {
+  // 성공하면 true. 검수 요청·발행 전에 저장되지 않은 편집을 먼저 올릴 때도 쓴다.
+  const handleSave = useCallback(async (): Promise<boolean> => {
     if (!title.trim()) {
       toast.error("제목을 입력해주세요.");
-      return;
+      return false;
     }
     const problem = quizProblem(steps);
     if (problem) {
       toast.error(problem);
-      return;
+      return false;
     }
     setSaving(true);
     try {
@@ -608,18 +609,28 @@ function ProgramAuthorInner() {
       }
       if (isNew) router.replace(`${pathname}?id=${res.id}`);
       toast.success("임시저장되었습니다.");
+      return true;
     } catch (e) {
       toast.error(apiMessage(e, "저장에 실패했습니다."));
+      return false;
     } finally {
       setSaving(false);
     }
   }, [title, subtitle, difficulty, steps, programId, router, pathname]);
+
+  // 검수 요청·발행은 서버에 저장된 버전을 대상으로 하므로, 화면에 저장 안 된 편집이 있으면
+  // 먼저 저장한다. 저장이 실패하면 진행하지 않는다(옛 버전이 검수·발행되는 것을 막는다).
+  const saveIfDirty = useCallback(async (): Promise<boolean> => {
+    if (!dirtyRef.current) return true;
+    return handleSave();
+  }, [handleSave]);
 
   const handleSubmit = useCallback(async () => {
     if (!programId) {
       toast.error("먼저 임시저장을 해주세요.");
       return;
     }
+    if (!(await saveIfDirty())) return;
     setSaving(true);
     try {
       const res = await submitProgram(programId);
@@ -631,7 +642,7 @@ function ProgramAuthorInner() {
     } finally {
       setSaving(false);
     }
-  }, [programId]);
+  }, [programId, saveIfDirty]);
 
   // PREVIEW → PUBLISHED. moderation이 켜져 있으면 ADMIN만 통과하고,
   // 권한이 없으면 서버가 403을 주므로 그 메시지를 그대로 보여준다.
@@ -640,6 +651,7 @@ function ProgramAuthorInner() {
       toast.error("먼저 임시저장을 해주세요.");
       return;
     }
+    if (!(await saveIfDirty())) return;
     setSaving(true);
     try {
       const res = await publishProgram(programId);
@@ -650,7 +662,7 @@ function ProgramAuthorInner() {
     } finally {
       setSaving(false);
     }
-  }, [programId]);
+  }, [programId, saveIfDirty]);
 
   // 상태에 따라 하나의 진행 버튼이 다음 단계를 안내한다:
   // DRAFT → 검수 요청, PREVIEW → 발행, PUBLISHED → 비활성("발행됨")

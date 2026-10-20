@@ -42,6 +42,19 @@ const nextConfig: NextConfig = {
     // 프로덕션 번들에서만 console 제거 (error/warn은 보존)
     removeConsole: isProd ? { exclude: ["error", "warn"] } : false,
   },
+  // www → apex(canonical) 영구 리다이렉트. wrangler.jsonc가 www.byeoldori.com도 같은 Worker에 붙이므로
+  // 앱에서 처리한다. www에 머물면 OAuth state(sessionStorage, 출처별)가 apex 콜백에서 안 보여
+  // 소셜 로그인이 항상 실패하고, 같은 문서가 두 도메인으로 색인된다. 쿼리스트링은 Next가 그대로 넘긴다.
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www\\.byeoldori\\.com" }],
+        destination: "https://byeoldori.com/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
