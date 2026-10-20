@@ -1,3 +1,12 @@
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata({
+  title: "개인정보처리방침",
+  description:
+    "별도리(Byeoldori) 서비스가 수집하는 개인정보 항목, 이용 목적, 보유 기간과 이용자의 권리를 안내합니다.",
+  path: "/privacy",
+});
+
 export default function PrivacyPage() {
   return (
     <article className="mx-auto max-w-2xl space-y-8 px-4 py-10 text-sm text-foreground">

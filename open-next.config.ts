@@ -1,8 +1,16 @@
 import { defineCloudflareConfig } from "@opennextjs/cloudflare";
+import staticAssetsIncrementalCache from "@opennextjs/cloudflare/overrides/incremental-cache/static-assets-incremental-cache";
 
-// 이 앱은 ISR을 쓰지 않아(정적 프리렌더 + 동적 SSR) incrementalCache 오버라이드를
-// 두지 않는다. 추후 ISR이 필요해지면 R2 버킷을 만들고 r2IncrementalCache를 붙인다.
-const config = defineCloudflareConfig();
+// 이 앱은 ISR을 쓰지 않는다(정적 프리렌더 + 동적 SSR). 기본값("dummy" 캐시)은 아무것도 읽지 못해
+// 빌드 때 프리렌더한 /, /starmap, /privacy, /terms, sitemap.xml 까지 매 요청 Worker에서 다시 렌더링한다.
+// → 읽기 전용 정적 자산 캐시로 프리렌더 결과(assets/cdn-cgi/_next_cache)를 그대로 서빙한다. R2 불필요.
+//   채우기는 `opennextjs-cloudflare deploy`(wrangler deploy가 OpenNext 프로젝트면 자동 위임)가 한다.
+// 추후 ISR이 필요해지면 R2 버킷을 만들고 r2IncrementalCache로 바꾼다.
+const config = defineCloudflareConfig({
+  incrementalCache: staticAssetsIncrementalCache,
+  // 프리렌더 페이지는 NextServer를 거치지 않고 캐시에서 바로 응답(라우팅·헤더·리다이렉트는 그 전에 적용됨).
+  enableCacheInterception: true,
+});
 
 export default {
   ...config,
