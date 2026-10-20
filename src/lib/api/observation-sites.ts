@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import { collectPages } from "./paginate";
 import type {
   ObservationSite,
   ObservationSiteDetail,
@@ -7,8 +8,16 @@ import type {
   ObservationSiteUpdateRequest,
 } from "@/types/api";
 
-export async function getAllSites(): Promise<ObservationSitePage> {
-  return apiFetch<ObservationSitePage>("observationsites");
+const SITES_PAGE_SIZE = 100;
+
+// GET /observationsites 는 페이지 응답(기본 20개, 이름순)이라 마지막 페이지까지 모두 받아 합친다.
+export async function getAllSites(): Promise<ObservationSite[]> {
+  const { items } = await collectPages((page) =>
+    apiFetch<ObservationSitePage>(
+      `observationsites?page=${page}&size=${SITES_PAGE_SIZE}`,
+    ),
+  );
+  return items;
 }
 
 // GET /observationsites/name?keyword= — 이름으로 관측지 검색

@@ -178,6 +178,8 @@ export interface CreateReviewRequest {
   siteName: string;
   rating: number;
   imageUrls: string[];
+  // 등록된 관측지와 이름이 일치하면 함께 보낸다 → 관측지 상세의 리뷰 목록·평점에 반영된다.
+  observationSiteId?: number;
 }
 
 export interface CreateEducationRequest {

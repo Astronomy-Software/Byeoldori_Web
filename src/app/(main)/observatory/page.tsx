@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getAllSites, getSitesByKeyword } from "@/lib/api/observation-sites";
 import type { ObservationSite } from "@/types/api";
+import { loadScriptOnce } from "@/lib/load-script";
 import { Input } from "@/components/ui/input";
 import { MapPin, Search, Lamp, X, LocateFixed } from "lucide-react";
 
@@ -81,7 +82,7 @@ function cardMarkerHtml(name: string, rating?: number | null): string {
         backdrop-filter:blur(6px);
       ">
         <img
-          src="/byeoldori.png"
+          src="/byeoldori-thumb.webp"
           style="width:${CARD_W}px;height:${CARD_IMG_H}px;object-fit:cover;display:block;pointer-events:none"
         />
         <div style="
@@ -136,7 +137,7 @@ export default function ObservatoryPage() {
 
   useEffect(() => {
     getAllSites()
-      .then((page) => setSites(page.content))
+      .then(setSites)
       .catch((err) => console.error("[observation-sites/getAllSites] 실패:", err));
   }, []);
 
@@ -170,12 +171,17 @@ export default function ObservatoryPage() {
     };
   }, []);
 
+  // 지도 + 클러스터 스크립트 준비 완료 여부. 마커는 [sites, mapReady]가 모두 갖춰졌을 때 그린다
+  // (관측지 API와 외부 스크립트 중 무엇이 먼저 끝나도 마커가 빠지지 않도록).
+  const [mapReady, setMapReady] = useState(false);
+
   useEffect(() => {
     const clientId = (process.env.NEXT_PUBLIC_NAVER_CLIENT_ID ?? "").trim();
     if (!clientId) return;
+    let cancelled = false;
 
     function initMap() {
-      if (!mapRef.current || !window.naver) return;
+      if (!mapRef.current || !window.naver) return false;
       const map = new window.naver.maps.Map(mapRef.current, {
         center: new window.naver.maps.LatLng(36.6284, 127.4572),
         zoom: 7,
@@ -190,36 +196,43 @@ export default function ObservatoryPage() {
         { opacity: 0.7 },
       );
       lpOverlayRef.current = overlay;
-
-      if (typeof window.MarkerClustering === "undefined") {
-        const s = document.createElement("script");
-        s.src = "https://navermaps.github.io/maps.js.ncp/docs/js/MarkerClustering.js";
-        s.onload = () => buildMarkers(map);
-        document.head.appendChild(s);
-      } else {
-        buildMarkers(map);
-      }
+      return true;
     }
 
-    const existing = document.getElementById("naver-map-script");
-    if (existing && window.naver) {
-      initMap();
-    } else if (!existing) {
-      const script = document.createElement("script");
-      script.id = "naver-map-script";
-      script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&ncpClientId=${clientId}&submodules=geocoder`;
-      script.onload = initMap;
-      document.head.appendChild(script);
-    }
+    // 상세 페이지가 같은 id로 넣어 둔 태그가 아직 로딩 중이어도 loadScriptOnce가 load를 기다린다.
+    loadScriptOnce(
+      "naver-map-script",
+      `https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&ncpClientId=${clientId}&submodules=geocoder`,
+      () => !!window.naver?.maps,
+    )
+      .then(async () => {
+        if (cancelled || !initMap()) return;
+        try {
+          await loadScriptOnce(
+            "naver-marker-clustering-script",
+            "https://navermaps.github.io/maps.js.ncp/docs/js/MarkerClustering.js",
+            () => typeof window.MarkerClustering !== "undefined",
+          );
+        } catch (err) {
+          // 클러스터 스크립트가 없어도 buildMarkers가 개별 마커로 그린다.
+          console.error("[observatory] MarkerClustering 로드 실패:", err);
+        }
+        if (!cancelled) setMapReady(true);
+      })
+      .catch((err) => console.error("[observatory] 네이버 지도 로드 실패:", err));
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
     const map = naverMapRef.current;
-    if (!map || !window.naver || sites.length === 0) return;
-    if (typeof window.MarkerClustering !== "undefined") {
-      buildMarkers(map);
-    }
-  }, [sites]);
+    if (!mapReady || !map || !window.naver || sites.length === 0) return;
+    buildMarkers(map);
+    // buildMarkers는 렌더마다 새로 만들어지지만 sites 외의 상태를 읽지 않는다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sites, mapReady]);
 
   function buildMarkers(map: NaverMap) {
     if (!window.naver || sites.length === 0) return;
