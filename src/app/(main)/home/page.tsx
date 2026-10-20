@@ -7,6 +7,8 @@ import { WeatherSection } from "@/components/weather-section";
 import { getHomeReviews, getHomeEducations, getHomeFreePosts } from "@/lib/api/community";
 import { getMonthlySummary } from "@/lib/api/calendar";
 import { useAuthStore } from "@/stores/auth-store";
+import { communityHref } from "@/lib/community/board-query";
+import { authorLabel } from "@/lib/community/comments";
 import type {
   ReviewPostSummary,
   EducationPostSummary,
@@ -178,6 +180,7 @@ export default function HomePage() {
             category="리뷰"
             posts={reviews}
             linkPrefix="/community/review"
+            moreHref={communityHref("review")}
             showScore
           />
 
@@ -187,6 +190,7 @@ export default function HomePage() {
             category="교육"
             posts={eduPosts}
             linkPrefix="/community/program"
+            moreHref={communityHref("program")}
           />
 
           {/* 인기 자유게시글 */}
@@ -194,6 +198,7 @@ export default function HomePage() {
             title="자유게시판"
             posts={freePosts}
             linkPrefix="/community/free"
+            moreHref={communityHref("free")}
           />
         </section>
       </div>
@@ -206,12 +211,15 @@ function CardPostSection({
   category,
   posts,
   linkPrefix,
+  moreHref,
   showScore,
 }: {
   title: string;
   category?: string;
   posts: PostSummary[];
   linkPrefix: string;
+  // 해당 탭이 열린 커뮤니티 목록 주소(?tab=...)
+  moreHref: string;
   showScore?: boolean;
 }) {
   return (
@@ -219,7 +227,7 @@ function CardPostSection({
       <div className="mb-2.5 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-text-secondary">{title}</h3>
         <Link
-          href="/community"
+          href={moreHref}
           className="text-xs text-interactive-link hover:text-aurora"
         >
           더보기 &rarr;
@@ -273,7 +281,7 @@ function CardPostSection({
                       <span className="font-mono">{post.viewCount}</span>
                     </span>
                   )}
-                  <span className="truncate">{post.authorNickname}</span>
+                  <span className="truncate">{authorLabel(post.authorNickname)}</span>
                 </div>
               </div>
             </Link>
@@ -288,17 +296,20 @@ function PostSection({
   title,
   posts,
   linkPrefix,
+  moreHref,
 }: {
   title: string;
   posts: PostSummary[];
   linkPrefix: string;
+  // 해당 탭이 열린 커뮤니티 목록 주소(?tab=...)
+  moreHref: string;
 }) {
   return (
     <div>
       <div className="mb-2.5 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-text-secondary">{title}</h3>
         <Link
-          href="/community"
+          href={moreHref}
           className="text-xs text-interactive-link hover:text-aurora"
         >
           더보기 &rarr;
@@ -319,7 +330,7 @@ function PostSection({
               </p>
               <div className="mt-1.5 flex items-center gap-3 text-xs text-text-tertiary">
                 <span className="truncate text-text-secondary">
-                  {post.authorNickname}
+                  {authorLabel(post.authorNickname)}
                 </span>
                 <span className="flex items-center gap-0.5">
                   <Eye className="h-3 w-3" />{" "}

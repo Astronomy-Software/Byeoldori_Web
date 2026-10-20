@@ -14,6 +14,15 @@ export function clearTokens() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
 }
 
+// refresh까지 실패해 세션이 끝났음을 앱 상태(auth-store)에 알리는 이벤트.
+// client.ts → auth-store 직접 import는 순환 참조라 window 이벤트로 전달한다.
+export const SESSION_EXPIRED_EVENT = "byeoldori:session-expired";
+
+export function notifySessionExpired() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+}
+
 export function isAuthenticated(): boolean {
   return !!getAccessToken();
 }

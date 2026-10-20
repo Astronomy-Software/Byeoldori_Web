@@ -12,8 +12,8 @@ import {
   createEducationPost,
 } from "@/lib/api/community";
 import { uploadImage } from "@/lib/api/files";
-import { getAllSites, getSitesByKeyword } from "@/lib/api/observation-sites";
-import { matchSiteByName } from "@/lib/observation-site-match";
+import { getSitesByKeyword } from "@/lib/api/observation-sites";
+import { findSiteByExactName } from "@/lib/community/review-site";
 import type { ObservationSite } from "@/types/api";
 import { editorStateHasContent } from "@/components/editor/shared";
 import { toast } from "sonner";
@@ -43,33 +43,13 @@ function NewPostInner() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [siteName, setSiteName] = useState("");
+  const [siteSuggestions, setSiteSuggestions] = useState<ObservationSite[]>([]);
   const [rating, setRating] = useState(5);
   const [objectName, setObjectName] = useState("");
   const [difficulty, setDifficulty] = useState("BEGINNER");
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // 리뷰: 등록된 관측지 목록(자동완성 + 이름 일치 시 observationSiteId 연결용)
-  const [siteOptions, setSiteOptions] = useState<ObservationSite[]>([]);
-
-  useEffect(() => {
-    if (type !== "review") return;
-    getAllSites()
-      .then(setSiteOptions)
-      .catch((err) => console.error("[observation-sites/getAllSites] 실패:", err));
-  }, [type]);
-
-  // 입력한 이름과 정확히 같은 관측지를 찾는다. 목록을 못 받았으면 이름 검색으로 한 번 더 시도한다.
-  async function resolveSiteId(name: string): Promise<number | undefined> {
-    const hit = matchSiteByName(name, siteOptions);
-    if (hit) return hit.id;
-    if (siteOptions.length > 0 || !name.trim()) return undefined;
-    try {
-      return matchSiteByName(name, await getSitesByKeyword(name.trim()))?.id;
-    } catch {
-      return undefined;
-    }
-  }
 
   const typeLabel =
     type === "review"
@@ -77,6 +57,38 @@ function NewPostInner() {
       : type === "program"
         ? "교육 프로그램"
         : "자유게시판";
+
+  // 관측지 이름 자동완성(등록된 관측지). 고르면 리뷰가 그 관측지에 연결된다.
+  useEffect(() => {
+    if (type !== "review") return;
+    const q = siteName.trim();
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (!q) {
+        setSiteSuggestions([]);
+        return;
+      }
+      getSitesByKeyword(q)
+        .then((sites) => {
+          if (!cancelled) setSiteSuggestions(sites.slice(0, 10));
+        })
+        .catch(() => {});
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [siteName, type]);
+
+  async function resolveObservationSiteId(name: string) {
+    const fromSuggestions = findSiteByExactName(siteSuggestions, name);
+    if (fromSuggestions) return fromSuggestions.id;
+    try {
+      return findSiteByExactName(await getSitesByKeyword(name.trim()), name)?.id;
+    } catch {
+      return undefined; // 연결 실패는 글 작성을 막지 않는다(이름만 저장)
+    }
+  }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
@@ -108,7 +120,7 @@ function NewPostInner() {
     try {
       let postId: number;
       if (type === "review") {
-        const observationSiteId = await resolveSiteId(siteName);
+        const observationSiteId = await resolveObservationSiteId(siteName);
         const res = await createReviewPost({
           title,
           content,
@@ -174,18 +186,19 @@ function NewPostInner() {
                 id="siteName"
                 value={siteName}
                 onChange={(e) => setSiteName(e.target.value)}
-                list="site-options"
-                autoComplete="off"
                 required
+                list="site-suggestions"
+                autoComplete="off"
+                aria-describedby="siteName-help"
                 className="border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
               />
-              <datalist id="site-options">
-                {siteOptions.map((s) => (
-                  <option key={s.id} value={s.name} />
+              <datalist id="site-suggestions">
+                {siteSuggestions.map((site) => (
+                  <option key={site.id} value={site.name} />
                 ))}
               </datalist>
-              <p className="text-xs text-text-tertiary">
-                목록에 있는 관측지를 고르면 그 관측지 페이지에도 리뷰가 표시됩니다.
+              <p id="siteName-help" className="text-xs text-text-tertiary">
+                목록의 관측지를 고르면 관측지 페이지에 리뷰가 함께 표시됩니다.
               </p>
             </div>
             <div className="space-y-2">
@@ -294,20 +307,21 @@ function NewPostInner() {
                   type="button"
                   onClick={() => removeImage(i)}
                   aria-label="이미지 삭제"
-                  className="absolute -right-1 -top-1 rounded-full bg-error p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  className="absolute -right-1 -top-1 rounded-full bg-error p-0.5 text-white opacity-100 transition-opacity focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-3 w-3" aria-hidden="true" />
                 </button>
               </div>
             ))}
-            <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-lg border border-dashed border-border-strong bg-surface-1 transition-colors hover:border-interactive-primary">
-              <Upload className="h-5 w-5 text-text-tertiary" />
+            <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-lg border border-dashed border-border-strong bg-surface-1 transition-colors focus-within:ring-2 focus-within:ring-interactive-primary hover:border-interactive-primary">
+              <Upload className="h-5 w-5 text-text-tertiary" aria-hidden="true" />
               <input
                 type="file"
                 accept="image/*"
                 multiple
                 onChange={handleImageUpload}
-                className="hidden"
+                aria-label="이미지 추가"
+                className="sr-only"
               />
             </label>
           </div>

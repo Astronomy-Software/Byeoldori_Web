@@ -106,7 +106,8 @@ export interface PostSummary {
   title: string;
   contentSummary: string;
   authorId: number;
-  authorNickname: string;
+  // 탈퇴 회원·닉네임 미설정(소셜 가입 후 온보딩 건너뜀)이면 서버가 null을 보낸다
+  authorNickname: string | null;
   authorProfileImageUrl?: string | null;
   observationSiteId?: number | null;
   viewCount: number;
@@ -153,7 +154,7 @@ export interface PostDetailResponse {
   title: string;
   content: string;
   authorId: number;
-  authorNickname: string;
+  authorNickname: string | null;
   authorProfileImageUrl?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -178,7 +179,7 @@ export interface CreateReviewRequest {
   siteName: string;
   rating: number;
   imageUrls: string[];
-  // 등록된 관측지와 이름이 일치하면 함께 보낸다 → 관측지 상세의 리뷰 목록·평점에 반영된다.
+  // 등록된 관측지와 연결될 때만 보낸다(관측지 상세의 리뷰 목록·평점에 반영)
   observationSiteId?: number;
 }
 
@@ -197,18 +198,20 @@ export interface CreatedPostId {
   id: number;
 }
 
-// Comments
+// Comments — 서버는 트리가 아닌 평면 목록(작성 시각 오름차순)을 준다.
+// 대댓글은 parentId/depth로 구분하고, 삭제는 soft delete(deleted=true, 본문 치환)다.
 export interface CommentResponse {
   id: number;
   content: string;
   authorId: number;
-  authorNickname: string;
+  authorNickname: string | null;
   authorProfileImageUrl: string | null;
   createdAt: string;
   likeCount: number;
   liked: boolean;
   parentId: number | null;
-  children: CommentResponse[];
+  depth: number;
+  deleted: boolean;
 }
 
 // GET /community/posts/{postId}/comments → data: PageResponse<CommentResponse> (0-based)
@@ -219,9 +222,10 @@ export interface CreateCommentRequest {
   parentId?: number;
 }
 
+// 서버 LikeToggleResponse — 총 좋아요 수 필드명은 likeCount가 아니라 likes다.
 export interface LikeToggleResponse {
   liked: boolean;
-  likeCount: number;
+  likes: number;
 }
 
 // Weather — GET /weather/summary

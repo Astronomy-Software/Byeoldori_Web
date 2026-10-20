@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"tests/**/*.test.mjs\"",
+    "test": "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \"tests/**/*.test.mjs\" \"src/**/*.test.ts\"",
     "deploy": "node scripts/deploy.mjs",
     "build:stellarium": "bash scripts/build-stellarium.sh",
     "update:stellarium": "git subtree pull --prefix=vendor/stellarium-web-engine https://github.com/Stellarium/stellarium-web-engine.git master --squash",

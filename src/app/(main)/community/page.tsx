@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getPosts, getReviewPosts, getEducationPosts } from "@/lib/api/community";
 import { previewSummary } from "@/components/editor/shared";
-import type { PostSummary } from "@/types/api";
+import type { PostResponse, PostSummary } from "@/types/api";
+import { authorLabel } from "@/lib/community/comments";
+import {
+  buildCommunityQuery,
+  isCommunityTab,
+  parseCommunityQuery,
+  type CommunityQuery,
+} from "@/lib/community/board-query";
 import { Eye, Heart, MessageSquare, Star, ImageIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,11 +21,45 @@ import { Badge } from "@/components/ui/badge";
 
 export default function CommunityPage() {
   return (
+    <Suspense>
+      <CommunityInner />
+    </Suspense>
+  );
+}
+
+// 탭·페이지·검색어는 URL 쿼리가 원본이다(뒤로 가기·홈 '더보기' 링크에서 복원).
+function CommunityInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const query = parseCommunityQuery(searchParams);
+
+  function navigate(next: CommunityQuery) {
+    const qs = buildCommunityQuery(next);
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
+
+  const boardProps: BoardRouteProps = {
+    page: query.page,
+    keyword: query.keyword,
+    onPageChange: (page) => navigate({ ...query, page }),
+    // 검색하면 항상 첫 페이지부터 — 이전 페이지 번호가 남으면 결과가 비어 보인다.
+    onSearch: (keyword) => navigate({ ...query, page: 0, keyword }),
+  };
+
+  return (
     <div className="mx-auto min-h-screen max-w-5xl bg-bg-page p-4 md:p-6">
       <h1 className="mb-5 text-2xl font-bold tracking-tight text-text-primary">
         커뮤니티
       </h1>
-      <Tabs defaultValue="review">
+      <Tabs
+        value={query.tab}
+        onValueChange={(v) => {
+          if (isCommunityTab(v) && v !== query.tab) {
+            navigate({ tab: v, page: 0, keyword: "" });
+          }
+        }}
+      >
         <TabsList className="mb-6 h-auto w-full justify-start gap-6 rounded-none border-b border-border-default bg-transparent p-0">
           <TabsTrigger
             value="review"
@@ -39,39 +81,86 @@ export default function CommunityPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="free">
-          <FreeBoard />
+          {query.tab === "free" && <FreeBoard {...boardProps} />}
         </TabsContent>
         <TabsContent value="review">
-          <ReviewBoard />
+          {query.tab === "review" && <ReviewBoard {...boardProps} />}
         </TabsContent>
         <TabsContent value="program">
-          <ProgramBoard />
+          {query.tab === "program" && <ProgramBoard {...boardProps} />}
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function FreeBoard() {
-  const [posts, setPosts] = useState<PostSummary[]>([]);
-  const [keyword, setKeyword] = useState("");
-  const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
+interface BoardRouteProps {
+  page: number;
+  keyword: string;
+  onPageChange: (p: number) => void;
+  onSearch: (k: string) => void;
+}
+
+type BoardKind = "FREE" | "REVIEW" | "EDUCATION";
+
+function fetchBoard(
+  kind: BoardKind,
+  page: number,
+  keyword: string,
+): Promise<PostResponse> {
+  const k = keyword || undefined;
+  if (kind === "REVIEW") return getReviewPosts(page, 20, "LATEST", k);
+  if (kind === "EDUCATION") return getEducationPosts(page, 20, "LATEST", k);
+  return getPosts("FREE", page, 20, "LATEST", k);
+}
+
+interface BoardResult {
+  key: string;
+  posts: PostSummary[];
+  totalPages: number;
+  error: boolean;
+}
+
+// 로딩·실패를 '게시글이 없습니다'와 구분한다. 응답이 현재 요청 키와 다르면 로딩 중.
+function useBoardPosts(kind: BoardKind, page: number, keyword: string) {
+  const [reloadCount, setReloadCount] = useState(0);
+  const [result, setResult] = useState<BoardResult | null>(null);
+  const requestKey = `${kind}|${page}|${keyword}|${reloadCount}`;
 
   useEffect(() => {
-    getPosts("FREE", page, 20, "LATEST", keyword || undefined)
-      .then((r) => { setPosts(r.content); setTotalPages(r.totalPages); })
-      .catch(() => {});
-  }, [page, keyword]);
+    let cancelled = false;
+    fetchBoard(kind, page, keyword)
+      .then((r) => {
+        if (!cancelled) {
+          setResult({ key: requestKey, posts: r.content, totalPages: r.totalPages, error: false });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setResult({ key: requestKey, posts: [], totalPages: 0, error: true });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [kind, page, keyword, requestKey]);
 
+  const loading = result?.key !== requestKey;
+  return {
+    posts: loading ? [] : (result?.posts ?? []),
+    totalPages: result?.totalPages ?? 0,
+    loading,
+    error: !loading && !!result?.error,
+    retry: () => setReloadCount((n) => n + 1),
+  };
+}
+
+function FreeBoard(props: BoardRouteProps) {
+  const state = useBoardPosts("FREE", props.page, props.keyword);
   return (
     <BoardLayout
-      posts={posts}
-      keyword={keyword}
-      onSearch={setKeyword}
-      page={page}
-      totalPages={totalPages}
-      onPageChange={setPage}
+      {...props}
+      {...state}
       linkPrefix="/community/free"
       createHref="/community/free/new"
       categoryLabel="자유"
@@ -79,26 +168,12 @@ function FreeBoard() {
   );
 }
 
-function ReviewBoard() {
-  const [posts, setPosts] = useState<PostSummary[]>([]);
-  const [keyword, setKeyword] = useState("");
-  const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-
-  useEffect(() => {
-    getReviewPosts(page, 20, "LATEST", keyword || undefined)
-      .then((r) => { setPosts(r.content); setTotalPages(r.totalPages); })
-      .catch(() => {});
-  }, [page, keyword]);
-
+function ReviewBoard(props: BoardRouteProps) {
+  const state = useBoardPosts("REVIEW", props.page, props.keyword);
   return (
     <GridBoardLayout
-      posts={posts}
-      keyword={keyword}
-      onSearch={setKeyword}
-      page={page}
-      totalPages={totalPages}
-      onPageChange={setPage}
+      {...props}
+      {...state}
       linkPrefix="/community/review"
       createHref="/community/review/new"
       categoryLabel="관측 리뷰"
@@ -107,31 +182,48 @@ function ReviewBoard() {
   );
 }
 
-function ProgramBoard() {
-  const [posts, setPosts] = useState<PostSummary[]>([]);
-  const [keyword, setKeyword] = useState("");
-  const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-
-  useEffect(() => {
-    getEducationPosts(page, 20, "LATEST", keyword || undefined)
-      .then((r) => { setPosts(r.content); setTotalPages(r.totalPages); })
-      .catch(() => {});
-  }, [page, keyword]);
-
+function ProgramBoard(props: BoardRouteProps) {
+  const state = useBoardPosts("EDUCATION", props.page, props.keyword);
   return (
     <GridBoardLayout
-      posts={posts}
-      keyword={keyword}
-      onSearch={setKeyword}
-      page={page}
-      totalPages={totalPages}
-      onPageChange={setPage}
+      {...props}
+      {...state}
       linkPrefix="/community/program"
       createHref="/community/program/new"
       categoryLabel="교육 프로그램"
     />
   );
+}
+
+interface BoardStatusProps {
+  loading: boolean;
+  error: boolean;
+  retry: () => void;
+}
+
+function BoardStatusMessage({ loading, error, retry }: BoardStatusProps) {
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16" role="status" aria-label="불러오는 중">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-interactive-primary border-t-transparent" />
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-16 text-center" role="alert">
+        <p className="text-sm text-error">게시글을 불러오지 못했습니다.</p>
+        <button
+          type="button"
+          onClick={retry}
+          className="rounded-lg border border-error/50 px-3 py-1 text-xs font-medium text-error hover:bg-error/10"
+        >
+          다시 시도
+        </button>
+      </div>
+    );
+  }
+  return null;
 }
 
 function GridBoardLayout({
@@ -145,7 +237,10 @@ function GridBoardLayout({
   createHref,
   categoryLabel,
   showScore,
-}: {
+  loading,
+  error,
+  retry,
+}: BoardStatusProps & {
   posts: PostSummary[];
   keyword: string;
   onSearch: (k: string) => void;
@@ -176,7 +271,9 @@ function GridBoardLayout({
         </Link>
       </div>
 
-      {posts.length === 0 ? (
+      {loading || error ? (
+        <BoardStatusMessage loading={loading} error={error} retry={retry} />
+      ) : posts.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-16 text-center">
           <ImageIcon className="h-8 w-8 text-text-tertiary" />
           <p className="text-sm text-text-tertiary">게시글이 없습니다.</p>
@@ -216,7 +313,7 @@ function GridBoardLayout({
                   {post.title}
                 </p>
                 <span className="truncate text-xs text-text-secondary">
-                  {post.authorNickname}
+                  {authorLabel(post.authorNickname)}
                 </span>
                 <div className="mt-auto flex items-center gap-2.5 pt-1 text-xs text-text-tertiary">
                   <span className="flex items-center gap-0.5 font-mono">
@@ -235,7 +332,7 @@ function GridBoardLayout({
         </div>
       )}
 
-      {totalPages > 1 && (
+      {(totalPages > 1 || page > 0) && (
         <div className="flex items-center justify-center gap-2">
           <Button
             variant="ghost"
@@ -247,7 +344,7 @@ function GridBoardLayout({
             이전
           </Button>
           <span className="flex items-center font-mono text-sm text-text-secondary">
-            {page + 1} / {totalPages}
+            {page + 1} / {Math.max(totalPages, page + 1)}
           </span>
           <Button
             variant="ghost"
@@ -274,7 +371,10 @@ function BoardLayout({
   linkPrefix,
   createHref,
   categoryLabel,
-}: {
+  loading,
+  error,
+  retry,
+}: BoardStatusProps & {
   posts: PostSummary[];
   keyword: string;
   onSearch: (k: string) => void;
@@ -305,7 +405,9 @@ function BoardLayout({
       </div>
 
       <div className="space-y-3">
-        {posts.length === 0 ? (
+        {loading || error ? (
+          <BoardStatusMessage loading={loading} error={error} retry={retry} />
+        ) : posts.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
             <MessageSquare className="h-8 w-8 text-text-tertiary" />
             <p className="text-sm text-text-tertiary">게시글이 없습니다.</p>
@@ -328,7 +430,7 @@ function BoardLayout({
                   {previewSummary(post.contentSummary)}
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-text-tertiary">
-                  <span className="text-text-secondary">{post.authorNickname}</span>
+                  <span className="text-text-secondary">{authorLabel(post.authorNickname)}</span>
                   <span className="flex items-center gap-0.5 font-mono">
                     <Eye className="h-3 w-3" /> {post.viewCount}
                   </span>
@@ -345,7 +447,7 @@ function BoardLayout({
         )}
       </div>
 
-      {totalPages > 1 && (
+      {(totalPages > 1 || page > 0) && (
         <div className="flex items-center justify-center gap-2">
           <Button
             variant="ghost"
@@ -357,7 +459,7 @@ function BoardLayout({
             이전
           </Button>
           <span className="flex items-center font-mono text-sm text-text-secondary">
-            {page + 1} / {totalPages}
+            {page + 1} / {Math.max(totalPages, page + 1)}
           </span>
           <Button
             variant="ghost"
