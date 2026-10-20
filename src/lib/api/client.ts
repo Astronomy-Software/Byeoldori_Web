@@ -1,4 +1,9 @@
-import { getAccessToken, setAccessToken, clearTokens } from "@/lib/auth/token";
+import {
+  getAccessToken,
+  setAccessToken,
+  clearTokens,
+  notifySessionExpired,
+} from "@/lib/auth/token";
 
 // Next.js rewrites를 통해 프록시 (/api/* → 백엔드 서버)
 const API_BASE_URL = "/api";
@@ -74,6 +79,8 @@ export async function apiFetch<T>(
       res = await fetch(url, { ...options, headers, credentials: "include" });
     } else {
       clearTokens();
+      // 스토어의 isSignedIn도 내려야 AuthGuard가 /login으로 보낸다.
+      notifySessionExpired();
       throw new ApiError(401, "Session expired");
     }
   }
