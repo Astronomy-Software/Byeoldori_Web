@@ -67,6 +67,8 @@ const IMAGE_POS: Record<ImagePosition, string> = {
   "center-right": "top-1/2 -translate-y-1/2 right-4",
 };
 
+const PROGRAM_PAGE_SIZE = 20;
+
 const DIFF_LABEL: Record<string, string> = {
   BEGINNER: "입문",
   INTERMEDIATE: "중급",
@@ -130,6 +132,8 @@ function StarMapInner() {
   const [stelReady, setStelReady] = useState(false);
   const [eduMode, setEduMode] = useState(false);
   const [programs, setPrograms] = useState<ProgramSummary[]>([]);
+  const [programPage, setProgramPage] = useState<{ page: number; totalPages: number } | null>(null);
+  const [loadingMorePrograms, setLoadingMorePrograms] = useState(false);
   const [activeProgram, setActiveProgram] = useState<EducationProgram | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [charText, setCharText] = useState<string | null>(null);
@@ -158,12 +162,25 @@ function StarMapInner() {
     });
   }, []);
 
-  // 교육 프로그램(MongoDB) 공개 목록 로드
-  useEffect(() => {
-    listPrograms({ size: 20 })
-      .then((r) => setPrograms(r.content))
-      .catch(console.error);
+  // 교육 프로그램(MongoDB) 공개 목록 로드 — 첫 페이지 이후는 '더 보기'로 이어 받는다.
+  const loadProgramPage = useCallback((page: number) => {
+    setLoadingMorePrograms(true);
+    listPrograms({ page, size: PROGRAM_PAGE_SIZE })
+      .then((r) => {
+        setPrograms((prev) => {
+          const base = page === 0 ? [] : prev;
+          const seen = new Set(base.map((p) => p.id));
+          return [...base, ...r.content.filter((p) => !seen.has(p.id))];
+        });
+        setProgramPage({ page: r.page, totalPages: r.totalPages });
+      })
+      .catch(console.error)
+      .finally(() => setLoadingMorePrograms(false));
   }, []);
+
+  useEffect(() => {
+    loadProgramPage(0);
+  }, [loadProgramPage]);
 
   // Stellarium 컨트롤 초기화
   useEffect(() => {
@@ -412,10 +429,11 @@ function StarMapInner() {
 
   // 모바일에서 교육 패널이 하단 시트(높이 50vh)로 열리면 별지도가 최소 절반 보이도록,
   // 캐릭터·말풍선을 시트 위로 올리거나(말풍선) 숨긴다(캐릭터). 데스크톱(md+)은 기존 그대로.
+  // 모바일 하단에는 NavBar(약 4rem, fixed z-50)가 있어 그 위로 4rem을 더 올린다.
   const bubbleMobileBottom = eduMode
-    ? "bottom-[calc(50vh+0.75rem)]"
+    ? "bottom-[calc(50vh+4.75rem)]"
     : characterPosition === "hidden"
-      ? "bottom-6"
+      ? "bottom-20"
       : "bottom-[280px]";
   const currentStep = activeProgram?.steps[stepIndex];
   const quizStep = currentStep?.type === "quiz" && currentStep.id ? currentStep : null;
@@ -494,10 +512,10 @@ function StarMapInner() {
         />
       )}
 
-      {/* 교육 모드 토글 — 모바일에서 하단 시트가 열리면 시트에 가리지 않게 위로 올린다 */}
+      {/* 교육 모드 토글 — 모바일에서는 하단 NavBar 위, 하단 시트가 열리면 시트 위로 올린다 */}
       <button
         className={`fixed left-4 z-50 rounded-full bg-indigo-600/90 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-indigo-500 ${
-          eduMode ? "bottom-[calc(50vh+1rem)] md:bottom-4" : "bottom-4"
+          eduMode ? "bottom-[calc(50vh+5rem)] md:bottom-4" : "bottom-20 md:bottom-4"
         }`}
         onClick={() => setEduMode((v) => !v)}
       >
@@ -522,7 +540,7 @@ function StarMapInner() {
 
       {/* 교육 패널 */}
       {eduMode && (
-        <div className="fixed z-40 flex flex-col overflow-hidden bg-gray-950/95 backdrop-blur-sm inset-x-0 bottom-0 h-[50vh] border-t border-white/10 md:inset-x-auto md:right-0 md:top-0 md:h-full md:w-80 md:border-l md:border-t-0">
+        <div className="fixed z-40 flex flex-col overflow-hidden bg-gray-950/95 backdrop-blur-sm inset-x-0 bottom-16 h-[50vh] border-t border-white/10 md:inset-x-auto md:right-0 md:top-0 md:bottom-0 md:h-full md:w-80 md:border-l md:border-t-0">
           {!activeProgram ? (
             /* 프로그램 선택 */
             <>
@@ -598,6 +616,15 @@ function StarMapInner() {
                     </p>
                   </button>
                 ))}
+                {programPage && programPage.page + 1 < programPage.totalPages && (
+                  <button
+                    onClick={() => loadProgramPage(programPage.page + 1)}
+                    disabled={loadingMorePrograms}
+                    className="w-full rounded-xl border border-white/10 py-2 text-xs text-white/60 transition-colors hover:bg-white/10 disabled:opacity-40"
+                  >
+                    {loadingMorePrograms ? "불러오는 중..." : "더 보기"}
+                  </button>
+                )}
               </div>
             </>
           ) : (
