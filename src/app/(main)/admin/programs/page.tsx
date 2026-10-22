@@ -16,8 +16,13 @@ import {
   MODERATION_KEY,
   type ProgramSummary,
 } from "@/lib/api/education-program";
+import { collectPages } from "@/lib/api/paginate";
+import { createLatestRequest } from "@/lib/latest-request";
 
 type Tab = "pending" | "published";
+
+// 서버 상한(EducationProgramController size ≤ 50)
+const PAGE_SIZE = 50;
 
 const DIFF_LABEL: Record<string, string> = {
   BEGINNER: "입문",
@@ -38,6 +43,10 @@ export default function AdminProgramsPage() {
   const [tab, setTab] = useState<Tab>("pending");
   const [items, setItems] = useState<ProgramSummary[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadedPages, setLoadedPages] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  // 탭을 빠르게 바꾸거나 '더 보기'를 누른 뒤 늦게 온 이전 응답이 목록을 덮어쓰지 않게 한다.
+  const [latestLoad] = useState(createLatestRequest);
   const [moderation, setModeration] = useState<boolean | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   // 반려 사유 입력 중인 프로그램
@@ -49,22 +58,39 @@ export default function AdminProgramsPage() {
 
   const isAdmin = !!user?.roles?.includes("ADMIN");
 
-  const load = useCallback(async (t: Tab) => {
+  // 서버는 한 번에 최대 50개만 준다. '더 보기'는 0페이지부터 다시 받아 이어붙인다.
+  // 승인·반려로 목록에서 빠진 만큼 뒤 페이지가 당겨지므로, 다음 페이지만 받으면 그 사이 항목을 건너뛴다.
+  const load = useCallback(async (t: Tab, pageCount: number) => {
+    const isLatest = latestLoad.begin();
     setLoading(true);
     try {
-      const res = await listPrograms({ size: 50, pending: t === "pending" });
-      setItems(res.content);
+      let lastTotalPages = 0;
+      const { items: loaded } = await collectPages(
+        async (page) => {
+          const res = await listPrograms({ page, size: PAGE_SIZE, pending: t === "pending" });
+          lastTotalPages = res.totalPages;
+          return res;
+        },
+        { maxPages: pageCount },
+      );
+      if (!isLatest()) return;
+      // 받는 사이 새 항목이 맨 앞에 끼면 같은 항목이 두 페이지에 걸쳐 올 수 있다.
+      const unique = new Map(loaded.map((p) => [p.id, p] as const));
+      setItems([...unique.values()]);
+      setLoadedPages(pageCount);
+      setTotalPages(lastTotalPages);
     } catch (e) {
+      if (!isLatest()) return;
       toast.error(clientErrorMessage(e, "목록을 불러오지 못했습니다."));
-      setItems([]);
+      if (pageCount === 1) setItems([]);
     } finally {
-      setLoading(false);
+      if (isLatest()) setLoading(false);
     }
-  }, []);
+  }, [latestLoad]);
 
   useEffect(() => {
     if (!isAdmin) return;
-    load(tab);
+    load(tab, 1);
   }, [isAdmin, tab, load]);
 
   useEffect(() => {
@@ -287,6 +313,17 @@ export default function AdminProgramsPage() {
                 </li>
               ))}
             </ul>
+
+            {loadedPages < totalPages && (
+              <button
+                type="button"
+                onClick={() => load(tab, loadedPages + 1)}
+                disabled={loading}
+                className="mt-4 w-full rounded-lg border border-border-default bg-surface-1 py-2 text-sm text-text-secondary transition-colors hover:text-text-primary disabled:opacity-40"
+              >
+                {loading ? "불러오는 중..." : "더 보기"}
+              </button>
+            )}
           </>
         )}
       </div>

@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   coordinatedRefresh,
+  resendAnonymously,
   tokenRefreshedElsewhere,
 } from "./refresh-coordination.ts";
 
@@ -73,4 +74,32 @@ test("coordinatedRefresh: 잠금 API가 실패하면 잠금 없이 진행한다"
     locks,
   });
   assert.equal(ok, true);
+});
+
+test("resendAnonymously: Authorization을 빼고 다시 보내며, 공개 API 성공이면 세션 만료가 아니다", async () => {
+  const headers = new Headers({ Authorization: "Bearer expired", "Content-Type": "application/json" });
+  let sentAuth: string | null = "unset";
+  const { res, sessionExpired } = await resendAnonymously(headers, async (h) => {
+    sentAuth = h.get("Authorization");
+    return new Response("{}", { status: 200 });
+  });
+  assert.equal(sentAuth, null);
+  assert.equal(headers.get("Content-Type"), "application/json");
+  assert.equal(res.status, 200);
+  assert.equal(sessionExpired, false);
+});
+
+test("resendAnonymously: 익명으로도 401이면(로그인 필요 API) 세션 만료로 본다", async () => {
+  const { sessionExpired } = await resendAnonymously(new Headers({ Authorization: "Bearer x" }), async () =>
+    new Response("", { status: 401 }),
+  );
+  assert.equal(sessionExpired, true);
+});
+
+test("resendAnonymously: 401이 아닌 오류(403·404)는 그대로 돌려줘 호출부가 처리한다", async () => {
+  const { res, sessionExpired } = await resendAnonymously(new Headers(), async () =>
+    new Response("", { status: 404 }),
+  );
+  assert.equal(res.status, 404);
+  assert.equal(sessionExpired, false);
 });

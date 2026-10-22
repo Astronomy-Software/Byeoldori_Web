@@ -19,13 +19,31 @@ function formatGoodTime(raw: string): string {
 }
 
 export function WeatherSection({ lat, lon }: WeatherSectionProps) {
-  const [data, setData] = useState<WeatherSummary | null>(null);
-  const [error, setError] = useState(false);
+  // 응답을 요청한 좌표와 함께 보관한다. 좌표가 바뀌면 이전 지역 날씨·오류를 보여주지 않고 로딩부터 다시 보인다.
+  const coordKey = `${lat},${lon}`;
+  const [result, setResult] = useState<{
+    key: string;
+    data: WeatherSummary | null;
+    error: boolean;
+  } | null>(null);
+  const current = result?.key === coordKey ? result : null;
+  const data = current?.data ?? null;
+  const error = current?.error ?? false;
 
   useEffect(() => {
+    // 좌표가 바뀐 뒤 늦게 도착한 이전 좌표(예: 기본 좌표) 응답이 덮어쓰지 않도록 무시한다.
+    let cancelled = false;
+    const key = `${lat},${lon}`;
     getWeatherSummary(lat, lon)
-      .then(setData)
-      .catch(() => setError(true));
+      .then((d) => {
+        if (!cancelled) setResult({ key, data: d, error: false });
+      })
+      .catch(() => {
+        if (!cancelled) setResult({ key, data: null, error: true });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [lat, lon]);
 
   if (error) {

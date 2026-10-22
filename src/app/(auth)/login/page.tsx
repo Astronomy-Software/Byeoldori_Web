@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Live2DCharacter } from "@/components/live2d-character";
 import { getOAuthRedirectUri } from "@/lib/auth/oauth-redirect";
 import { consumeSocialLoginError } from "@/lib/auth/post-login";
@@ -105,7 +106,25 @@ function LoginForm() {
         )}
 
         <p className="mt-6 text-center text-xs text-text-tertiary">
-          로그인 시 서비스 이용약관과 개인정보처리방침에 동의하게 됩니다.
+          로그인 시{" "}
+          <Link
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-text-primary"
+          >
+            서비스 이용약관
+          </Link>
+          과{" "}
+          <Link
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-text-primary"
+          >
+            개인정보처리방침
+          </Link>
+          에 동의하게 됩니다.
         </p>
       </div>
     </div>

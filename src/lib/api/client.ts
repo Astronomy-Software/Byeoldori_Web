@@ -6,6 +6,7 @@ import {
 } from "@/lib/auth/token";
 import {
   coordinatedRefresh,
+  resendAnonymously,
   tokenRefreshedElsewhere,
 } from "./refresh-coordination";
 
@@ -94,7 +95,14 @@ export async function apiFetch<T>(
       clearTokens();
       // 스토어의 isSignedIn도 내려야 AuthGuard가 /login으로 보낸다.
       notifySessionExpired();
-      throw new ApiError(401, "Session expired");
+      // 공개 API(비로그인 열람)는 익명으로 다시 보내 성공시키고, 그래도 401이면 세션 만료로 끝낸다.
+      const retry = await resendAnonymously(headers, (h) =>
+        fetch(url, { ...options, headers: h, credentials: "include" }),
+      );
+      if (retry.sessionExpired) {
+        throw new ApiError(401, "Session expired");
+      }
+      res = retry.res;
     }
   }
 

@@ -15,6 +15,18 @@ export function tokenRefreshedElsewhere(
   return current;
 }
 
+// refresh까지 실패해 토큰을 지운 뒤, 같은 요청을 Authorization 없이 한 번 더 보낸다.
+// 서버는 만료 토큰이 붙어 있으면 공개(permitAll) API도 401로 막으므로, 익명으로 다시 보내면
+// 비로그인 열람 API는 성공한다. 로그인이 필요한 API는 다시 401이 나고 sessionExpired=true가 된다.
+export async function resendAnonymously(
+  headers: Headers,
+  send: (headers: Headers) => Promise<Response>,
+): Promise<{ res: Response; sessionExpired: boolean }> {
+  headers.delete("Authorization");
+  const res = await send(headers);
+  return { res, sessionExpired: res.status === 401 };
+}
+
 type LockManagerLike = {
   request<T>(name: string, callback: () => Promise<T>): Promise<T>;
 };
