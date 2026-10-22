@@ -338,6 +338,11 @@ export default function StarMapPage() {
           setQuizSummary({ ...base, score: res.score, total: res.total, recorded: res.recorded }),
         )
         .catch((e) => {
+          // 세션이 끝나 로그아웃된 경우는 실패가 아니라 '로그인하면 저장돼요' 안내를 보여준다.
+          if (e instanceof ApiError && e.status === 401) {
+            setQuizSummary({ ...base, recorded: null });
+            return;
+          }
           console.error("[StarMap] 퀴즈 제출 실패:", e);
           setQuizSummary({ ...base, recorded: false, failed: true });
         });
