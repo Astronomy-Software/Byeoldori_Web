@@ -34,6 +34,8 @@ export default function EditPostPage() {
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  // 본문 에디터 안의 이미지 업로드 진행 여부 — 끝나기 전에 저장하면 이미지가 빠진다.
+  const [editorUploading, setEditorUploading] = useState(false);
 
   useEffect(() => {
     getPostDetail(postId)
@@ -50,6 +52,10 @@ export default function EditPostPage() {
   }, [postId, router]);
 
   async function handleSubmit() {
+    if (editorUploading) {
+      toast.error("이미지 업로드가 끝난 뒤 다시 시도해주세요.");
+      return;
+    }
     if (!title.trim() || !editorStateHasContent(content)) {
       toast.error("제목과 내용을 입력해주세요.");
       return;
@@ -104,14 +110,18 @@ export default function EditPostPage() {
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-text-secondary">내용</label>
-          <LexicalEditor value={content} onChange={setContent} />
+          <LexicalEditor
+            value={content}
+            onChange={setContent}
+            onUploadingChange={setEditorUploading}
+          />
         </div>
         <Button
           onClick={handleSubmit}
-          disabled={isSaving}
+          disabled={isSaving || editorUploading}
           className="glow-primary w-full bg-interactive-primary text-white hover:bg-interactive-primary/90"
         >
-          {isSaving ? "저장 중..." : "저장"}
+          {isSaving ? "저장 중..." : editorUploading ? "이미지 업로드 중..." : "저장"}
         </Button>
       </div>
     </div>

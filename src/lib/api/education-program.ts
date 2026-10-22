@@ -102,6 +102,11 @@ export function publishProgram(id: string): Promise<ProgramDetail> {
   });
 }
 
+// 검수(moderation.required) 켜짐 여부 — 로그인 사용자 누구나 읽을 수 있다
+export function getProgramModeration(): Promise<{ required: boolean }> {
+  return apiFetch<{ required: boolean }>("education/programs/moderation");
+}
+
 // PREVIEW → DRAFT (ADMIN 반려). reason 은 작성자에게 보여줄 사유(선택)
 export function rejectProgram(id: string, reason?: string): Promise<ProgramDetail> {
   return apiFetch<ProgramDetail>(`education/programs/${id}/reject`, {

@@ -17,10 +17,16 @@ import {
   updateProgram,
   submitProgram,
   publishProgram,
+  getProgramModeration,
   type ProgramDifficulty,
   type ProgramStatus,
 } from "@/lib/api/education-program";
 import { ApiError } from "@/lib/api/client";
+import { useAuthStore } from "@/stores/auth-store";
+import {
+  authorStage,
+  reviewWithdrawnBySave,
+} from "@/lib/education-program-status";
 import {
   SkyImageEditor,
   QuizEditor,
@@ -199,6 +205,7 @@ function ProgramAuthorInner() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const isAdmin = useAuthStore((s) => !!s.user?.roles?.includes("ADMIN"));
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const controlRef = useRef<StellariumControl | null>(null);
   // 재생 세션 토큰 — 정지/재시작 시 이전 루프를 무효화한다
@@ -220,6 +227,8 @@ function ProgramAuthorInner() {
   // 관리자가 반려하며 남긴 사유 — DRAFT 로 돌아온 프로그램에 배너로 보여준다
   const [rejectReason, setRejectReason] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // 검수 설정(서버 moderation.required). 조회 전·실패 시에는 켜진 것으로 본다(서버 기본값).
+  const [moderationRequired, setModerationRequired] = useState(true);
 
   const [playing, setPlaying] = useState(false);
   const [playIndex, setPlayIndex] = useState<number | null>(null);
@@ -263,6 +272,21 @@ function ProgramAuthorInner() {
       setStelReady(true);
       ctrl.onStarSelected((name) => setSelectedStar(name));
     });
+  }, []);
+
+  // 검수가 꺼져 있으면 작성자도 PREVIEW 프로그램을 바로 발행할 수 있다
+  useEffect(() => {
+    let cancelled = false;
+    getProgramModeration()
+      .then((res) => {
+        if (!cancelled) setModerationRequired(res?.required !== false);
+      })
+      .catch(() => {
+        // 엔드포인트가 없거나 실패하면 검수가 켜진 것으로 둔다
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // iframe→parent postMessage 리스너 (별 선택)
@@ -589,6 +613,7 @@ function ProgramAuthorInner() {
         steps,
       };
       const isNew = !programId;
+      const statusBefore = status;
       const res = programId
         ? await updateProgram(programId, payload)
         : await createProgram(payload);
@@ -608,7 +633,12 @@ function ProgramAuthorInner() {
         // no-op
       }
       if (isNew) router.replace(`${pathname}?id=${res.id}`);
-      toast.success("임시저장되었습니다.");
+      if (reviewWithdrawnBySave(statusBefore, res.status)) {
+        // 서버는 검수 대기 중 수정된 프로그램을 DRAFT로 되돌린다(관리자가 본 버전과 달라지므로).
+        toast.warning("수정해서 검수 요청이 취소되었습니다. 다시 검수를 요청해주세요.");
+      } else {
+        toast.success("임시저장되었습니다.");
+      }
       return true;
     } catch (e) {
       toast.error(apiMessage(e, "저장에 실패했습니다."));
@@ -616,7 +646,7 @@ function ProgramAuthorInner() {
     } finally {
       setSaving(false);
     }
-  }, [title, subtitle, difficulty, steps, programId, router, pathname]);
+  }, [title, subtitle, difficulty, steps, programId, status, router, pathname]);
 
   // 검수 요청·발행은 서버에 저장된 버전을 대상으로 하므로, 화면에 저장 안 된 편집이 있으면
   // 먼저 저장한다. 저장이 실패하면 진행하지 않는다(옛 버전이 검수·발행되는 것을 막는다).
@@ -665,14 +695,18 @@ function ProgramAuthorInner() {
   }, [programId, saveIfDirty]);
 
   // 상태에 따라 하나의 진행 버튼이 다음 단계를 안내한다:
-  // DRAFT → 검수 요청, PREVIEW → 발행, PUBLISHED → 비활성("발행됨")
+  // DRAFT → 검수 요청, PREVIEW → 발행(관리자·검수 꺼짐) 또는 비활성("검수 대기 중"), PUBLISHED → 비활성("발행됨")
+  // 검수가 켜져 있으면(서버 기본값) PREVIEW 발행은 관리자만 할 수 있다.
   const published = status === "PUBLISHED";
-  const stageAction: { label: string; onClick: () => void; disabled: boolean } =
-    published
-      ? { label: "발행됨", onClick: () => {}, disabled: true }
-      : status === "PREVIEW"
-        ? { label: "발행", onClick: handlePublish, disabled: false }
-        : { label: "검수 요청", onClick: handleSubmit, disabled: false };
+  const stage = authorStage(status, isAdmin, moderationRequired);
+  const stageAction: { label: string; onClick: () => void; disabled: boolean; title: string } =
+    stage === "published"
+      ? { label: "발행됨", onClick: () => {}, disabled: true, title: "이미 발행된 프로그램입니다" }
+      : stage === "publish"
+        ? { label: "발행", onClick: handlePublish, disabled: false, title: "발행하면 모두가 볼 수 있습니다" }
+        : stage === "waiting"
+          ? { label: "검수 대기 중", onClick: () => {}, disabled: true, title: "관리자가 검수한 뒤 발행됩니다" }
+          : { label: "검수 요청", onClick: handleSubmit, disabled: false, title: "검수를 요청합니다" };
 
   const applyRestore = useCallback(() => {
     if (!restorable) return;
@@ -1168,7 +1202,9 @@ function ProgramAuthorInner() {
             <Button
               type="button"
               onClick={handleSave}
-              disabled={saving}
+              // 발행된 프로그램은 서버가 수정을 거부한다
+              disabled={saving || published}
+              title={published ? "발행된 프로그램은 수정할 수 없습니다" : undefined}
               size="sm"
               className="glow-primary flex-1 bg-interactive-primary text-xs text-white hover:bg-interactive-primary/90"
             >
@@ -1180,13 +1216,7 @@ function ProgramAuthorInner() {
               variant="outline"
               size="sm"
               disabled={!programId || saving || stageAction.disabled}
-              title={
-                published
-                  ? "이미 발행된 프로그램입니다"
-                  : status === "PREVIEW"
-                    ? "발행하면 모두가 볼 수 있습니다"
-                    : "검수를 요청합니다"
-              }
+              title={stageAction.title}
               className="flex-1 border-border-default text-xs text-text-primary"
             >
               {stageAction.label}
@@ -1218,10 +1248,17 @@ function ProgramAuthorInner() {
               📊 퀴즈 통계 보기
             </button>
           )}
+          {programId && published && (
+            <p className="text-center text-[11px] leading-relaxed text-text-tertiary">
+              발행된 프로그램은 수정할 수 없습니다(읽기 전용).
+            </p>
+          )}
           {programId && !published && (
             <p className="text-center text-[11px] leading-relaxed text-text-tertiary">
               {status === "PREVIEW"
-                ? "검수 대기 중입니다. 발행 후 글을 쓸 수 있습니다."
+                ? isAdmin
+                  ? "검수 대기 중입니다. 발행 후 글을 쓸 수 있습니다."
+                  : "검수 대기 중입니다. 지금 수정해 저장하면 검수 요청이 취소됩니다."
                 : "검수 요청 → 발행을 마쳐야 다른 사람이 볼 수 있고, 글을 쓸 수 있습니다."}
             </p>
           )}

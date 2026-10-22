@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth-store";
-import { ApiError } from "@/lib/api/client";
+import { clientErrorMessage } from "@/lib/api/error-message";
 import {
   listPrograms,
   publishProgram,
@@ -29,18 +29,6 @@ function formatDate(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
-}
-
-function errorMessage(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) {
-    try {
-      const body = JSON.parse(e.body) as { message?: string };
-      if (body.message) return body.message;
-    } catch {
-      // 본문이 JSON 이 아니면 기본 문구
-    }
-  }
-  return fallback;
 }
 
 // 교육 프로그램 검수(관리자 전용). 권한은 서버가 최종 판정하고, 화면은 ADMIN 이 아니면 안내만 한다.
@@ -67,7 +55,7 @@ export default function AdminProgramsPage() {
       const res = await listPrograms({ size: 50, pending: t === "pending" });
       setItems(res.content);
     } catch (e) {
-      toast.error(errorMessage(e, "목록을 불러오지 못했습니다."));
+      toast.error(clientErrorMessage(e, "목록을 불러오지 못했습니다."));
       setItems([]);
     } finally {
       setLoading(false);
@@ -94,7 +82,7 @@ export default function AdminProgramsPage() {
       setModeration(next);
       toast.success(next ? "발행 전 검수를 켰습니다." : "검수 없이 작성자가 바로 발행할 수 있습니다.");
     } catch (e) {
-      toast.error(errorMessage(e, "설정을 바꾸지 못했습니다."));
+      toast.error(clientErrorMessage(e, "설정을 바꾸지 못했습니다."));
     }
   };
 
@@ -105,7 +93,7 @@ export default function AdminProgramsPage() {
       setItems((prev) => prev.filter((x) => x.id !== p.id));
       toast.success(`"${p.title}"을(를) 발행했습니다.`);
     } catch (e) {
-      toast.error(errorMessage(e, "발행에 실패했습니다."));
+      toast.error(clientErrorMessage(e, "발행에 실패했습니다."));
     } finally {
       setBusyId(null);
     }
@@ -120,7 +108,7 @@ export default function AdminProgramsPage() {
       setRejecting(null);
       toast.success("반려했습니다. 작성자에게 사유가 표시됩니다.");
     } catch (e) {
-      toast.error(errorMessage(e, "반려에 실패했습니다."));
+      toast.error(clientErrorMessage(e, "반려에 실패했습니다."));
     } finally {
       setBusyId(null);
     }
