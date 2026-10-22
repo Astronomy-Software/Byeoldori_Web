@@ -4,6 +4,10 @@ import {
   clearTokens,
   notifySessionExpired,
 } from "@/lib/auth/token";
+import {
+  coordinatedRefresh,
+  tokenRefreshedElsewhere,
+} from "./refresh-coordination";
 
 // Next.js rewrites를 통해 프록시 (/api/* → 백엔드 서버)
 const API_BASE_URL = "/api";
@@ -65,7 +69,12 @@ export async function apiFetch<T>(
   if (res.status === 401 && token) {
     if (!isRefreshing) {
       isRefreshing = true;
-      refreshPromise = refreshAccessToken().finally(() => {
+      // 탭 사이에서도 한 번만 갱신한다(refresh 토큰 회전 경합 방지).
+      refreshPromise = coordinatedRefresh(token, {
+        readToken: getAccessToken,
+        refresh: refreshAccessToken,
+        locks: typeof navigator !== "undefined" ? navigator.locks : null,
+      }).finally(() => {
         isRefreshing = false;
         refreshPromise = null;
       });
@@ -73,8 +82,12 @@ export async function apiFetch<T>(
 
     // refreshPromise가 null이 된 경우(완료 직후 레이스 컨디션)는 false로 처리
     const refreshed = await (refreshPromise ?? Promise.resolve(false));
-    if (refreshed) {
-      const newToken = getAccessToken()?.trim();
+    // 갱신에 실패했어도 그 사이 다른 탭이 새 토큰을 저장했으면 지우지 말고 그 토큰으로 재시도한다.
+    const otherTabToken = refreshed
+      ? null
+      : tokenRefreshedElsewhere(token, getAccessToken());
+    if (refreshed || otherTabToken) {
+      const newToken = otherTabToken ?? getAccessToken()?.trim();
       headers.set("Authorization", `Bearer ${newToken}`);
       res = await fetch(url, { ...options, headers, credentials: "include" });
     } else {
