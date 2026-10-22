@@ -21,13 +21,21 @@ test("programAuthorHref: 저작 화면을 id로 다시 연다", () => {
   assert.equal(programAuthorHref("a&b"), "/community/program/author?id=a%26b");
 });
 
-test("authorStage: 검수 대기 중 발행 버튼은 관리자에게만", () => {
-  assert.equal(authorStage(null, false), "submit");
-  assert.equal(authorStage("DRAFT", false), "submit");
-  assert.equal(authorStage("PREVIEW", false), "waiting");
-  assert.equal(authorStage("PREVIEW", true), "publish");
-  assert.equal(authorStage("PUBLISHED", false), "published");
-  assert.equal(authorStage("PUBLISHED", true), "published");
+test("authorStage: 검수가 켜져 있으면 검수 대기 중 발행 버튼은 관리자에게만", () => {
+  assert.equal(authorStage(null, false, true), "submit");
+  assert.equal(authorStage("DRAFT", false, true), "submit");
+  assert.equal(authorStage("PREVIEW", false, true), "waiting");
+  assert.equal(authorStage("PREVIEW", true, true), "publish");
+  assert.equal(authorStage("PUBLISHED", false, true), "published");
+  assert.equal(authorStage("PUBLISHED", true, true), "published");
+});
+
+test("authorStage: 검수가 꺼져 있으면 작성자도 PREVIEW 를 발행한다", () => {
+  assert.equal(authorStage(null, false, false), "submit");
+  assert.equal(authorStage("DRAFT", false, false), "submit");
+  assert.equal(authorStage("PREVIEW", false, false), "publish");
+  assert.equal(authorStage("PREVIEW", true, false), "publish");
+  assert.equal(authorStage("PUBLISHED", false, false), "published");
 });
 
 test("reviewWithdrawnBySave: PREVIEW → DRAFT 로 바뀐 저장만 철회로 본다", () => {

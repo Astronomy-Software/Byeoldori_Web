@@ -17,6 +17,7 @@ import {
   updateProgram,
   submitProgram,
   publishProgram,
+  getProgramModeration,
   type ProgramDifficulty,
   type ProgramStatus,
 } from "@/lib/api/education-program";
@@ -226,6 +227,8 @@ function ProgramAuthorInner() {
   // 관리자가 반려하며 남긴 사유 — DRAFT 로 돌아온 프로그램에 배너로 보여준다
   const [rejectReason, setRejectReason] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // 검수 설정(서버 moderation.required). 조회 전·실패 시에는 켜진 것으로 본다(서버 기본값).
+  const [moderationRequired, setModerationRequired] = useState(true);
 
   const [playing, setPlaying] = useState(false);
   const [playIndex, setPlayIndex] = useState<number | null>(null);
@@ -269,6 +272,21 @@ function ProgramAuthorInner() {
       setStelReady(true);
       ctrl.onStarSelected((name) => setSelectedStar(name));
     });
+  }, []);
+
+  // 검수가 꺼져 있으면 작성자도 PREVIEW 프로그램을 바로 발행할 수 있다
+  useEffect(() => {
+    let cancelled = false;
+    getProgramModeration()
+      .then((res) => {
+        if (!cancelled) setModerationRequired(res?.required !== false);
+      })
+      .catch(() => {
+        // 엔드포인트가 없거나 실패하면 검수가 켜진 것으로 둔다
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // iframe→parent postMessage 리스너 (별 선택)
@@ -677,10 +695,10 @@ function ProgramAuthorInner() {
   }, [programId, saveIfDirty]);
 
   // 상태에 따라 하나의 진행 버튼이 다음 단계를 안내한다:
-  // DRAFT → 검수 요청, PREVIEW → 발행(관리자) 또는 비활성("검수 대기 중"), PUBLISHED → 비활성("발행됨")
+  // DRAFT → 검수 요청, PREVIEW → 발행(관리자·검수 꺼짐) 또는 비활성("검수 대기 중"), PUBLISHED → 비활성("발행됨")
   // 검수가 켜져 있으면(서버 기본값) PREVIEW 발행은 관리자만 할 수 있다.
   const published = status === "PUBLISHED";
-  const stage = authorStage(status, isAdmin);
+  const stage = authorStage(status, isAdmin, moderationRequired);
   const stageAction: { label: string; onClick: () => void; disabled: boolean; title: string } =
     stage === "published"
       ? { label: "발행됨", onClick: () => {}, disabled: true, title: "이미 발행된 프로그램입니다" }

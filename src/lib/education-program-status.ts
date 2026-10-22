@@ -21,11 +21,16 @@ export function programAuthorHref(id: string): string {
 
 export type AuthorStage = "submit" | "publish" | "waiting" | "published";
 
-// 저작 화면의 진행 버튼 단계. 일반 작성자는 검수 대기 중에 누를 버튼이 없다
-// (검수가 꺼진 환경의 작성자 발행은 관리자 화면 설정에 따르므로 여기서는 보이지 않는다).
-export function authorStage(status: ProgramStatus | null, isAdmin: boolean): AuthorStage {
+// 저작 화면의 진행 버튼 단계. 검수가 켜져 있으면 일반 작성자는 검수 대기 중에 누를 버튼이 없고,
+// 검수가 꺼져 있으면 작성자도 PREVIEW 프로그램을 바로 발행할 수 있다.
+// 검수 설정을 모르면(조회 실패) moderationRequired=true 로 넘겨 안전한 쪽을 따른다.
+export function authorStage(
+  status: ProgramStatus | null,
+  isAdmin: boolean,
+  moderationRequired: boolean,
+): AuthorStage {
   if (status === "PUBLISHED") return "published";
-  if (status === "PREVIEW") return isAdmin ? "publish" : "waiting";
+  if (status === "PREVIEW") return isAdmin || !moderationRequired ? "publish" : "waiting";
   return "submit";
 }
 
