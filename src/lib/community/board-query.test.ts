@@ -1,9 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  COMMUNITY_TAB_LABELS,
   buildCommunityQuery,
   communityHref,
   parseCommunityQuery,
+  routeTypeToTab,
 } from "./board-query.ts";
 
 const parse = (qs: string) => parseCommunityQuery(new URLSearchParams(qs));
@@ -35,4 +37,15 @@ test("communityHref: 홈 '더보기' 링크가 해당 탭을 연다", () => {
   assert.equal(communityHref("review"), "/community");
   assert.equal(communityHref("free"), "/community?tab=free");
   assert.equal(communityHref("program"), "/community?tab=program");
+});
+
+test("routeTypeToTab: 라우트 세그먼트를 탭으로(교육 글 수정 제목·삭제 후 목록 이동)", () => {
+  assert.equal(routeTypeToTab("program"), "program");
+  assert.equal(routeTypeToTab("PROGRAM"), "program");
+  assert.equal(routeTypeToTab("education"), "program");
+  assert.equal(routeTypeToTab("review"), "review");
+  assert.equal(routeTypeToTab("free"), "free");
+  assert.equal(routeTypeToTab("unknown"), "free");
+  assert.equal(COMMUNITY_TAB_LABELS[routeTypeToTab("program")], "교육 프로그램");
+  assert.equal(communityHref(routeTypeToTab("program")), "/community?tab=program");
 });

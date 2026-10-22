@@ -528,6 +528,10 @@ export default function ObservatoryDetailPage() {
                   <img
                     src={post.thumbnailUrl ?? "/byeoldori-thumb.webp"}
                     alt={post.title}
+                    width={300}
+                    height={300}
+                    loading="lazy"
+                    decoding="async"
                     className="aspect-square w-full object-cover"
                   />
                   <div className="p-2">

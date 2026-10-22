@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,7 @@ import {
   updateComment as updateCommentInList,
   type CommentNode,
 } from "@/lib/community/comments";
+import { communityHref, routeTypeToTab } from "@/lib/community/board-query";
 
 // 댓글은 서버에서 평면 목록(대댓글 포함)으로 페이지 단위로 온다.
 const COMMENT_PAGE_SIZE = 50;
@@ -74,6 +75,9 @@ export default function PostDetailPage() {
   const [commentTotalPages, setCommentTotalPages] = useState(0);
   const [loadingMoreComments, setLoadingMoreComments] = useState(false);
   const [newComment, setNewComment] = useState("");
+  // 댓글 등록 중복 방지(두 번 탭·느린 응답) — ref는 같은 틱의 연속 클릭도 막는다.
+  const [isPostingComment, setIsPostingComment] = useState(false);
+  const postingCommentRef = useRef(false);
   const [replyTo, setReplyTo] = useState<number | null>(null);
   const [postError, setPostError] = useState<string | null>(null);
   const [commentsError, setCommentsError] = useState<string | null>(null);
@@ -128,7 +132,9 @@ export default function PostDetailPage() {
   }
 
   async function handleComment() {
-    if (!newComment.trim()) return;
+    if (!newComment.trim() || postingCommentRef.current) return;
+    postingCommentRef.current = true;
+    setIsPostingComment(true);
     try {
       const res = await createComment(postId, {
         content: newComment,
@@ -140,6 +146,9 @@ export default function PostDetailPage() {
       if (post) setPost({ ...post, commentCount: post.commentCount + 1 });
     } catch {
       toast.error("댓글 작성에 실패했습니다.");
+    } finally {
+      postingCommentRef.current = false;
+      setIsPostingComment(false);
     }
   }
 
@@ -148,7 +157,8 @@ export default function PostDetailPage() {
     try {
       await deletePost(postId);
       toast.success("게시글이 삭제되었습니다.");
-      router.back();
+      // back()은 기록에 따라 삭제된 글의 수정 화면이나 사이트 밖으로 갈 수 있어 목록으로 고정한다.
+      router.replace(communityHref(routeTypeToTab(params.type)));
     } catch {
       toast.error("삭제에 실패했습니다.");
     }
@@ -157,6 +167,7 @@ export default function PostDetailPage() {
   async function handleDeleteComment(commentId: number) {
     const target = comments.find((c) => c.id === commentId);
     if (!target || target.deleted) return;
+    if (!confirm("댓글을 삭제하시겠습니까?")) return;
     try {
       await deleteComment(postId, commentId);
       // 서버는 soft delete — 대댓글은 남고 본문만 "삭제된 댓글입니다."로 바뀐다.
@@ -441,6 +452,7 @@ export default function PostDetailPage() {
             size="icon"
             className="glow-primary bg-interactive-primary text-white hover:bg-interactive-primary/90"
             onClick={handleComment}
+            disabled={isPostingComment || !newComment.trim()}
             aria-label={replyTo ? "답글 등록" : "댓글 등록"}
           >
             <Send className="h-4 w-4" aria-hidden="true" />

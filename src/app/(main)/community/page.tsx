@@ -94,6 +94,18 @@ function CommunityInner() {
   );
 }
 
+// 검색 입력칸은 URL 검색어(keyword)를 따라간다. 같은 보드가 마운트된 채로 URL만 바뀌어도
+// (예: NavBar '커뮤니티'로 /community 이동) 옛 검색어가 입력칸에 남지 않게 한다.
+function useSearchInput(keyword: string) {
+  const [value, set] = useState(keyword);
+  const [syncedKeyword, setSyncedKeyword] = useState(keyword);
+  if (keyword !== syncedKeyword) {
+    setSyncedKeyword(keyword);
+    set(keyword);
+  }
+  return { value, set };
+}
+
 interface BoardRouteProps {
   page: number;
   keyword: string;
@@ -252,16 +264,16 @@ function GridBoardLayout({
   categoryLabel: string;
   showScore?: boolean;
 }) {
-  const [searchInput, setSearchInput] = useState(keyword);
+  const searchInput = useSearchInput(keyword);
 
   return (
     <div className="space-y-5">
       <div className="flex gap-2">
         <Input
           placeholder="검색..."
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") onSearch(searchInput); }}
+          value={searchInput.value}
+          onChange={(e) => searchInput.set(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") onSearch(searchInput.value); }}
           className="flex-1 border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
         />
         <Link href={createHref}>
@@ -291,6 +303,10 @@ function GridBoardLayout({
                   <img
                     src={post.thumbnailUrl}
                     alt={post.title}
+                    width={300}
+                    height={300}
+                    loading="lazy"
+                    decoding="async"
                     className="aspect-square w-full object-cover"
                   />
                 ) : (
@@ -385,16 +401,16 @@ function BoardLayout({
   createHref: string;
   categoryLabel: string;
 }) {
-  const [searchInput, setSearchInput] = useState(keyword);
+  const searchInput = useSearchInput(keyword);
 
   return (
     <div className="space-y-5">
       <div className="flex gap-2">
         <Input
           placeholder="검색..."
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") onSearch(searchInput); }}
+          value={searchInput.value}
+          onChange={(e) => searchInput.set(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") onSearch(searchInput.value); }}
           className="flex-1 border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
         />
         <Link href={createHref}>
