@@ -13,6 +13,7 @@ import { uploadImage } from "@/lib/api/files";
 import { getSitesByKeyword } from "@/lib/api/observation-sites";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { editorStateHasContent } from "@/lib/community/content-text";
 import { clientErrorMessage } from "@/lib/api/error-message";
 import {
@@ -22,8 +23,8 @@ import {
 } from "@/lib/community/post-limits";
 import { COMMUNITY_TAB_LABELS, routeTypeToTab } from "@/lib/community/board-query";
 import { findSiteByExactName } from "@/lib/community/review-site";
-import { resolveEditedSiteId } from "@/lib/community/review-payload";
-import { joinTargets } from "@/lib/community/education-post-payload";
+import { resolveEditedSite } from "@/lib/community/review-payload";
+import { resolveEditedTargets, targetsToLines } from "@/lib/community/education-post-payload";
 import type { ObservationSite, ReviewDto } from "@/types/api";
 import { ArrowLeft, Star, Upload, X } from "lucide-react";
 import { toast } from "sonner";
@@ -56,7 +57,8 @@ export default function EditPostPage() {
   const [siteName, setSiteName] = useState("");
   const [siteSuggestions, setSiteSuggestions] = useState<ObservationSite[]>([]);
   const [rating, setRating] = useState<number | null>(null);
-  // 교육 프로그램
+  // 교육 프로그램 — 천체 이름은 한 줄에 하나. 고치지 않으면 처음 목록을 그대로 다시 보낸다.
+  const [originalTargets, setOriginalTargets] = useState<string[]>([]);
   const [objectName, setObjectName] = useState("");
   const [difficulty, setDifficulty] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -81,7 +83,8 @@ export default function EditPostPage() {
           setRating(post.review.score ?? null);
         }
         if (post.education) {
-          setObjectName(joinTargets(post.education.targets));
+          setOriginalTargets(post.education.targets ?? []);
+          setObjectName(targetsToLines(post.education.targets));
           setDifficulty(post.education.difficulty ?? "");
         }
         setIsLoading(false);
@@ -114,14 +117,11 @@ export default function EditPostPage() {
     };
   }, [siteName, isReview]);
 
+  // 조회 실패는 그대로 던진다 — 연결을 확인하지 못한 채 저장하면 서버가 기존 연결을 끊는다.
   async function findSiteIdByName(name: string) {
     const fromSuggestions = findSiteByExactName(siteSuggestions, name);
     if (fromSuggestions) return fromSuggestions.id;
-    try {
-      return findSiteByExactName(await getSitesByKeyword(name.trim()), name)?.id;
-    } catch {
-      return undefined; // 연결 실패는 수정을 막지 않는다(이름만 저장)
-    }
+    return findSiteByExactName(await getSitesByKeyword(name.trim()), name)?.id;
   }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -163,22 +163,33 @@ export default function EditPostPage() {
     setIsSaving(true);
     try {
       if (isReview) {
-        const observationSiteId = await resolveEditedSiteId(
+        const site = await resolveEditedSite(
           originalReview ?? {},
           siteName,
           findSiteIdByName,
         );
+        if (!site.ok) {
+          toast.error(site.message);
+          return;
+        }
         await updateReview(postId, {
           title,
           content,
           imageUrls,
           siteName,
           rating,
-          observationSiteId,
+          observationSiteId: site.observationSiteId,
+          clearLocation: site.clearLocation,
           targets: originalReview?.targets ?? [],
         });
       } else if (isEducation) {
-        await updateEducation(postId, { title, content, imageUrls, difficulty, objectName });
+        await updateEducation(postId, {
+          title,
+          content,
+          imageUrls,
+          difficulty,
+          targets: resolveEditedTargets(originalTargets, objectName),
+        });
       } else {
         await updatePost(postId, { title, content, imageUrls });
       }
@@ -277,15 +288,16 @@ export default function EditPostPage() {
           <>
             <div>
               <label htmlFor="edit-objectName" className="mb-1.5 block text-sm font-medium text-text-secondary">천체 이름</label>
-              <Input
+              <Textarea
                 id="edit-objectName"
                 value={objectName}
                 onChange={(e) => setObjectName(e.target.value)}
+                rows={3}
                 aria-describedby="edit-objectName-help"
                 className="border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
               />
               <p id="edit-objectName-help" className="mt-1 text-xs text-text-tertiary">
-                여러 개는 가운뎃점(·)으로 구분합니다.
+                한 줄에 하나씩 입력합니다.
               </p>
             </div>
             <div>
