@@ -45,3 +45,17 @@ export function communityHref(tab: CommunityTab): string {
   const qs = buildCommunityQuery({ tab, page: 0, keyword: "" });
   return qs ? `/community?${qs}` : "/community";
 }
+
+export const COMMUNITY_TAB_LABELS: Record<CommunityTab, string> = {
+  review: "관측 리뷰",
+  program: "교육 프로그램",
+  free: "자유게시판",
+};
+
+// 상세·수정 화면의 [type] 세그먼트(review|program|free)를 목록 탭으로 바꾼다.
+// 서버 enum 이름(EDUCATION)으로 들어와도 교육 프로그램으로 본다. 모르는 값은 자유게시판.
+export function routeTypeToTab(routeType: string): CommunityTab {
+  const t = routeType.toLowerCase();
+  if (t === "education") return "program";
+  return isCommunityTab(t) ? t : "free";
+}

@@ -10,6 +10,7 @@ import {
 import { login as apiLogin } from "@/lib/api/auth";
 import { getMyProfile, logOut as logoutOnServer } from "@/lib/api/user";
 import { ApiError } from "@/lib/api/client";
+import { clearReturnPath, rememberReturnPath } from "@/lib/auth/post-login";
 import type { UserProfile, LoginRequest, AuthTokens } from "@/types/api";
 
 interface AuthState {
@@ -68,6 +69,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       // 이미 만료된 토큰 등 — 로컬 정리만 진행
     }
     clearTokens();
+    // 직접 로그아웃했다면 다음 로그인은 /home에서 시작한다.
+    clearReturnPath();
     set({ user: null, isSignedIn: false });
   },
 
@@ -78,6 +81,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (e) {
       // 401만 실제 세션 만료 — 네트워크 오류·5xx는 로그아웃하지 않는다
       if (e instanceof ApiError && e.status === 401) {
+        rememberCurrentPath();
         clearTokens();
         set({ user: null, isSignedIn: false });
       }
@@ -85,10 +89,17 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 }));
 
+// 세션이 만료되면 다시 로그인한 뒤 보던 화면으로 돌아온다.
+function rememberCurrentPath() {
+  if (typeof window === "undefined") return;
+  rememberReturnPath(window.location.pathname + window.location.search);
+}
+
 // apiFetch에서 refresh가 실패하면(세션 만료) 로그인 상태를 내린다.
 // AuthGuard는 isSignedIn=false를 보고 /login으로 이동한다.
 if (typeof window !== "undefined") {
   window.addEventListener(SESSION_EXPIRED_EVENT, () => {
+    rememberCurrentPath();
     useAuthStore.setState({ user: null, isSignedIn: false });
   });
 }

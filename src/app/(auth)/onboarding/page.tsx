@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Live2DCharacter } from "@/components/live2d-character";
 import { updateMe } from "@/lib/api/user";
+import { clientErrorMessage } from "@/lib/api/error-message";
+import { consumeReturnPath } from "@/lib/auth/post-login";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "sonner";
 
@@ -65,16 +67,17 @@ export default function OnboardingPage() {
     try {
       await updateMe({ nickname: nickname.trim() });
       await loadUser();
-      router.replace("/home");
-    } catch {
-      toast.error("닉네임 설정에 실패했습니다. 다시 시도해주세요.");
+      router.replace(consumeReturnPath());
+    } catch (e) {
+      // 4xx(닉네임 중복·길이 초과 등)는 서버가 준 이유를 그대로 보여준다.
+      toast.error(clientErrorMessage(e, "닉네임 설정에 실패했습니다. 다시 시도해주세요."));
     } finally {
       setIsLoading(false);
     }
   }
 
   function handleSkip() {
-    router.replace("/home");
+    router.replace(consumeReturnPath());
   }
 
   function toggleInterest(item: string) {

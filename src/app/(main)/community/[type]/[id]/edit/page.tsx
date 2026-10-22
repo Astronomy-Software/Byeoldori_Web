@@ -7,6 +7,7 @@ import { getPostDetail, updatePost } from "@/lib/api/community";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { editorStateHasContent } from "@/lib/community/content-text";
+import { COMMUNITY_TAB_LABELS, routeTypeToTab } from "@/lib/community/board-query";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
@@ -27,7 +28,6 @@ export default function EditPostPage() {
   const params = useParams<{ type: string; id: string }>();
   const router = useRouter();
   const postId = Number(params.id);
-  const type = params.type.toUpperCase();
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -58,7 +58,8 @@ export default function EditPostPage() {
     try {
       await updatePost(postId, { title, content, imageUrls });
       toast.success("게시글이 수정되었습니다.");
-      router.push(`/community/${params.type}/${postId}`);
+      // replace: 기록에 수정 화면이 남으면 '돌아가기'·삭제 후 이동이 수정 화면으로 간다.
+      router.replace(`/community/${params.type}/${postId}`);
     } catch {
       toast.error("수정에 실패했습니다.");
     } finally {
@@ -66,8 +67,8 @@ export default function EditPostPage() {
     }
   }
 
-  const typeLabel =
-    type === "REVIEW" ? "관측 리뷰" : type === "EDUCATION" ? "교육 프로그램" : "자유게시판";
+  // 라우트 세그먼트는 소문자 review|program|free — 서버 enum(EDUCATION)과 비교하면 안 된다.
+  const typeLabel = COMMUNITY_TAB_LABELS[routeTypeToTab(params.type)];
 
   if (isLoading) {
     return (

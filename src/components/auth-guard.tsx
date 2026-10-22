@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
+import { rememberReturnPath } from "@/lib/auth/post-login";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -11,6 +12,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // 첫 렌더 시 isSignedIn은 항상 false — checked 플래그로 hydration 완료 여부 추적
   const [checked, setChecked] = useState(false);
   const loadedRef = useRef(false);
+  // 이 화면에서 로그인 상태였던 적이 있는지 — 로그아웃 직후에는 복귀 경로를 남기지 않는다.
+  const wasSignedInRef = useRef(false);
 
   useEffect(() => {
     initAuth();
@@ -20,8 +23,15 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!checked) return;
     if (!isSignedIn) {
+      // 비로그인으로 바로 들어온 경우(공유받은 글 링크 등) 로그인 후 이 경로로 돌아온다.
+      if (!wasSignedInRef.current) {
+        rememberReturnPath(window.location.pathname + window.location.search);
+      }
       router.replace("/login");
-    } else if (!loadedRef.current) {
+      return;
+    }
+    wasSignedInRef.current = true;
+    if (!loadedRef.current) {
       loadedRef.current = true;
       loadUser();
     }
