@@ -30,7 +30,6 @@ export interface AuthTokens {
   refreshToken: string;
   accessTokenExpiresAt: string;
   refreshTokenExpiresAt: string;
-  onboardingRequired?: boolean;
 }
 
 // apiFetch 자동 unwrap 이후 LoginResponse는 AuthTokens 자체

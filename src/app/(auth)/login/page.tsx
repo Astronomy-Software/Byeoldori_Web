@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Live2DCharacter } from "@/components/live2d-character";
 import { getOAuthRedirectUri } from "@/lib/auth/oauth-redirect";
+import { consumeSocialLoginError } from "@/lib/auth/post-login";
 
 function handleSocialLogin(provider: "google" | "kakao" | "naver") {
   // canonical 도메인 고정 — 콜백의 토큰교환과 동일한 값을 써야 한다.
@@ -31,10 +32,22 @@ function handleSocialLogin(provider: "google" | "kakao" | "naver") {
 
 function LoginForm() {
   const searchParams = useSearchParams();
+  const errorCode = searchParams.get("error");
+  // 콜백이 넘긴 서버 안내 문구(409: 다른 방식으로 가입된 이메일). 텍스트로만 출력한다.
+  const [conflictMessage, setConflictMessage] = useState<string | null>(null);
+  useEffect(() => {
+    if (errorCode !== "account_conflict") return;
+    const msg = consumeSocialLoginError();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage는 마운트 후에만 읽을 수 있다
+    if (msg) setConflictMessage(msg);
+  }, [errorCode]);
   const socialError =
-    searchParams.get("error") === "social_failed"
-      ? "소셜 로그인에 실패했습니다. 다시 시도해주세요."
-      : null;
+    errorCode === "account_conflict"
+      ? (conflictMessage ??
+        "이미 다른 로그인 방식으로 가입된 이메일입니다. 처음 가입한 방식으로 로그인해주세요.")
+      : errorCode === "social_failed"
+        ? "소셜 로그인에 실패했습니다. 다시 시도해주세요."
+        : null;
 
   return (
     <div className="flex flex-col items-center">

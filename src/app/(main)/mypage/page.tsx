@@ -17,6 +17,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useAuthStore } from "@/stores/auth-store";
 import { updateMe, uploadProfileImage, logOut } from "@/lib/api/user";
+import { clientErrorMessage } from "@/lib/api/error-message";
 import { getObservationCount } from "@/lib/api/calendar";
 import type { ObservationCountDto } from "@/types/api";
 import { toast } from "sonner";
@@ -53,13 +54,19 @@ export default function MyPageScreen() {
   }, [user]);
 
   async function handleUpdateProfile() {
+    const trimmed = nickname.trim();
+    if (!trimmed) {
+      toast.error("닉네임을 입력해주세요.");
+      return;
+    }
     try {
-      await updateMe({ nickname });
+      await updateMe({ nickname: trimmed });
       await loadUser();
       setIsEditing(false);
       toast.success("프로필이 수정되었습니다.");
-    } catch {
-      toast.error("프로필 수정에 실패했습니다.");
+    } catch (e) {
+      // 4xx(닉네임 중복·길이 초과 등)는 서버가 준 이유를 그대로 보여준다.
+      toast.error(clientErrorMessage(e, "프로필 수정에 실패했습니다."));
     }
   }
 
@@ -129,6 +136,7 @@ export default function MyPageScreen() {
                     <Input
                       value={nickname}
                       onChange={(e) => setNickname(e.target.value)}
+                      maxLength={20}
                       className="h-9 border-border-default bg-surface-1 text-text-primary"
                     />
                   </div>

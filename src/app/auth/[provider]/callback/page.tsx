@@ -4,8 +4,17 @@ import { Suspense, useEffect } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { Star } from "lucide-react";
 import { loginWithGoogle, loginWithKakao, loginWithNaver } from "@/lib/api/auth";
+import { getMyProfile } from "@/lib/api/user";
 import { useAuthStore } from "@/stores/auth-store";
 import { getOAuthRedirectUri } from "@/lib/auth/oauth-redirect";
+import {
+  consumeReturnPath,
+  needsOnboarding,
+  rememberSocialLoginError,
+  socialLoginErrorCode,
+  socialLoginErrorMessage,
+} from "@/lib/auth/post-login";
+import type { UserProfile } from "@/types/api";
 
 function OAuthCallbackInner() {
   const router = useRouter();
@@ -38,12 +47,23 @@ function OAuthCallbackInner() {
           : loginWithNaver;
 
     apiFn({ code, redirectUri })
-      .then((tokens) => {
+      .then(async (tokens) => {
         loginWithSocial(tokens);
-        router.replace(tokens.onboardingRequired ? "/onboarding" : "/home");
+        // 소셜 로그인 응답에는 온보딩 여부가 없다 — 프로필의 닉네임으로 판단한다.
+        let me: UserProfile | null = null;
+        try {
+          me = await getMyProfile();
+          useAuthStore.setState({ user: me });
+        } catch {
+          // 프로필 조회 실패 시 온보딩 판단 없이 진행(AuthGuard가 다시 불러온다)
+        }
+        // 복귀 경로는 온보딩이 끝난 뒤 온보딩 화면에서 꺼낸다.
+        router.replace(needsOnboarding(me) ? "/onboarding" : consumeReturnPath());
       })
-      .catch(() => {
-        router.replace("/login?error=social_failed");
+      .catch((e: unknown) => {
+        // 409(다른 방식으로 가입된 이메일)는 서버 안내 문구를 로그인 화면에 보여준다.
+        rememberSocialLoginError(socialLoginErrorMessage(e));
+        router.replace(`/login?error=${socialLoginErrorCode(e)}`);
       });
   }, []);
 
