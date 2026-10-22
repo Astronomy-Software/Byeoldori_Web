@@ -10,6 +10,10 @@ import { getMonthlySummary } from "@/lib/api/calendar";
 import { useAuthStore } from "@/stores/auth-store";
 import { communityHref } from "@/lib/community/board-query";
 import { authorLabel } from "@/lib/community/comments";
+import {
+  homeSectionPlaceholder,
+  type HomePostsStatus,
+} from "@/lib/community/home-section";
 import { scheduleHrefForDate } from "@/lib/calendar/date-param";
 import type {
   ReviewPostSummary,
@@ -37,6 +41,7 @@ export default function HomePage() {
   );
 
   const [postsError, setPostsError] = useState(false);
+  const [postsStatus, setPostsStatus] = useState<HomePostsStatus>("loading");
 
   // 위치 가져오기
   useEffect(() => {
@@ -77,11 +82,17 @@ export default function HomePage() {
   // 홈 전용 API (docs: /community/home/*)
   const loadHomePosts = useCallback(() => {
     setPostsError(false);
+    setPostsStatus("loading");
     Promise.all([
       getHomeReviews().then(setReviews),
       getHomeEducations().then(setEduPosts),
       getHomeFreePosts().then(setFreePosts),
-    ]).catch(() => setPostsError(true));
+    ])
+      .then(() => setPostsStatus("loaded"))
+      .catch(() => {
+        setPostsError(true);
+        setPostsStatus("error");
+      });
   }, []);
 
   useEffect(() => {
@@ -186,6 +197,7 @@ export default function HomePage() {
             title="관측 리뷰"
             category="리뷰"
             posts={reviews}
+            status={postsStatus}
             linkPrefix="/community/review"
             moreHref={communityHref("review")}
             showScore
@@ -196,6 +208,7 @@ export default function HomePage() {
             title="교육 프로그램"
             category="교육"
             posts={eduPosts}
+            status={postsStatus}
             linkPrefix="/community/program"
             moreHref={communityHref("program")}
           />
@@ -204,6 +217,7 @@ export default function HomePage() {
           <PostSection
             title="자유게시판"
             posts={freePosts}
+            status={postsStatus}
             linkPrefix="/community/free"
             moreHref={communityHref("free")}
           />
@@ -217,6 +231,7 @@ function CardPostSection({
   title,
   category,
   posts,
+  status,
   linkPrefix,
   moreHref,
   showScore,
@@ -224,11 +239,13 @@ function CardPostSection({
   title: string;
   category?: string;
   posts: PostSummary[];
+  status: HomePostsStatus;
   linkPrefix: string;
   // 해당 탭이 열린 커뮤니티 목록 주소(?tab=...)
   moreHref: string;
   showScore?: boolean;
 }) {
+  const placeholder = homeSectionPlaceholder(status, posts.length);
   return (
     <div>
       <div className="mb-2.5 flex items-center justify-between">
@@ -240,7 +257,13 @@ function CardPostSection({
           더보기 &rarr;
         </Link>
       </div>
-      {posts.length === 0 ? (
+      {placeholder === "skeleton" ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" aria-busy="true" aria-label={`${title} 불러오는 중`}>
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="aspect-square animate-pulse rounded-2xl bg-surface-1" />
+          ))}
+        </div>
+      ) : placeholder === "empty" ? (
         <p className="text-sm text-text-tertiary">게시글이 없습니다.</p>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -302,15 +325,18 @@ function CardPostSection({
 function PostSection({
   title,
   posts,
+  status,
   linkPrefix,
   moreHref,
 }: {
   title: string;
   posts: PostSummary[];
+  status: HomePostsStatus;
   linkPrefix: string;
   // 해당 탭이 열린 커뮤니티 목록 주소(?tab=...)
   moreHref: string;
 }) {
+  const placeholder = homeSectionPlaceholder(status, posts.length);
   return (
     <div>
       <div className="mb-2.5 flex items-center justify-between">
@@ -322,8 +348,12 @@ function PostSection({
           더보기 &rarr;
         </Link>
       </div>
-      <div className="space-y-2">
-        {posts.length === 0 ? (
+      <div className="space-y-2" aria-busy={placeholder === "skeleton" || undefined}>
+        {placeholder === "skeleton" ? (
+          Array.from({ length: 3 }, (_, i) => (
+            <div key={i} className="h-16 animate-pulse rounded-xl bg-surface-1" />
+          ))
+        ) : placeholder === "empty" ? (
           <p className="text-sm text-text-tertiary">게시글이 없습니다.</p>
         ) : (
           posts.map((post) => (
