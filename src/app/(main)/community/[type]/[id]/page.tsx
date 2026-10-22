@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { clientErrorMessage } from "@/lib/api/error-message";
+import { COMMENT_MAX_LENGTH } from "@/lib/community/post-limits";
 
 // 본문 뷰어는 브라우저 전용(SSR 비활성). content는 어차피 클라이언트에서
 // fetch하므로 SSR HTML에 포함되지 않는다.
@@ -145,8 +147,8 @@ export default function PostDetailPage() {
       setNewComment("");
       setReplyTo(null);
       if (post) setPost({ ...post, commentCount: post.commentCount + 1 });
-    } catch {
-      toast.error("댓글 작성에 실패했습니다.");
+    } catch (e) {
+      toast.error(clientErrorMessage(e, "댓글 작성에 실패했습니다."));
     } finally {
       postingCommentRef.current = false;
       setIsPostingComment(false);
@@ -188,8 +190,8 @@ export default function PostDetailPage() {
           content: res.content,
         })),
       );
-    } catch {
-      toast.error("댓글 수정에 실패했습니다.");
+    } catch (e) {
+      toast.error(clientErrorMessage(e, "댓글 수정에 실패했습니다."));
     }
   }
 
@@ -447,6 +449,7 @@ export default function PostDetailPage() {
             }
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
+            maxLength={COMMENT_MAX_LENGTH}
             className="min-h-[60px] flex-1 border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
           />
           <Button
@@ -575,6 +578,7 @@ function CommentItem({
             <Textarea
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
+              maxLength={COMMENT_MAX_LENGTH}
               className="min-h-[60px] border-border-default bg-surface-1 text-sm text-text-primary"
             />
             <div className="flex gap-2 text-xs">

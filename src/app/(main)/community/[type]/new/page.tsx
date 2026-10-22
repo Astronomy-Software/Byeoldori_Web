@@ -12,6 +12,12 @@ import {
   createEducationPost,
 } from "@/lib/api/community";
 import { uploadImage } from "@/lib/api/files";
+import { clientErrorMessage } from "@/lib/api/error-message";
+import {
+  exceedsImageLimit,
+  POST_IMAGE_LIMIT_MESSAGE,
+  POST_TITLE_MAX_LENGTH,
+} from "@/lib/community/post-limits";
 import { getSitesByKeyword } from "@/lib/api/observation-sites";
 import { findSiteByExactName } from "@/lib/community/review-site";
 import type { ObservationSite } from "@/types/api";
@@ -96,6 +102,12 @@ function NewPostInner() {
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files) return;
+    // 서버가 20장 넘는 첨부를 거부하므로 올리기 전에 막는다(넘친 업로드는 버려진다).
+    if (exceedsImageLimit(imageUrls.length, files.length)) {
+      toast.error(POST_IMAGE_LIMIT_MESSAGE);
+      e.target.value = "";
+      return;
+    }
     setIsUploading(true);
     try {
       for (const file of Array.from(files)) {
@@ -154,8 +166,8 @@ function NewPostInner() {
       }
       toast.success("게시글이 작성되었습니다.");
       router.replace(`/community/${type}/${postId}`);
-    } catch {
-      toast.error("게시글 작성에 실패했습니다.");
+    } catch (e) {
+      toast.error(clientErrorMessage(e, "게시글 작성에 실패했습니다."));
     } finally {
       setIsSubmitting(false);
     }
@@ -182,6 +194,7 @@ function NewPostInner() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
+            maxLength={POST_TITLE_MAX_LENGTH}
             className="border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
           />
         </div>
