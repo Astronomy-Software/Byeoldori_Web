@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getPosts, getReviewPosts, getEducationPosts } from "@/lib/api/community";
-import { previewSummary } from "@/components/editor/shared";
+import { previewSummary } from "@/lib/community/content-text";
 import type { PostResponse, PostSummary } from "@/types/api";
 import { authorLabel } from "@/lib/community/comments";
 import {

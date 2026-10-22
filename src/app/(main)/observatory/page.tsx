@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getAllSites, getSitesByKeyword } from "@/lib/api/observation-sites";
 import type { ObservationSite } from "@/types/api";
@@ -117,9 +117,34 @@ function clusterIcon(size: number) {
   };
 }
 
+const MY_LOC_ICON = {
+  content: `<div style="width:16px;height:16px;background:#3b82f6;border:3px solid white;border-radius:50%;box-shadow:0 0 0 4px rgba(59,130,246,0.3)"></div>`,
+  anchor: { x: 8, y: 8 },
+};
+
+// 내 위치 블루닷을 만들거나 옮긴다.
+function upsertMyLocMarker(
+  markerRef: { current: NaverMarker | null },
+  map: NaverMap,
+  coords: { latitude: number; longitude: number },
+) {
+  const latlng = new window.naver.maps.LatLng(coords.latitude, coords.longitude);
+  if (markerRef.current) {
+    (markerRef.current as unknown as { setPosition(l: NaverLatLng): void }).setPosition(latlng);
+  } else {
+    markerRef.current = new window.naver.maps.Marker({
+      position: latlng,
+      map,
+      icon: MY_LOC_ICON,
+      zIndex: 200,
+    });
+  }
+}
+
 export default function ObservatoryPage() {
   const router = useRouter();
   const [sites, setSites] = useState<ObservationSite[]>([]);
+  const [sitesStatus, setSitesStatus] = useState<"loading" | "ok" | "error">("loading");
   const [searchInput, setSearchInput] = useState("");
   const [searchResults, setSearchResults] = useState<ObservationSite[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -133,35 +158,37 @@ export default function ObservatoryPage() {
   const rawMarkersRef = useRef<NaverMarker[]>([]);
   const myLocMarkerRef = useRef<NaverMarker | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  // 지도보다 위치가 먼저 잡혔을 때 보관해 두었다가 지도 준비 후 블루닷을 그린다.
+  const lastPosRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const markerToSiteRef = useRef<Map<NaverMarker, ObservationSite>>(new Map());
 
-  useEffect(() => {
+  const loadSites = useCallback(() => {
+    setSitesStatus("loading");
     getAllSites()
-      .then(setSites)
-      .catch((err) => console.error("[observation-sites/getAllSites] 실패:", err));
+      .then((list) => {
+        setSites(list);
+        setSitesStatus("ok");
+      })
+      .catch((err) => {
+        console.error("[observation-sites/getAllSites] 실패:", err);
+        setSitesStatus("error");
+      });
   }, []);
+
+  useEffect(() => {
+    loadSites();
+  }, [loadSites]);
 
   // 현재 위치 블루닷
   useEffect(() => {
     if (!navigator.geolocation) return;
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
+        const coords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+        lastPosRef.current = coords;
         const map = naverMapRef.current;
         if (!map || !window.naver) return;
-        const latlng = new window.naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
-        if (myLocMarkerRef.current) {
-          (myLocMarkerRef.current as unknown as { setPosition(l: NaverLatLng): void }).setPosition(latlng);
-        } else {
-          myLocMarkerRef.current = new window.naver.maps.Marker({
-            position: latlng,
-            map,
-            icon: {
-              content: `<div style="width:16px;height:16px;background:#3b82f6;border:3px solid white;border-radius:50%;box-shadow:0 0 0 4px rgba(59,130,246,0.3)"></div>`,
-              anchor: { x: 8, y: 8 },
-            },
-            zIndex: 200,
-          });
-        }
+        upsertMyLocMarker(myLocMarkerRef, map, coords);
       },
       () => {},
       { enableHighAccuracy: true, maximumAge: 5000 },
@@ -225,6 +252,13 @@ export default function ObservatoryPage() {
       cancelled = true;
     };
   }, []);
+
+  // 위치 콜백이 지도 생성보다 먼저 왔으면(데스크톱은 위치가 안 바뀌어 재호출이 드묾) 여기서 그린다.
+  useEffect(() => {
+    const map = naverMapRef.current;
+    if (!mapReady || !map || !window.naver || !lastPosRef.current) return;
+    upsertMyLocMarker(myLocMarkerRef, map, lastPosRef.current);
+  }, [mapReady]);
 
   useEffect(() => {
     const map = naverMapRef.current;
@@ -342,9 +376,12 @@ export default function ObservatoryPage() {
           <h2 className="flex items-center gap-2 text-lg font-bold text-text-primary">
             <MapPin className="h-4 w-4 text-aurora" aria-hidden="true" /> 관측지
           </h2>
-          <p className="mt-0.5 font-mono text-xs text-text-tertiary">전국 {sites.length}곳</p>
+          <p className="mt-0.5 font-mono text-xs text-text-tertiary">
+            {sitesStatus === "ok" ? `전국 ${sites.length}곳` : sitesStatus === "loading" ? "불러오는 중..." : "불러오지 못함"}
+          </p>
         </div>
         <div className="flex-1 space-y-2 overflow-y-auto px-3 py-3">
+          {sitesStatus === "error" && <SitesError onRetry={loadSites} />}
           {sites.map((site) => (
             <button
               key={site.id}
@@ -441,8 +478,12 @@ export default function ObservatoryPage() {
         <div className="max-h-[34vh] overflow-y-auto rounded-t-2xl border-t border-border-default glass px-3 pb-4 pt-3">
           <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-border-strong" />
           <h2 className="px-2 pb-1 text-sm font-semibold text-text-primary">
-            관측지 <span className="font-mono text-xs text-text-tertiary">{sites.length}</span>
+            관측지{" "}
+            <span className="font-mono text-xs text-text-tertiary">
+              {sitesStatus === "ok" ? sites.length : sitesStatus === "loading" ? "불러오는 중..." : ""}
+            </span>
           </h2>
+          {sitesStatus === "error" && <SitesError onRetry={loadSites} />}
           {sites.map((site) => (
             <button
               key={site.id}
@@ -491,6 +532,20 @@ export default function ObservatoryPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SitesError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div role="alert" className="px-2 py-4 text-center">
+      <p className="text-sm text-text-tertiary">관측지 목록을 불러오지 못했습니다.</p>
+      <button
+        onClick={onRetry}
+        className="mt-2 rounded-full border border-border-default px-3 py-1.5 text-xs text-text-secondary transition-colors hover:bg-surface-2"
+      >
+        다시 시도
+      </button>
     </div>
   );
 }
