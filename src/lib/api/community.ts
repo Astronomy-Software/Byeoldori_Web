@@ -1,5 +1,14 @@
 import { apiFetch } from "./client";
-import { toReviewPayload } from "@/lib/community/review-payload";
+import {
+  toReviewPayload,
+  toReviewUpdatePayload,
+  type ReviewUpdateInput,
+} from "@/lib/community/review-payload";
+import {
+  splitTargets,
+  toEducationUpdatePayload,
+  type EducationUpdateInput,
+} from "@/lib/community/education-post-payload";
 import type {
   PostResponse,
   ReviewPostResponse,
@@ -101,12 +110,7 @@ export async function createEducationPost(
     imageUrls: body.imageUrls ?? [],
     education: {
       difficulty: body.difficulty,
-      targets: body.objectName
-        ? body.objectName
-            .split("·")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : [],
+      targets: body.objectName ? splitTargets(body.objectName) : [],
       status: "PUBLISHED",
       ...(body.programId ? { programId: body.programId } : {}),
     },
@@ -137,12 +141,22 @@ export async function updatePost(
 
 export async function updateReview(
   postId: number,
-  body: CreateReviewRequest,
+  body: ReviewUpdateInput,
 ): Promise<void> {
   // 수정도 작성과 같은 중첩 형태여야 한다(평평하게 보내면 서버가 리뷰 필드를 무시).
   await apiFetch(`community/posts/${postId}`, {
     method: "PATCH",
-    body: JSON.stringify(toReviewPayload(body)),
+    body: JSON.stringify(toReviewUpdatePayload(body)),
+  });
+}
+
+export async function updateEducation(
+  postId: number,
+  body: EducationUpdateInput,
+): Promise<void> {
+  await apiFetch(`community/posts/${postId}`, {
+    method: "PATCH",
+    body: JSON.stringify(toEducationUpdatePayload(body)),
   });
 }
 
