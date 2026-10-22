@@ -22,11 +22,17 @@ import {
   type ProgramStatus,
 } from "@/lib/api/education-program";
 import { ApiError } from "@/lib/api/client";
+import { clientErrorMessage } from "@/lib/api/error-message";
 import { useAuthStore } from "@/stores/auth-store";
 import {
   authorStage,
   reviewWithdrawnBySave,
 } from "@/lib/education-program-status";
+import { buildProgramSavePayload } from "@/lib/education-program-payload";
+import {
+  isInAppLeaveClick,
+  UNSAVED_LEAVE_MESSAGE,
+} from "@/lib/navigation/leave-guard";
 import {
   SkyImageEditor,
   QuizEditor,
@@ -143,22 +149,13 @@ function triParse(v: string): boolean | undefined {
   return v === "" ? undefined : v === "on";
 }
 
-// 서버가 준 실패 사유를 그대로 보여준다. 401만 로그인 안내로 치환하고,
-// 나머지는 body(JSON이면 message, 아니면 원문)를 노출해야 원인을 알 수 있다.
+// 서버가 준 실패 사유(4xx)를 보여준다. 401은 로그인 안내로 치환하고,
+// 5xx·네트워크 오류·HTML 본문(nginx 502 등)은 기본 문구로 대신한다.
 function apiMessage(e: unknown, fallback: string): string {
-  if (!(e instanceof ApiError)) return fallback;
-  if (e.status === 401) return "로그인이 필요합니다. 로그인 상태를 확인해주세요.";
-  const raw = e.body?.trim();
-  if (!raw) return fallback;
-  try {
-    const parsed = JSON.parse(raw) as { message?: unknown };
-    if (typeof parsed?.message === "string" && parsed.message.trim()) {
-      return parsed.message;
-    }
-  } catch {
-    // JSON이 아니면 원문을 그대로 쓴다
+  if (e instanceof ApiError && e.status === 401) {
+    return "로그인이 필요합니다. 로그인 상태를 확인해주세요.";
   }
-  return raw;
+  return clientErrorMessage(e, fallback);
 }
 
 const INPUT_CLS =
@@ -377,6 +374,23 @@ function ProgramAuthorInner() {
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
+  }, []);
+
+  // 앱 안 링크(NavBar 등) 이동은 beforeunload가 울리지 않으므로 클릭을 먼저(capture) 가로채 확인한다.
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!dirtyRef.current) return;
+      const anchor =
+        e.target instanceof Element
+          ? e.target.closest<HTMLAnchorElement>("a[href]")
+          : null;
+      if (!isInAppLeaveClick(e, anchor, window.location)) return;
+      if (window.confirm(UNSAVED_LEAVE_MESSAGE)) return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    document.addEventListener("click", handler, true);
+    return () => document.removeEventListener("click", handler, true);
   }, []);
 
   // 새로 추가/삽입한 스텝을 목록에서 화면 안으로 스크롤
@@ -606,17 +620,12 @@ function ProgramAuthorInner() {
     }
     setSaving(true);
     try {
-      const payload = {
-        title: title.trim(),
-        subtitle: subtitle.trim() || undefined,
-        difficulty,
-        steps,
-      };
+      const content = { title, subtitle, difficulty, steps };
       const isNew = !programId;
       const statusBefore = status;
       const res = programId
-        ? await updateProgram(programId, payload)
-        : await createProgram(payload);
+        ? await updateProgram(programId, buildProgramSavePayload(content, "update"))
+        : await createProgram(buildProgramSavePayload(content, "create"));
       setProgramId(res.id);
       setStatus(res.status);
       // 저장 성공 → dirty 기준 갱신 + 로컬 초안 정리 + URL 동기화(?id).
@@ -848,7 +857,10 @@ function ProgramAuthorInner() {
         <div className="shrink-0 border-b border-border-default p-4">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => router.back()}
+              onClick={() => {
+                if (dirtyRef.current && !window.confirm(UNSAVED_LEAVE_MESSAGE)) return;
+                router.back();
+              }}
               aria-label="돌아가기"
               className="-ml-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-tertiary transition-colors hover:text-text-primary"
             >

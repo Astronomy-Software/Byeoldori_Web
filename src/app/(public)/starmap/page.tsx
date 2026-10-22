@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { StellariumControl } from "@/lib/stellarium-control";
 import { executeStep } from "@/lib/education-engine";
 import { readProgramId } from "@/lib/starmap-query";
+import { viewerStepLabel } from "@/lib/education-step-label";
 import { loadProgramById } from "@/lib/education-program-loader";
 import {
   listPrograms,
@@ -80,22 +81,6 @@ const DIFF_COLOR: Record<string, string> = {
   INTERMEDIATE: "text-yellow-400",
   ADVANCED: "text-red-400",
 };
-
-function stepLabel(step: EduStep): string {
-  switch (step.type) {
-    case "camera-move": return `📷 ${step.target ?? "이동"}`;
-    case "highlight-stars": return `✦ 별 강조 (${step.stars?.length ?? 0}개)`;
-    case "draw-line": return `— ${step.from} → ${step.to}`;
-    case "show-text": return `💬 ${step.text ? step.text.slice(0, 22) + "…" : "텍스트"}`;
-    case "show-image": return `🖼 이미지`;
-    case "clear-overlays": return `○ 오버레이 초기화`;
-    case "wait": return `⏸ 대기 ${step.waitMs ?? 0}ms`;
-    case "composite": return `◈ 복합 (${step.steps?.length ?? 0}개)`;
-    case "sky-image": return `🌌 하늘 이미지`;
-    case "quiz": return `❓ ${step.question ? step.question.slice(0, 20) + "…" : "퀴즈"}`;
-    default: return step.type;
-  }
-}
 
 type ImageOverlay = { url: string; position: ImagePosition; width: string };
 
@@ -709,7 +694,7 @@ export default function StarMapPage() {
                     }`}
                   >
                     <span className="mr-1.5 opacity-50">{idx + 1}.</span>
-                    {stepLabel(step)}
+                    {viewerStepLabel(step)}
                   </button>
                 ))}
               </div>
