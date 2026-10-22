@@ -12,6 +12,7 @@ import { getSiteById } from "@/lib/api/observation-sites";
 import { getLiveWeather, getForecastData } from "@/lib/api/weather";
 import { getReviewPosts } from "@/lib/api/community";
 import { collectPages } from "@/lib/api/paginate";
+import { loadScriptOnce } from "@/lib/load-script";
 import { authorLabel } from "@/lib/community/comments";
 import type {
   ObservationSiteDetail,
@@ -153,18 +154,24 @@ export default function ObservatoryDetailPage() {
 
         const clientId = (process.env.NEXT_PUBLIC_NAVER_CLIENT_ID ?? "").trim();
         if (!clientId) return;
-        const existing = document.getElementById("naver-map-script");
-        if (existing && window.naver?.maps?.Service) {
-          doGeocode(data.latitude, data.longitude);
-        } else if (!existing) {
-          const script = document.createElement("script");
-          script.id = "naver-map-script";
-          script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&ncpClientId=${clientId}&submodules=geocoder`;
-          script.onload = () => doGeocode(data.latitude, data.longitude);
-          document.head.appendChild(script);
-        } else {
-          existing.addEventListener("load", () => doGeocode(data.latitude, data.longitude), { once: true });
-        }
+        // 관측지 지도(/observatory)와 같은 로더를 써서, 로드 실패한 태그가 DOM에 남아
+        // 다른 페이지의 지도 로드를 영영 멈추게 하는 일이 없도록 한다(실패 시 태그 제거).
+        loadScriptOnce(
+          "naver-map-script",
+          `https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&ncpClientId=${clientId}&submodules=geocoder`,
+          () => !!window.naver?.maps,
+        )
+          .then(() => {
+            const geocode = () => doGeocode(data.latitude, data.longitude);
+            if (window.naver.maps.Service) {
+              geocode();
+            } else {
+              // geocoder 서브모듈은 본 스크립트 load 뒤에 준비될 수 있다.
+              (window.naver.maps as unknown as { onJSContentLoaded?: () => void }).onJSContentLoaded =
+                geocode;
+            }
+          })
+          .catch((err) => console.error("[observatory/detail] 네이버 지도 로드 실패:", err));
       })
       .catch(() => setLoading(false));
   }, [id, doGeocode]);

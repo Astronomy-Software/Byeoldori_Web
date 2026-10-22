@@ -33,6 +33,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # 단위 테스트가 깨진 커밋은 배포하지 않는다(이 단계가 실패하면 이후 배포 단계는 건너뛴다).
+      # lint 는 기존 오류가 남아 있어 아직 게이트로 두지 않는다.
+      - name: Unit tests
+        run: npm test
+
       - name: Notify Discord - Deploy Start
         env:
           DISCORD_URL: ${{ secrets.DISCORD_WEBHOOK_FRONTEND_URL }}

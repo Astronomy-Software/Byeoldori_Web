@@ -15,7 +15,7 @@ import { uploadImage } from "@/lib/api/files";
 import { getSitesByKeyword } from "@/lib/api/observation-sites";
 import { findSiteByExactName } from "@/lib/community/review-site";
 import type { ObservationSite } from "@/types/api";
-import { editorStateHasContent } from "@/components/editor/shared";
+import { editorStateHasContent } from "@/lib/community/content-text";
 import { toast } from "sonner";
 import { ArrowLeft, Upload, X, Star, Clapperboard } from "lucide-react";
 

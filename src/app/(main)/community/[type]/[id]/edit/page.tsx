@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getPostDetail, updatePost } from "@/lib/api/community";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { editorStateHasContent } from "@/components/editor/shared";
+import { editorStateHasContent } from "@/lib/community/content-text";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
@@ -92,8 +92,9 @@ export default function EditPostPage() {
 
       <div className="glass space-y-5 rounded-2xl p-5 md:p-6">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-text-secondary">제목</label>
+          <label htmlFor="edit-title" className="mb-1.5 block text-sm font-medium text-text-secondary">제목</label>
           <Input
+            id="edit-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="제목을 입력하세요"
