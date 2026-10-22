@@ -58,6 +58,7 @@ import {
   type CommentNode,
 } from "@/lib/community/comments";
 import { communityHref, routeTypeToTab } from "@/lib/community/board-query";
+import { goBack } from "@/lib/navigation/in-app-history";
 
 // 댓글은 서버에서 평면 목록(대댓글 포함)으로 페이지 단위로 온다.
 const COMMENT_PAGE_SIZE = 50;
@@ -212,7 +213,7 @@ export default function PostDetailPage() {
       <div className="flex h-64 flex-col items-center justify-center gap-3 bg-bg-page text-sm text-text-tertiary">
         <p>{postError}</p>
         <button
-          onClick={() => router.back()}
+          onClick={() => goBack(router, communityHref(routeTypeToTab(params.type)))}
           className="flex items-center gap-1 hover:text-text-primary"
         >
           <ArrowLeft className="h-4 w-4" /> 돌아가기
@@ -235,7 +236,7 @@ export default function PostDetailPage() {
     <div className="mx-auto min-h-screen max-w-3xl bg-bg-page p-4 md:p-6">
       {/* 헤더 */}
       <button
-        onClick={() => router.back()}
+        onClick={() => goBack(router, communityHref(routeTypeToTab(params.type)))}
         className="mb-5 flex items-center gap-1 text-sm text-text-tertiary transition-colors hover:text-text-primary"
       >
         <ArrowLeft className="h-4 w-4" /> 돌아가기

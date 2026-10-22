@@ -14,6 +14,8 @@ import { getReviewPosts } from "@/lib/api/community";
 import { collectPages } from "@/lib/api/paginate";
 import { loadScriptOnce } from "@/lib/load-script";
 import { authorLabel } from "@/lib/community/comments";
+import { hourlyPrecipLabel } from "@/lib/weather/hourly-precip";
+import { goBack } from "@/lib/navigation/in-app-history";
 import type {
   ObservationSiteDetail,
   UltraForecastItem,
@@ -75,7 +77,8 @@ type HourlyItem = {
   sky: number | null;
   pty: number | null;
   temp: number | null;
-  pop: number;
+  pop: number | null; // 강수확률(%) — 단기예보에만 있다
+  rainMm: number | null; // 1시간 강수량(mm) — 초단기예보
   suit: number;
 };
 
@@ -193,7 +196,8 @@ export default function ObservatoryDetailPage() {
       sky: u.sky,
       pty: u.pty,
       temp: u.t1h,
-      pop: Math.min(Math.round((u.rn1 ?? 0) * 10), 100),
+      pop: null,
+      rainMm: u.rn1,
       suit: u.suitability,
     })),
     ...(forecast?.shortForecastResponse ?? [])
@@ -203,7 +207,8 @@ export default function ObservatoryDetailPage() {
         sky: s.sky,
         pty: s.pty,
         temp: s.tmp,
-        pop: s.pop ?? 0,
+        pop: s.pop,
+        rainMm: null,
         suit: s.suitability,
       })),
   ];
@@ -220,7 +225,7 @@ export default function ObservatoryDetailPage() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 bg-bg-page p-4">
         <p className="text-text-secondary">관측지를 찾을 수 없습니다.</p>
-        <button onClick={() => router.back()} className="text-sm text-interactive-link">돌아가기</button>
+        <button onClick={() => goBack(router, "/observatory")} className="text-sm text-interactive-link">돌아가기</button>
       </div>
     );
   }
@@ -230,7 +235,7 @@ export default function ObservatoryDetailPage() {
       {/* ── 헤더 ── */}
       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border-default glass px-4 py-3">
         <button
-          onClick={() => router.back()}
+          onClick={() => goBack(router, "/observatory")}
           aria-label="뒤로 가기"
           className="rounded-full p-1.5 transition-colors hover:bg-surface-2"
         >
@@ -402,6 +407,7 @@ export default function ObservatoryDetailPage() {
                     );
                   }
 
+                  const precip = hourlyPrecipLabel(item);
                   elements.push(
                     <div
                       key={i}
@@ -412,8 +418,13 @@ export default function ObservatoryDetailPage() {
                       <span className="font-mono text-xs font-medium text-text-primary">
                         {item.temp != null ? `${item.temp}°` : "—"}
                       </span>
-                      <div className="flex items-center gap-0.5 font-mono text-xs text-blue-400">
-                        <Droplet className="h-3 w-3" />{item.pop}%
+                      <div
+                        className="flex items-center gap-0.5 font-mono text-xs text-blue-400"
+                        title={precip.title}
+                      >
+                        <Droplet className="h-3 w-3" aria-hidden="true" />
+                        <span className="sr-only">{precip.title} </span>
+                        {precip.text}
                       </div>
                       <div
                         className="h-1.5 w-8 rounded-full"

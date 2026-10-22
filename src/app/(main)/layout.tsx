@@ -1,6 +1,7 @@
 import { AuthGuard } from "@/components/auth-guard";
 import { NavBar } from "@/components/nav-bar";
 import { GlobalMascot } from "@/components/global-mascot";
+import { InAppHistoryTracker } from "@/components/in-app-history-tracker";
 
 export default function MainLayout({
   children,
@@ -9,6 +10,7 @@ export default function MainLayout({
 }) {
   return (
     <AuthGuard>
+      <InAppHistoryTracker />
       <div className="flex min-h-screen flex-col md:flex-row">
         {/* Desktop: 사이드 네비게이션 */}
         <aside className="hidden md:flex md:w-20 md:flex-shrink-0 md:bg-bg-section">

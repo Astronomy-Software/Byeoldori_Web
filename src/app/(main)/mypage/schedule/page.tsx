@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CalendarCard } from "@/components/calendar-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,13 +25,25 @@ import type { PlanDetailDto, MonthDaySummaryDto } from "@/types/api";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Check, Trash2, MapPin, Telescope } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { parseDateParam } from "@/lib/calendar/date-param";
 
 export default function SchedulePage() {
+  return (
+    <Suspense>
+      <SchedulePageInner />
+    </Suspense>
+  );
+}
+
+function SchedulePageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // 홈 캘린더에서 날짜를 눌러 들어오면(?date=YYYY-MM-DD) 그 달·그날을 연다.
+  const [initial] = useState(() => parseDateParam(searchParams.get("date")));
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [year, setYear] = useState(initial?.year ?? now.getFullYear());
+  const [month, setMonth] = useState(initial?.month ?? now.getMonth() + 1);
+  const [selectedDate, setSelectedDate] = useState<string | null>(initial?.date ?? null);
   const [monthSummary, setMonthSummary] = useState<MonthDaySummaryDto[]>([]);
   const [dayPlans, setDayPlans] = useState<PlanDetailDto[]>([]);
   const [dayPlansError, setDayPlansError] = useState(false);

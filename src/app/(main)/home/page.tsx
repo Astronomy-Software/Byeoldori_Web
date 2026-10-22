@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CalendarCard } from "@/components/calendar-card";
 import { WeatherSection } from "@/components/weather-section";
 import { getHomeReviews, getHomeEducations, getHomeFreePosts } from "@/lib/api/community";
@@ -9,6 +10,7 @@ import { getMonthlySummary } from "@/lib/api/calendar";
 import { useAuthStore } from "@/stores/auth-store";
 import { communityHref } from "@/lib/community/board-query";
 import { authorLabel } from "@/lib/community/comments";
+import { scheduleHrefForDate } from "@/lib/calendar/date-param";
 import type {
   ReviewPostSummary,
   EducationPostSummary,
@@ -18,6 +20,7 @@ import type {
 import { Eye, Heart, MessageSquare, Star } from "lucide-react";
 
 export default function HomePage() {
+  const router = useRouter();
   const now = new Date();
   const nickname = useAuthStore((s) => s.user?.nickname);
   const [year, setYear] = useState(now.getFullYear());
@@ -146,7 +149,11 @@ export default function HomePage() {
             month={month}
             selectedDate={selectedDate}
             badges={calendarBadges}
-            onSelect={setSelectedDate}
+            onSelect={(date) => {
+              // 날짜를 누르면 그날 일정을 볼 수 있는 일정 화면으로 이동한다.
+              setSelectedDate(date);
+              router.push(scheduleHrefForDate(date));
+            }}
             onPrev={handlePrevMonth}
             onNext={handleNextMonth}
           />
