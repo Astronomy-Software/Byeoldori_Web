@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { parseDateParam } from "@/lib/calendar/date-param";
 import { formatPlanTimeRange } from "@/lib/calendar/plan-time";
 import { createLatestRequest } from "@/lib/latest-request";
+import { clientErrorMessage } from "@/lib/api/error-message";
 
 export default function SchedulePage() {
   return (
@@ -139,8 +140,9 @@ function SchedulePageInner() {
       setNewTarget("");
       setNewStartAt("");
       setNewEndAt("");
-    } catch {
-      toast.error("일정 추가에 실패했습니다.");
+    } catch (e) {
+      // 4xx(종료가 시작보다 빠름·제목 길이 초과 등)는 서버가 준 이유를 그대로 보여 준다.
+      toast.error(clientErrorMessage(e, "일정 추가에 실패했습니다."));
       return;
     }
     // 저장은 이미 성공했으므로 화면 새로고침 실패를 '추가 실패'로 알리지 않는다.
@@ -198,7 +200,7 @@ function SchedulePageInner() {
               <form onSubmit={handleCreatePlan} className="space-y-3">
                 <div>
                   <Label htmlFor="plan-title" className="text-text-secondary">제목</Label>
-                  <Input id="plan-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required className="border-border-default bg-surface-1 text-text-primary" />
+                  <Input id="plan-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required maxLength={120} className="border-border-default bg-surface-1 text-text-primary" />
                 </div>
                 <div>
                   <Label htmlFor="plan-memo" className="text-text-secondary">메모</Label>
@@ -211,7 +213,7 @@ function SchedulePageInner() {
                   </div>
                   <div>
                     <Label htmlFor="plan-end" className="text-text-secondary">종료</Label>
-                    <Input id="plan-end" type="datetime-local" value={newEndAt} onChange={(e) => setNewEndAt(e.target.value)} className="border-border-default bg-surface-1 font-mono text-text-primary" />
+                    <Input id="plan-end" type="datetime-local" value={newEndAt} onChange={(e) => setNewEndAt(e.target.value)} min={newStartAt || undefined} className="border-border-default bg-surface-1 font-mono text-text-primary" />
                   </div>
                 </div>
                 <div>

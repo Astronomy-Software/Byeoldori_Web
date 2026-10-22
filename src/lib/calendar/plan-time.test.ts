@@ -21,3 +21,9 @@ test("formatPlanTimeRange: 형식이 다르면 보여주지 않는다", () => {
   assert.equal(formatPlanTimeRange("내일 밤"), null);
   assert.equal(formatPlanTimeRange("2026-10-23T21:00", "모름"), "21:00");
 });
+
+test("formatPlanTimeRange: 종료가 시작과 같은 시각이면 시작만 보여 준다", () => {
+  assert.equal(formatPlanTimeRange("2026-10-23T21:00", "2026-10-23T21:00"), "21:00");
+  assert.equal(formatPlanTimeRange("2026-10-23T21:00:00", "2026-10-23T21:00:00"), "21:00");
+  assert.equal(formatPlanTimeRange("2026-10-23T21:00", "2026-10-24T21:00"), "21:00 ~ 10-24 21:00");
+});
