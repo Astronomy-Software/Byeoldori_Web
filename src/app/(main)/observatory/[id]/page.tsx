@@ -15,6 +15,7 @@ import { collectPages } from "@/lib/api/paginate";
 import { loadScriptOnce } from "@/lib/load-script";
 import { authorLabel } from "@/lib/community/comments";
 import { hourlyPrecipLabel } from "@/lib/weather/hourly-precip";
+import { groupMidForecastByDate, midPrecipText } from "@/lib/weather/mid-forecast";
 import { goBack } from "@/lib/navigation/in-app-history";
 import type {
   ObservationSiteDetail,
@@ -450,17 +451,8 @@ export default function ObservatoryDetailPage() {
                 ))}
               </div>
             ) : (() => {
-              // 날짜별로 오전(09시)/오후(18시) 묶기
-              type MidItem = NonNullable<typeof forecast>["midCombinedForecastDTO"][0];
-              const byDate: Record<string, { am?: MidItem; pm?: MidItem }> = {};
-              for (const item of (forecast?.midCombinedForecastDTO ?? [])) {
-                const date = item.tmEf.slice(0, 8);
-                if (!byDate[date]) byDate[date] = {};
-                const hour = item.tmEf.slice(8, 10);
-                if (hour <= "12") byDate[date].am = item;
-                else byDate[date].pm = item;
-              }
-              const rows = Object.entries(byDate);
+              // 날짜별로 오전(tmEf 0000)/오후(tmEf 1200) 묶기
+              const rows = groupMidForecastByDate(forecast?.midCombinedForecastDTO ?? []);
               return (
                 <div className="overflow-hidden rounded-xl bg-surface-1">
                   {rows.map(([date, { am, pm }], i) => {
@@ -483,7 +475,7 @@ export default function ObservatoryDetailPage() {
                           <span className="text-[10px] text-text-tertiary">오전</span>
                           <WeatherIconMid sky={am?.sky ?? ""} pre={am?.pre ?? ""} className="h-4 w-4 text-text-secondary" />
                           <div className="flex items-center gap-0.5 font-mono text-[10px] text-blue-400">
-                            <Droplet className="h-2.5 w-2.5" />{am?.rnSt ?? 0}%
+                            <Droplet className="h-2.5 w-2.5" />{midPrecipText(am)}
                           </div>
                         </div>
 
@@ -492,7 +484,7 @@ export default function ObservatoryDetailPage() {
                           <span className="text-[10px] text-text-tertiary">오후</span>
                           <WeatherIconMid sky={pm?.sky ?? rep.sky ?? ""} pre={pm?.pre ?? rep.pre ?? ""} className="h-4 w-4 text-text-primary" />
                           <div className="flex items-center gap-0.5 font-mono text-[10px] text-blue-400">
-                            <Droplet className="h-2.5 w-2.5" />{pm?.rnSt ?? 0}%
+                            <Droplet className="h-2.5 w-2.5" />{midPrecipText(pm)}
                           </div>
                         </div>
 
