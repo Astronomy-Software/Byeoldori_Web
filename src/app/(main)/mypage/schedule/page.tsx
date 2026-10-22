@@ -336,7 +336,7 @@ function SchedulePageInner() {
                         </div>
                       </div>
                       {plan.memo && (
-                        <p className="mt-2 border-t border-border-default pt-2 text-xs text-text-tertiary">
+                        <p className="mt-2 whitespace-pre-wrap break-words border-t border-border-default pt-2 text-xs text-text-tertiary">
                           {plan.memo}
                         </p>
                       )}

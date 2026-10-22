@@ -118,6 +118,8 @@ function NewPostInner() {
       toast.error("이미지 업로드에 실패했습니다.");
     } finally {
       setIsUploading(false);
+      // 같은 파일을 다시 고를 때도(지운 뒤 재첨부·실패 후 재시도) change 이벤트가 나도록 비운다.
+      e.target.value = "";
     }
   }
 

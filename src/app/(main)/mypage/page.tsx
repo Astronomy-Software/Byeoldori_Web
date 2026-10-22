@@ -79,6 +79,9 @@ export default function MyPageScreen() {
       toast.success("프로필 이미지가 변경되었습니다.");
     } catch {
       toast.error("이미지 업로드에 실패했습니다.");
+    } finally {
+      // 실패 뒤 같은 사진으로 다시 시도할 수 있도록 선택값을 비운다.
+      e.target.value = "";
     }
   }
 

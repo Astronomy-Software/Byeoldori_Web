@@ -114,6 +114,9 @@ export default function StarMapPage() {
   const closingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [stelReady, setStelReady] = useState(false);
+  // 엔진이 제한 시간 안에 준비되지 않음(WebGL 미지원·로드 실패 등). 다시 시도하면 iframe을 새로 띄운다.
+  const [stelFailed, setStelFailed] = useState(false);
+  const [stelAttempt, setStelAttempt] = useState(0);
   const [eduMode, setEduMode] = useState(false);
   const [programs, setPrograms] = useState<ProgramSummary[]>([]);
   const [programPage, setProgramPage] = useState<{ page: number; totalPages: number } | null>(null);
@@ -172,17 +175,37 @@ export default function StarMapPage() {
     loadProgramPage(0);
   }, [loadProgramPage]);
 
-  // Stellarium 컨트롤 초기화
+  // Stellarium 컨트롤 초기화 — stelAttempt가 바뀌면(다시 시도) 새 iframe에 다시 붙는다.
   useEffect(() => {
     if (!iframeRef.current) return;
     const ctrl = new StellariumControl(iframeRef.current);
     controlRef.current = ctrl;
+    let cancelled = false;
 
     ctrl.waitForReady(60000).then((ready) => {
-      if (!ready) { console.warn("[StarMap] Stellarium 준비 타임아웃"); return; }
+      if (cancelled) return;
+      if (!ready) {
+        console.warn("[StarMap] Stellarium 준비 타임아웃");
+        setStelFailed(true);
+        // ?programId= 링크로 들어왔다면 프로그램이 왜 안 열리는지 교육 패널에도 알린다.
+        if (readProgramId(window.location.search)) {
+          setProgramError("별지도를 불러오지 못해 프로그램을 열 수 없습니다. 다시 시도해 주세요.");
+          setEduMode(true);
+        }
+        return;
+      }
       setStelReady(true);
       ctrl.onStarSelected((name) => setSelectedStar(name));
     });
+    return () => {
+      cancelled = true;
+    };
+  }, [stelAttempt]);
+
+  const retryStellarium = useCallback(() => {
+    setStelFailed(false);
+    setProgramError(null);
+    setStelAttempt((n) => n + 1);
   }, []);
 
   // iframe→parent postMessage 리스너
@@ -445,6 +468,7 @@ export default function StarMapPage() {
     <div className="relative h-screen w-full overflow-hidden bg-black">
       {/* Stellarium iframe */}
       <iframe
+        key={stelAttempt}
         ref={iframeRef}
         src="/stellarium/index.html"
         className={`absolute left-0 top-0 h-full border-0 transition-[width] duration-300 ${
@@ -524,8 +548,26 @@ export default function StarMapPage() {
         </div>
       )}
 
+      {/* 엔진 초기화 실패 안내 */}
+      {stelFailed && !stelReady && (
+        <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center p-4">
+          <div role="alert" className="pointer-events-auto rounded-xl border border-white/15 bg-black/80 px-5 py-4 text-center backdrop-blur-sm">
+            <p className="text-sm text-white/80">별지도를 불러오지 못했습니다.</p>
+            <p className="mt-1 text-xs text-white/40">
+              네트워크 상태를 확인하거나, WebGL을 지원하는 브라우저에서 다시 시도해 주세요.
+            </p>
+            <button
+              onClick={retryStellarium}
+              className="mt-3 rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white/80 transition-colors hover:bg-white/10"
+            >
+              다시 시도
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 로딩 표시 */}
-      {(!stelReady || loadingProgram) && (
+      {((!stelReady && !stelFailed) || loadingProgram) && (
         <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center">
           <span className="text-sm text-white/40">
             {loadingProgram ? "교육 프로그램 로딩 중..." : "별지도 초기화 중..."}
@@ -542,7 +584,11 @@ export default function StarMapPage() {
               <div className="border-b border-white/10 p-4">
                 <h2 className="text-base font-semibold text-white">교육 프로그램</h2>
                 <p className="mt-0.5 text-xs text-white/40">
-                  {stelReady ? "프로그램을 선택하세요" : "별지도 로딩 중..."}
+                  {stelReady
+                    ? "프로그램을 선택하세요"
+                    : stelFailed
+                      ? "별지도를 불러오지 못했습니다"
+                      : "별지도 로딩 중..."}
                 </p>
               </div>
               <div className="flex-1 space-y-2 overflow-y-auto p-3">

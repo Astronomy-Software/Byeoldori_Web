@@ -53,6 +53,16 @@ export function canReplyTo(c: CommentResponse): boolean {
   return !c.deleted && c.depth === 0 && c.parentId == null;
 }
 
+// 입력칸 위 "○○님에게 답글" 표시용. 대상이 목록에 없으면(삭제·미로드) null.
+export function replyTargetLabel(
+  flat: CommentResponse[],
+  replyTo: number | null,
+): string | null {
+  if (replyTo == null) return null;
+  const target = flat.find((c) => c.id === replyTo);
+  return target ? authorLabel(target.authorNickname) : null;
+}
+
 export function updateComment(
   flat: CommentResponse[],
   id: number,

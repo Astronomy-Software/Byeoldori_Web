@@ -9,6 +9,7 @@ import {
   canReplyTo,
   markCommentDeleted,
   mergeComments,
+  replyTargetLabel,
 } from "./comments.ts";
 
 function c(
@@ -77,4 +78,12 @@ test("markCommentDeleted: soft delete — 대댓글은 유지", () => {
   assert.equal(after[0].deleted, true);
   assert.equal(after[0].content, DELETED_COMMENT_CONTENT);
   assert.equal(after[1].deleted, false);
+});
+
+test("replyTargetLabel: 답글 대상 작성자 이름, 없으면 null", () => {
+  const list = [c(1), c(2, null, { authorNickname: "  달토끼 " }), c(3, null, { authorNickname: null })];
+  assert.equal(replyTargetLabel(list, null), null);
+  assert.equal(replyTargetLabel(list, 2), "달토끼");
+  assert.equal(replyTargetLabel(list, 3), authorLabel(null));
+  assert.equal(replyTargetLabel(list, 99), null);
 });

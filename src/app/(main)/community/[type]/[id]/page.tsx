@@ -56,6 +56,7 @@ import {
   canReplyTo,
   markCommentDeleted,
   mergeComments,
+  replyTargetLabel,
   updateComment as updateCommentInList,
   type CommentNode,
 } from "@/lib/community/comments";
@@ -82,6 +83,8 @@ export default function PostDetailPage() {
   const [isPostingComment, setIsPostingComment] = useState(false);
   const postingCommentRef = useRef(false);
   const [replyTo, setReplyTo] = useState<number | null>(null);
+  // 입력칸이 목록보다 위에 있어 '답글'을 누르면 그쪽으로 포커스·스크롤을 옮긴다.
+  const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const [postError, setPostError] = useState<string | null>(null);
   const [commentsError, setCommentsError] = useState<string | null>(null);
 
@@ -107,6 +110,15 @@ export default function PostDetailPage() {
 
   const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
   const hasMoreComments = commentPage + 1 < commentTotalPages;
+  const replyTargetName = replyTargetLabel(comments, replyTo);
+
+  function handleReply(commentId: number) {
+    setReplyTo(commentId);
+    const input = commentInputRef.current;
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    input.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
 
   async function handleLoadMoreComments() {
     if (loadingMoreComments) return;
@@ -441,8 +453,14 @@ export default function PostDetailPage() {
         </h2>
 
         {/* 댓글 입력 */}
+        {replyTo && replyTargetName && (
+          <p className="text-xs text-text-secondary" aria-live="polite">
+            <span className="font-medium text-text-primary">{replyTargetName}</span>님에게 답글
+          </p>
+        )}
         <div className="flex gap-2">
           <Textarea
+            ref={commentInputRef}
             aria-label={replyTo ? "답글 입력" : "댓글 입력"}
             placeholder={
               replyTo ? "답글을 입력하세요..." : "댓글을 입력하세요..."
@@ -481,7 +499,7 @@ export default function PostDetailPage() {
               key={comment.id}
               comment={comment}
               currentUserId={user?.id}
-              onReply={(id) => setReplyTo(id)}
+              onReply={handleReply}
               onDelete={handleDeleteComment}
               onEdit={handleCommentEdit}
               onLike={handleCommentLike}
@@ -599,7 +617,7 @@ function CommentItem({
           </div>
         ) : (
           <p
-            className={`mt-2 text-sm leading-relaxed ${
+            className={`mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed ${
               comment.deleted ? "italic text-text-tertiary" : "text-text-secondary"
             }`}
           >
