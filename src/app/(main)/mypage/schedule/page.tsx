@@ -23,9 +23,11 @@ import {
 } from "@/lib/api/calendar";
 import type { PlanDetailDto, MonthDaySummaryDto } from "@/types/api";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Check, Trash2, MapPin, Telescope } from "lucide-react";
+import { ArrowLeft, Plus, Check, Trash2, MapPin, Telescope, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { parseDateParam } from "@/lib/calendar/date-param";
+import { formatPlanTimeRange } from "@/lib/calendar/plan-time";
+import { createLatestRequest } from "@/lib/latest-request";
 
 export default function SchedulePage() {
   return (
@@ -47,6 +49,11 @@ function SchedulePageInner() {
   const [monthSummary, setMonthSummary] = useState<MonthDaySummaryDto[]>([]);
   const [dayPlans, setDayPlans] = useState<PlanDetailDto[]>([]);
   const [dayPlansError, setDayPlansError] = useState(false);
+  // dayPlans가 어느 날짜의 응답인지 — 날짜를 바꾼 직후 이전 날짜 일정이 새 날짜 아래 보이지 않게 한다.
+  const [dayPlansFor, setDayPlansFor] = useState<string | null>(null);
+  // 날짜·달을 빠르게 바꿀 때 늦게 도착한 이전 요청의 응답은 버린다.
+  const [dayRequests] = useState(createLatestRequest);
+  const [monthRequests] = useState(createLatestRequest);
   const [showNewPlan, setShowNewPlan] = useState(false);
 
   // 새 일정 폼
@@ -58,24 +65,36 @@ function SchedulePageInner() {
   const [newEndAt, setNewEndAt] = useState("");
 
   const refreshMonthSummary = useCallback(() => {
+    const isLatest = monthRequests.begin();
     getMonthlySummary(year, month)
-      .then((r) => setMonthSummary(r))
+      .then((r) => {
+        if (isLatest()) setMonthSummary(r);
+      })
       .catch(() => {});
-  }, [year, month]);
+  }, [year, month, monthRequests]);
 
   useEffect(() => {
     refreshMonthSummary();
   }, [refreshMonthSummary]);
 
-  const loadDayPlans = useCallback((date: string) => {
-    setDayPlansError(false);
-    getEventsByDate(date)
-      .then((r) => setDayPlans(r))
-      .catch(() => {
-        setDayPlans([]);
-        setDayPlansError(true);
-      });
-  }, []);
+  const loadDayPlans = useCallback(
+    (date: string) => {
+      const isLatest = dayRequests.begin();
+      setDayPlansError(false);
+      getEventsByDate(date)
+        .then((r) => {
+          if (!isLatest()) return;
+          setDayPlans(r);
+          setDayPlansFor(date);
+        })
+        .catch(() => {
+          if (!isLatest()) return;
+          setDayPlans([]);
+          setDayPlansError(true);
+        });
+    },
+    [dayRequests],
+  );
 
   useEffect(() => {
     if (selectedDate) loadDayPlans(selectedDate);
@@ -240,6 +259,10 @@ function SchedulePageInner() {
                   다시 시도
                 </button>
               </div>
+            ) : dayPlansFor !== selectedDate ? (
+              <p className="rounded-2xl border border-border-default bg-surface-1 px-6 py-12 text-center text-sm text-text-tertiary">
+                일정을 불러오는 중...
+              </p>
             ) : dayPlans.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-2xl border border-border-default bg-surface-1 px-6 py-12 text-center">
                 <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-2 text-interactive-link">
@@ -251,6 +274,7 @@ function SchedulePageInner() {
               <div className="space-y-2">
                 {dayPlans.map((plan) => {
                   const isCompleted = plan.status === "COMPLETED";
+                  const timeRange = formatPlanTimeRange(plan.startAt, plan.endAt);
                   return (
                     <div
                       key={plan.id}
@@ -268,6 +292,12 @@ function SchedulePageInner() {
                               <Badge className="border-transparent bg-warning/15 font-mono text-warning">예정</Badge>
                             )}
                           </div>
+                          {timeRange && (
+                            <p className="mt-1.5 flex items-center gap-1 font-mono text-xs text-text-secondary">
+                              <Clock className="h-3 w-3" aria-hidden="true" />
+                              {timeRange}
+                            </p>
+                          )}
                           {plan.placeName && (
                             <p className="mt-1.5 flex items-center gap-1 text-xs text-text-tertiary">
                               <MapPin className="h-3 w-3" aria-hidden="true" />

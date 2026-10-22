@@ -7,6 +7,8 @@ import { getPostDetail, updatePost } from "@/lib/api/community";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { editorStateHasContent } from "@/lib/community/content-text";
+import { clientErrorMessage } from "@/lib/api/error-message";
+import { POST_TITLE_MAX_LENGTH } from "@/lib/community/post-limits";
 import { COMMUNITY_TAB_LABELS, routeTypeToTab } from "@/lib/community/board-query";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -66,8 +68,8 @@ export default function EditPostPage() {
       toast.success("게시글이 수정되었습니다.");
       // replace: 기록에 수정 화면이 남으면 '돌아가기'·삭제 후 이동이 수정 화면으로 간다.
       router.replace(`/community/${params.type}/${postId}`);
-    } catch {
-      toast.error("수정에 실패했습니다.");
+    } catch (e) {
+      toast.error(clientErrorMessage(e, "수정에 실패했습니다."));
     } finally {
       setIsSaving(false);
     }
@@ -104,6 +106,7 @@ export default function EditPostPage() {
             id="edit-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            maxLength={POST_TITLE_MAX_LENGTH}
             placeholder="제목을 입력하세요"
             className="border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
           />
