@@ -46,7 +46,8 @@ export default function MyPageScreen() {
 
   const loadProfile = useCallback(async () => {
     const ok = await loadUser();
-    setProfileError(!ok);
+    // 401(세션 만료)이면 loadUser 가 로그아웃시키고 AuthGuard 가 /login 으로 보내므로 오류 카드를 띄우지 않는다
+    setProfileError(!ok && useAuthStore.getState().isSignedIn);
   }, [loadUser]);
 
   async function retryProfile() {

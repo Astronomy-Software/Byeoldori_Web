@@ -102,6 +102,8 @@ function quizStepsOf(program: EducationProgram): EduStep[] {
 // 403은 아직 PUBLISHED 가 아닌 프로그램(작성자 외 접근 불가)이 대부분이다.
 function programErrorMessage(e: unknown): string {
   if (e instanceof ApiError) {
+    // 서버는 비로그인으로 미발행 프로그램을 열면 401, 로그인했지만 권한이 없으면 403 을 준다
+    if (e.status === 401) return "로그인이 필요한 프로그램입니다.";
     if (e.status === 403) return "아직 발행되지 않은 프로그램입니다.";
     if (e.status === 404) return "프로그램을 찾을 수 없습니다.";
   }
