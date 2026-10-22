@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { calendarDayLabel } from "@/lib/calendar/day-label";
 
 interface CalendarCardProps {
   year: number;
@@ -73,7 +74,11 @@ export function CalendarCard({
           return (
             <button
               key={dateStr}
+              type="button"
               onClick={() => onSelect(dateStr)}
+              aria-label={calendarDayLabel(month, day, { isToday, hasPlan: !!badgeColor })}
+              aria-pressed={isSelected}
+              aria-current={isToday ? "date" : undefined}
               className={`relative flex h-9 items-center justify-center rounded-lg font-mono text-sm transition-colors
                 ${
                   isSelected
@@ -86,6 +91,7 @@ export function CalendarCard({
               {day}
               {badgeColor && (
                 <span
+                  aria-hidden="true"
                   className="absolute bottom-1 h-1.5 w-1.5 rounded-full"
                   style={{ backgroundColor: badgeColor }}
                 />

@@ -22,7 +22,8 @@ interface AuthState {
   login: (req: LoginRequest) => Promise<void>;
   loginWithSocial: (tokens: AuthTokens) => void;
   logout: () => Promise<void>;
-  loadUser: () => Promise<void>;
+  // 프로필을 불러왔으면 true. 실패(401 포함)면 false — 화면이 오류 상태를 보여 줄 수 있게 한다.
+  loadUser: () => Promise<boolean>;
   initAuth: () => void;
 }
 
@@ -78,6 +79,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const res = await getMyProfile();
       set({ user: res, isSignedIn: true });
+      return true;
     } catch (e) {
       // 401만 실제 세션 만료 — 네트워크 오류·5xx는 로그아웃하지 않는다
       if (e instanceof ApiError && e.status === 401) {
@@ -85,6 +87,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         clearTokens();
         set({ user: null, isSignedIn: false });
       }
+      return false;
     }
   },
 }));

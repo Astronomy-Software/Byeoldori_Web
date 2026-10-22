@@ -211,6 +211,9 @@ function ProgramAuthorInner() {
   const playTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const [stelReady, setStelReady] = useState(false);
+  // 엔진이 제한 시간 안에 준비되지 않음(WebGL 미지원·로드 실패 등). 다시 시도하면 iframe을 새로 띄운다.
+  const [stelFailed, setStelFailed] = useState(false);
+  const [stelAttempt, setStelAttempt] = useState(0);
   const [selectedStar, setSelectedStar] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
@@ -255,20 +258,31 @@ function ProgramAuthorInner() {
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
 
-  // Stellarium 컨트롤 초기화 (starmap과 동일 패턴)
+  // Stellarium 컨트롤 초기화 (starmap과 동일 패턴) — stelAttempt가 바뀌면(다시 시도) 새 iframe에 다시 붙는다.
   useEffect(() => {
     if (!iframeRef.current) return;
     const ctrl = new StellariumControl(iframeRef.current);
     controlRef.current = ctrl;
+    let cancelled = false;
 
     ctrl.waitForReady(60000).then((ready) => {
+      if (cancelled) return;
       if (!ready) {
         console.warn("[Author] Stellarium 준비 타임아웃");
+        setStelFailed(true);
         return;
       }
       setStelReady(true);
       ctrl.onStarSelected((name) => setSelectedStar(name));
     });
+    return () => {
+      cancelled = true;
+    };
+  }, [stelAttempt]);
+
+  const retryStellarium = useCallback(() => {
+    setStelFailed(false);
+    setStelAttempt((n) => n + 1);
   }, []);
 
   // 검수가 꺼져 있으면 작성자도 PREVIEW 프로그램을 바로 발행할 수 있다
@@ -780,6 +794,7 @@ function ProgramAuthorInner() {
       {/* 좌: Stellarium 미리보기 */}
       <div className="relative h-[45vh] w-full shrink-0 bg-black md:h-full md:flex-1">
         <iframe
+          key={stelAttempt}
           ref={iframeRef}
           src="/stellarium/index.html"
           className="h-full w-full border-0"
@@ -787,9 +802,28 @@ function ProgramAuthorInner() {
           title="Stellarium 별지도"
         />
 
-        {!stelReady && (
+        {!stelReady && !stelFailed && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <span className="text-sm text-white/40">별지도 초기화 중...</span>
+          </div>
+        )}
+
+        {/* 엔진 초기화 실패 안내 — 미리보기·시점 담기가 왜 꺼져 있는지 알리고 iframe만 다시 띄운다(편집 내용은 그대로). */}
+        {stelFailed && !stelReady && (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-4">
+            <div role="alert" className="pointer-events-auto rounded-xl border border-white/15 bg-black/80 px-5 py-4 text-center backdrop-blur-sm">
+              <p className="text-sm text-white/80">별지도를 불러오지 못했습니다.</p>
+              <p className="mt-1 text-xs text-white/40">
+                미리보기와 시점 담기는 별지도가 준비된 뒤 쓸 수 있습니다. 네트워크 상태를 확인하거나, WebGL을 지원하는 브라우저에서 다시 시도해 주세요.
+              </p>
+              <button
+                type="button"
+                onClick={retryStellarium}
+                className="mt-3 rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white/80 transition-colors hover:bg-white/10"
+              >
+                다시 시도
+              </button>
+            </div>
           </div>
         )}
 

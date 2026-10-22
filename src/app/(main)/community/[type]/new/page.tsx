@@ -266,7 +266,7 @@ function NewPostInner() {
                 onChange={(e) => setDifficulty(e.target.value)}
                 className="w-full rounded-md border border-border-default bg-surface-1 px-3 py-2 text-sm text-text-primary"
               >
-                <option value="BEGINNER">초급</option>
+                <option value="BEGINNER">입문</option>
                 <option value="INTERMEDIATE">중급</option>
                 <option value="ADVANCED">고급</option>
               </select>

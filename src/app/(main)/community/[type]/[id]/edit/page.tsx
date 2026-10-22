@@ -309,7 +309,7 @@ export default function EditPostPage() {
                 className="w-full rounded-md border border-border-default bg-surface-1 px-3 py-2 text-sm text-text-primary"
               >
                 {!difficulty && <option value="">선택 안 함</option>}
-                <option value="BEGINNER">초급</option>
+                <option value="BEGINNER">입문</option>
                 <option value="INTERMEDIATE">중급</option>
                 <option value="ADVANCED">고급</option>
               </select>
