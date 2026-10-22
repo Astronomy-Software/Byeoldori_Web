@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import type { InitialConfigType } from "@lexical/react/LexicalComposer";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
@@ -133,14 +133,26 @@ export interface LexicalEditorProps {
   value?: string;
   onChange: (serialized: string) => void;
   placeholder?: string;
+  // 본문 이미지(툴바·붙여넣기·드롭) 업로드 진행 여부 — 업로드 중 저장을 막는 데 쓴다.
+  onUploadingChange?: (uploading: boolean) => void;
 }
 
 export default function LexicalEditor({
   value,
   onChange,
   placeholder = "내용을 입력하세요...",
+  onUploadingChange,
 }: LexicalEditorProps) {
-  const [isUploading, setIsUploading] = useState(false);
+  // 툴바와 붙여넣기/드롭 업로드가 겹칠 수 있어 진행 중인 업로드 수를 센다.
+  const [uploadCount, setUploadCount] = useState(0);
+  const isUploading = uploadCount > 0;
+  const setIsUploading = useCallback((uploading: boolean) => {
+    setUploadCount((c) => Math.max(0, c + (uploading ? 1 : -1)));
+  }, []);
+
+  useEffect(() => {
+    onUploadingChange?.(isUploading);
+  }, [isUploading, onUploadingChange]);
 
   const initialConfig: InitialConfigType = {
     namespace: "byeoldori-post-editor",

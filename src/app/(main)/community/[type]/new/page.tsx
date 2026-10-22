@@ -49,7 +49,10 @@ function NewPostInner() {
   const [difficulty, setDifficulty] = useState("BEGINNER");
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  // 본문 에디터 안(툴바·붙여넣기·드롭)의 이미지 업로드 진행 여부
+  const [editorUploading, setEditorUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const uploadInProgress = isUploading || editorUploading;
 
   const typeLabel =
     type === "review"
@@ -112,6 +115,11 @@ function NewPostInner() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // 업로드 중에 저장하면 올리던 이미지가 빠진 채 저장되고 화면이 떠난다.
+    if (uploadInProgress) {
+      toast.error("이미지 업로드가 끝난 뒤 다시 시도해주세요.");
+      return;
+    }
     if (!editorStateHasContent(content)) {
       toast.error("내용을 입력해주세요.");
       return;
@@ -276,7 +284,12 @@ function NewPostInner() {
                   ) {
                     return;
                   }
-                  router.push("/community/program/author");
+                  // 연결된 프로그램이 있으면 그 프로그램을 다시 열어 고친다(새 프로그램을 만들지 않는다).
+                  router.push(
+                    programId
+                      ? `/community/program/author?id=${encodeURIComponent(programId)}`
+                      : "/community/program/author",
+                  );
                 }}
                 className="flex items-center gap-2 rounded-lg border border-border-default px-3 py-2 text-sm text-text-primary transition-colors hover:border-interactive-primary"
               >
@@ -289,7 +302,11 @@ function NewPostInner() {
 
         <div className="space-y-2">
           <Label className="text-text-secondary">내용</Label>
-          <LexicalEditor value={content} onChange={setContent} />
+          <LexicalEditor
+            value={content}
+            onChange={setContent}
+            onUploadingChange={setEditorUploading}
+          />
         </div>
 
         {/* 이미지 업로드 */}
@@ -333,9 +350,13 @@ function NewPostInner() {
         <Button
           type="submit"
           className="glow-primary w-full bg-interactive-primary text-white hover:bg-interactive-primary/90"
-          disabled={isSubmitting}
+          disabled={isSubmitting || uploadInProgress}
         >
-          {isSubmitting ? "작성 중..." : "게시글 작성"}
+          {isSubmitting
+            ? "작성 중..."
+            : uploadInProgress
+              ? "이미지 업로드 중..."
+              : "게시글 작성"}
         </Button>
       </form>
     </div>
