@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { StellariumControl } from "@/lib/stellarium-control";
 import { executeStep } from "@/lib/education-engine";
+import { readProgramId } from "@/lib/starmap-query";
 import { loadProgramById } from "@/lib/education-program-loader";
 import {
   listPrograms,
@@ -123,8 +123,7 @@ function programErrorMessage(e: unknown): string {
   return "프로그램을 불러오지 못했습니다.";
 }
 
-function StarMapInner() {
-  const searchParams = useSearchParams();
+export default function StarMapPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const controlRef = useRef<StellariumControl | null>(null);
   const closingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -134,6 +133,8 @@ function StarMapInner() {
   const [programs, setPrograms] = useState<ProgramSummary[]>([]);
   const [programPage, setProgramPage] = useState<{ page: number; totalPages: number } | null>(null);
   const [loadingMorePrograms, setLoadingMorePrograms] = useState(false);
+  // 목록 로드 실패한 페이지 번호(재시도용). null이면 오류 없음.
+  const [programsFailedPage, setProgramsFailedPage] = useState<number | null>(null);
   const [activeProgram, setActiveProgram] = useState<EducationProgram | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [charText, setCharText] = useState<string | null>(null);
@@ -165,6 +166,7 @@ function StarMapInner() {
   // 교육 프로그램(MongoDB) 공개 목록 로드 — 첫 페이지 이후는 '더 보기'로 이어 받는다.
   const loadProgramPage = useCallback((page: number) => {
     setLoadingMorePrograms(true);
+    setProgramsFailedPage(null);
     listPrograms({ page, size: PROGRAM_PAGE_SIZE })
       .then((r) => {
         setPrograms((prev) => {
@@ -174,7 +176,10 @@ function StarMapInner() {
         });
         setProgramPage({ page: r.page, totalPages: r.totalPages });
       })
-      .catch(console.error)
+      .catch((e) => {
+        console.error("[StarMap] 교육 프로그램 목록 로드 실패:", e);
+        setProgramsFailedPage(page);
+      })
       .finally(() => setLoadingMorePrograms(false));
   }, []);
 
@@ -232,7 +237,7 @@ function StarMapInner() {
 
   // ?programId= 쿼리 처리 — stelReady 후 자동 실행
   useEffect(() => {
-    const programId = searchParams.get("programId");
+    const programId = readProgramId(window.location.search);
     if (!programId || !stelReady) return;
 
     setLoadingProgram(true);
@@ -593,8 +598,23 @@ function StarMapInner() {
                     </button>
                   </div>
                 )}
-                {programs.length === 0 && (
-                  <p className="text-center text-xs text-white/30 pt-8">등록된 교육 프로그램이 없습니다.</p>
+                {programsFailedPage !== null ? (
+                  <div role="alert" className="pt-8 text-center">
+                    <p className="text-xs text-white/50">교육 프로그램 목록을 불러오지 못했습니다.</p>
+                    <button
+                      onClick={() => loadProgramPage(programsFailedPage)}
+                      disabled={loadingMorePrograms}
+                      className="mt-2 rounded-lg border border-white/20 px-3 py-1.5 text-xs text-white/70 transition-colors hover:bg-white/10 disabled:opacity-40"
+                    >
+                      다시 시도
+                    </button>
+                  </div>
+                ) : programPage === null ? (
+                  <p className="pt-8 text-center text-xs text-white/30">불러오는 중...</p>
+                ) : (
+                  programs.length === 0 && (
+                    <p className="text-center text-xs text-white/30 pt-8">등록된 교육 프로그램이 없습니다.</p>
+                  )
                 )}
                 {programs.map((prog) => (
                   <button
@@ -616,7 +636,7 @@ function StarMapInner() {
                     </p>
                   </button>
                 ))}
-                {programPage && programPage.page + 1 < programPage.totalPages && (
+                {programsFailedPage === null && programPage && programPage.page + 1 < programPage.totalPages && (
                   <button
                     onClick={() => loadProgramPage(programPage.page + 1)}
                     disabled={loadingMorePrograms}
@@ -715,13 +735,5 @@ function StarMapInner() {
         </div>
       )}
     </div>
-  );
-}
-
-export default function StarMapPage() {
-  return (
-    <Suspense>
-      <StarMapInner />
-    </Suspense>
   );
 }

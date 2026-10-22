@@ -45,11 +45,15 @@ export default function SchedulePage() {
   const [newStartAt, setNewStartAt] = useState("");
   const [newEndAt, setNewEndAt] = useState("");
 
-  useEffect(() => {
+  const refreshMonthSummary = useCallback(() => {
     getMonthlySummary(year, month)
       .then((r) => setMonthSummary(r))
       .catch(() => {});
   }, [year, month]);
+
+  useEffect(() => {
+    refreshMonthSummary();
+  }, [refreshMonthSummary]);
 
   const loadDayPlans = useCallback((date: string) => {
     setDayPlansError(false);
@@ -104,15 +108,13 @@ export default function SchedulePage() {
       setNewTarget("");
       setNewStartAt("");
       setNewEndAt("");
-      if (selectedDate) {
-        const r = await getEventsByDate(selectedDate);
-        setDayPlans(r);
-      }
-      const ms = await getMonthlySummary(year, month);
-      setMonthSummary(ms);
     } catch {
       toast.error("일정 추가에 실패했습니다.");
+      return;
     }
+    // 저장은 이미 성공했으므로 화면 새로고침 실패를 '추가 실패'로 알리지 않는다.
+    if (selectedDate) loadDayPlans(selectedDate);
+    refreshMonthSummary();
   }
 
   async function handleDelete(id: number) {
@@ -123,7 +125,9 @@ export default function SchedulePage() {
       toast.success("일정이 삭제되었습니다.");
     } catch {
       toast.error("삭제에 실패했습니다.");
+      return;
     }
+    refreshMonthSummary();
   }
 
   async function handleComplete(id: number) {
@@ -162,30 +166,30 @@ export default function SchedulePage() {
               </DialogHeader>
               <form onSubmit={handleCreatePlan} className="space-y-3">
                 <div>
-                  <Label className="text-text-secondary">제목</Label>
-                  <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required className="border-border-default bg-surface-1 text-text-primary" />
+                  <Label htmlFor="plan-title" className="text-text-secondary">제목</Label>
+                  <Input id="plan-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} required className="border-border-default bg-surface-1 text-text-primary" />
                 </div>
                 <div>
-                  <Label className="text-text-secondary">메모</Label>
-                  <Textarea value={newMemo} onChange={(e) => setNewMemo(e.target.value)} className="border-border-default bg-surface-1 text-text-primary" />
+                  <Label htmlFor="plan-memo" className="text-text-secondary">메모</Label>
+                  <Textarea id="plan-memo" value={newMemo} onChange={(e) => setNewMemo(e.target.value)} className="border-border-default bg-surface-1 text-text-primary" />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-text-secondary">시작</Label>
-                    <Input type="datetime-local" value={newStartAt} onChange={(e) => setNewStartAt(e.target.value)} required className="border-border-default bg-surface-1 font-mono text-text-primary" />
+                    <Label htmlFor="plan-start" className="text-text-secondary">시작</Label>
+                    <Input id="plan-start" type="datetime-local" value={newStartAt} onChange={(e) => setNewStartAt(e.target.value)} required className="border-border-default bg-surface-1 font-mono text-text-primary" />
                   </div>
                   <div>
-                    <Label className="text-text-secondary">종료</Label>
-                    <Input type="datetime-local" value={newEndAt} onChange={(e) => setNewEndAt(e.target.value)} className="border-border-default bg-surface-1 font-mono text-text-primary" />
+                    <Label htmlFor="plan-end" className="text-text-secondary">종료</Label>
+                    <Input id="plan-end" type="datetime-local" value={newEndAt} onChange={(e) => setNewEndAt(e.target.value)} className="border-border-default bg-surface-1 font-mono text-text-primary" />
                   </div>
                 </div>
                 <div>
-                  <Label className="text-text-secondary">관측지</Label>
-                  <Input value={newPlaceName} onChange={(e) => setNewPlaceName(e.target.value)} className="border-border-default bg-surface-1 text-text-primary" />
+                  <Label htmlFor="plan-place" className="text-text-secondary">관측지</Label>
+                  <Input id="plan-place" value={newPlaceName} onChange={(e) => setNewPlaceName(e.target.value)} className="border-border-default bg-surface-1 text-text-primary" />
                 </div>
                 <div>
-                  <Label className="text-text-secondary">관측 대상</Label>
-                  <Input value={newTarget} onChange={(e) => setNewTarget(e.target.value)} className="border-border-default bg-surface-1 text-text-primary" />
+                  <Label htmlFor="plan-target" className="text-text-secondary">관측 대상</Label>
+                  <Input id="plan-target" value={newTarget} onChange={(e) => setNewTarget(e.target.value)} className="border-border-default bg-surface-1 text-text-primary" />
                 </div>
                 <Button type="submit" className="glow-primary w-full bg-interactive-primary text-text-on-primary hover:opacity-90">
                   일정 추가

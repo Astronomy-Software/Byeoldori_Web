@@ -23,7 +23,6 @@ import type { ObservationCountDto } from "@/types/api";
 import { toast } from "sonner";
 import {
   Calendar,
-  Heart,
   Settings,
   LogOut,
   Camera,
@@ -132,8 +131,9 @@ export default function MyPageScreen() {
               {isEditing ? (
                 <div className="flex flex-wrap items-end gap-2">
                   <div className="flex-1 space-y-1">
-                    <Label className="text-xs text-text-tertiary">닉네임</Label>
+                    <Label htmlFor="mypage-nickname" className="text-xs text-text-tertiary">닉네임</Label>
                     <Input
+                      id="mypage-nickname"
                       value={nickname}
                       onChange={(e) => setNickname(e.target.value)}
                       maxLength={20}
@@ -209,7 +209,6 @@ export default function MyPageScreen() {
         {/* 바로가기 (내 활동) */}
         <div className="space-y-2">
           <MenuLink href="/mypage/schedule" icon={Calendar} label="관측 일정 관리" />
-          <MenuLink href="/mypage/likes" icon={Heart} label="좋아요한 글" />
           <MenuLink href="/mypage/learning" icon={GraduationCap} label="학습 기록" />
           {user?.roles?.includes("ADMIN") && (
             <MenuLink href="/admin/programs" icon={ShieldCheck} label="교육 프로그램 검수" />

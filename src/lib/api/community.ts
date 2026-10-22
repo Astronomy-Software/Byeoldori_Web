@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import { toReviewPayload } from "@/lib/community/review-payload";
 import type {
   PostResponse,
   ReviewPostResponse,
@@ -82,20 +83,7 @@ export async function createFreePost(
 export async function createReviewPost(
   body: CreateReviewRequest,
 ): Promise<CreatedPostId> {
-  // 백엔드는 review 필드로 중첩된 형태를 기대한다(PostCreateRequest.review: ReviewDto).
-  // 프론트의 flat 입력(siteName·rating)을 매핑: siteName→location, rating→score.
-  const payload = {
-    title: body.title,
-    content: body.content,
-    imageUrls: body.imageUrls ?? [],
-    review: {
-      location: body.siteName,
-      score: body.rating,
-      ...(body.observationSiteId != null
-        ? { observationSiteId: body.observationSiteId }
-        : {}),
-    },
-  };
+  const payload = toReviewPayload(body);
   return apiFetch<CreatedPostId>("community/REVIEW/posts", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -151,9 +139,10 @@ export async function updateReview(
   postId: number,
   body: CreateReviewRequest,
 ): Promise<void> {
+  // 수정도 작성과 같은 중첩 형태여야 한다(평평하게 보내면 서버가 리뷰 필드를 무시).
   await apiFetch(`community/posts/${postId}`, {
     method: "PATCH",
-    body: JSON.stringify(body),
+    body: JSON.stringify(toReviewPayload(body)),
   });
 }
 

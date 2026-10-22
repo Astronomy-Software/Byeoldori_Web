@@ -22,10 +22,10 @@ export default function LikesPage() {
             <Heart className="h-6 w-6" aria-hidden="true" />
           </span>
           <p className="text-sm font-medium text-text-secondary">
-            아직 좋아요한 글이 없어요
+            준비 중인 기능입니다
           </p>
           <p className="mt-1.5 text-xs text-text-tertiary">
-            마음에 드는 관측 기록에 좋아요를 눌러보세요.
+            좋아요한 글 모아보기는 곧 제공될 예정이에요.
           </p>
         </div>
       </div>

@@ -94,8 +94,9 @@ export interface UpdateUserProfile {
   phone?: string;
 }
 
+// 서버 ProfileImageUploadResponse
 export interface ProfileImageResponse {
-  imageUrl: string;
+  profileImageUrl: string;
 }
 
 // Community — PostSummaryResponse (통합 목록 응답)
@@ -407,10 +408,11 @@ export interface ObservationCountDto {
   observationCount: number;
 }
 
-// Feedback / Evaluation
+// Feedback / Evaluation — 서버 EvaluateEducationRequest(score 1~5 필수)
 export interface FeedbackRequest {
-  rating: number;
-  comment: string;
+  score: number;
+  pros?: string;
+  cons?: string;
 }
 
 // File — 백엔드 POST /files/upload · /files/image 응답.
