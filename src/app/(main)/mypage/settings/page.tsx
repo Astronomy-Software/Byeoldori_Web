@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useAuthStore } from "@/stores/auth-store";
 import { resign } from "@/lib/api/user";
@@ -43,26 +42,15 @@ export default function SettingsPage() {
         <h1 className="mb-6 text-2xl font-bold text-text-primary">설정</h1>
 
         <div className="space-y-4">
-          {/* 계정 — 연동된 소셜 계정 */}
+          {/* 계정 — 서버가 가입 경로(구글·카카오·네이버·이메일)를 알려주지 않으므로 특정 연동을 표시하지 않는다 */}
           <section className="glass rounded-2xl border-border-default p-5">
             <div className="mb-3 flex items-center gap-2">
               <UserCircle className="h-4 w-4 text-interactive-link" aria-hidden="true" />
               <h2 className="text-sm font-semibold text-text-primary">계정</h2>
             </div>
             <p className="text-xs text-text-tertiary">
-              소셜 계정으로 로그인 중입니다.
+              현재 로그인한 계정으로 이용 중입니다.
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Badge className="border-border-default bg-surface-2 font-medium text-text-secondary">
-                구글
-              </Badge>
-              <Badge className="border-border-default bg-surface-2 font-medium text-text-secondary">
-                카카오
-              </Badge>
-              <Badge className="border-border-default bg-surface-2 font-medium text-text-secondary">
-                네이버
-              </Badge>
-            </div>
           </section>
 
           {/* 앱 정보 */}
