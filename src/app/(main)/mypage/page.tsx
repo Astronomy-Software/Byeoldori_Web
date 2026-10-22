@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -40,14 +40,28 @@ export default function MyPageScreen() {
   const [observationCount, setObservationCount] =
     useState<ObservationCountDto | null>(null);
   const [observationError, setObservationError] = useState(false);
+  // 프로필(/users/me)을 불러오지 못함(5xx·네트워크 오류). 스피너 대신 다시 시도·로그아웃을 보여 준다.
+  const [profileError, setProfileError] = useState(false);
+  const [profileRetrying, setProfileRetrying] = useState(false);
+
+  const loadProfile = useCallback(async () => {
+    const ok = await loadUser();
+    setProfileError(!ok);
+  }, [loadUser]);
+
+  async function retryProfile() {
+    setProfileRetrying(true);
+    await loadProfile();
+    setProfileRetrying(false);
+  }
 
   useEffect(() => {
-    loadUser();
+    loadProfile();
     setObservationError(false);
     getObservationCount()
       .then((r) => setObservationCount(r))
       .catch(() => setObservationError(true));
-  }, [loadUser]);
+  }, [loadProfile]);
 
   useEffect(() => {
     if (user) setNickname(user.nickname ?? "");
@@ -93,6 +107,28 @@ export default function MyPageScreen() {
     }
     logout();
     router.replace("/login");
+  }
+
+  if (!user && profileError) {
+    return (
+      <div className="starfield flex min-h-screen items-center justify-center px-4">
+        <div
+          role="alert"
+          className="w-full max-w-sm space-y-4 rounded-2xl border border-border-default bg-surface-1 p-6 text-center"
+        >
+          <p className="text-sm text-text-primary">내 정보를 불러오지 못했습니다.</p>
+          <p className="text-xs text-text-tertiary">잠시 후 다시 시도해 주세요.</p>
+          <div className="flex justify-center gap-2">
+            <Button onClick={retryProfile} disabled={profileRetrying}>
+              {profileRetrying ? "불러오는 중..." : "다시 시도"}
+            </Button>
+            <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="h-4 w-4" aria-hidden="true" /> 로그아웃
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!user) {
