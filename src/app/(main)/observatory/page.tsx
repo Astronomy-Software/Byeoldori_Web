@@ -217,8 +217,9 @@ export default function ObservatoryPage() {
 
       const sw = new window.naver.maps.LatLng(32.0, 123.5);
       const ne = new window.naver.maps.LatLng(40.5, 132.5);
+      // 원본 PNG(1.9MB)를 같은 크기·범위의 WebP로 줄였다. 내용을 바꾸면 파일명 버전을 올린다(_headers가 1년 캐시).
       const overlay = new window.naver.maps.GroundOverlay(
-        "/korea_lightpollution_overlay.png",
+        "/korea_lightpollution_overlay_v2.webp",
         new window.naver.maps.LatLngBounds(sw, ne),
         { opacity: 0.7 },
       );
