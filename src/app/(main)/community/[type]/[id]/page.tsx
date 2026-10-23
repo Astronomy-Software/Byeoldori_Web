@@ -415,6 +415,9 @@ export default function PostDetailPage() {
                 key={i}
                 src={url}
                 alt={`이미지 ${i + 1}`}
+                // 첨부는 최대 20장 원본이라 화면에 가까워질 때만 받는다.
+                loading="lazy"
+                decoding="async"
                 className="w-full rounded-2xl border border-border-default object-cover"
               />
             ))}

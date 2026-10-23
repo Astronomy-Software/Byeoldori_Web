@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Clapperboard } from "lucide-react";
+import { goBack } from "@/lib/navigation/in-app-history";
 import {
   listPrograms,
   type ProgramSummary,
@@ -60,7 +61,7 @@ export default function MyProgramsPage() {
     <div className="starfield min-h-screen">
       <div className="mx-auto max-w-3xl px-4 py-8">
         <button
-          onClick={() => router.back()}
+          onClick={() => goBack(router, "/mypage")}
           className="mb-4 flex items-center gap-1 text-sm text-text-tertiary transition-colors hover:text-text-primary"
         >
           <ArrowLeft className="h-4 w-4" /> 돌아가기

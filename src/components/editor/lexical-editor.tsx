@@ -23,7 +23,7 @@ import {
 } from "lexical";
 import { toast } from "sonner";
 import { uploadImage } from "@/lib/api/files";
-import { ApiError } from "@/lib/api/client";
+import { clientErrorMessage } from "@/lib/api/error-message";
 import { $createImageNode } from "./nodes/image-node";
 import { isSafeUrl } from "./url-safe";
 import { ToolbarPlugin } from "./toolbar-plugin";
@@ -74,9 +74,8 @@ function ImagePasteDropPlugin({
           });
         }
       } catch (err) {
-        toast.error(
-          err instanceof ApiError ? err.body : "이미지 업로드에 실패했습니다.",
-        );
+        // 4xx(용량 초과 등)만 서버 문구를 보여 주고, 401·5xx·프록시 오류·HTML 본문은 기본 문구로 바꾼다.
+        toast.error(clientErrorMessage(err, "이미지 업로드에 실패했습니다."));
       } finally {
         onUploadingChange?.(false);
       }
@@ -133,6 +132,8 @@ export interface LexicalEditorProps {
   value?: string;
   onChange: (serialized: string) => void;
   placeholder?: string;
+  // 본문 입력칸의 접근 가능한 이름이 될 라벨 요소 id(스크린리더가 '내용' 입력칸으로 읽는다).
+  ariaLabelledBy?: string;
   // 본문 이미지(툴바·붙여넣기·드롭) 업로드 진행 여부 — 업로드 중 저장을 막는 데 쓴다.
   onUploadingChange?: (uploading: boolean) => void;
 }
@@ -141,6 +142,7 @@ export default function LexicalEditor({
   value,
   onChange,
   placeholder = "내용을 입력하세요...",
+  ariaLabelledBy,
   onUploadingChange,
 }: LexicalEditorProps) {
   // 툴바와 붙여넣기/드롭 업로드가 겹칠 수 있어 진행 중인 업로드 수를 센다.
@@ -177,6 +179,7 @@ export default function LexicalEditor({
               <ContentEditable
                 className="min-h-[220px] px-3 py-3 text-base leading-relaxed text-text-primary outline-none [&_a]:cursor-pointer"
                 aria-placeholder={placeholder}
+                aria-labelledby={ariaLabelledBy}
                 placeholder={
                   <div className="pointer-events-none absolute left-3 top-3 text-text-tertiary">
                     {placeholder}

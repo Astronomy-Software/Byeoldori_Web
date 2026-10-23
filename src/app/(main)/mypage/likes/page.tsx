@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Heart } from "lucide-react";
+import { goBack } from "@/lib/navigation/in-app-history";
 
 export default function LikesPage() {
   const router = useRouter();
@@ -10,7 +11,7 @@ export default function LikesPage() {
     <div className="starfield min-h-screen">
       <div className="mx-auto max-w-3xl px-4 py-8">
         <button
-          onClick={() => router.back()}
+          onClick={() => goBack(router, "/mypage")}
           className="mb-4 flex items-center gap-1 text-sm text-text-tertiary transition-colors hover:text-text-primary"
         >
           <ArrowLeft className="h-4 w-4" /> 돌아가기

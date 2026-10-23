@@ -21,7 +21,8 @@ import {
   POST_IMAGE_LIMIT_MESSAGE,
   POST_TITLE_MAX_LENGTH,
 } from "@/lib/community/post-limits";
-import { COMMUNITY_TAB_LABELS, routeTypeToTab } from "@/lib/community/board-query";
+import { COMMUNITY_TAB_LABELS, communityHref, routeTypeToTab } from "@/lib/community/board-query";
+import { goBack } from "@/lib/navigation/in-app-history";
 import { findSiteByExactName } from "@/lib/community/review-site";
 import { resolveEditedSite } from "@/lib/community/review-payload";
 import { resolveEditedTargets, targetsToLines } from "@/lib/community/education-post-payload";
@@ -91,9 +92,9 @@ export default function EditPostPage() {
       })
       .catch(() => {
         toast.error("게시글을 불러오지 못했습니다.");
-        router.back();
+        goBack(router, communityHref(routeTypeToTab(params.type)));
       });
-  }, [postId, router]);
+  }, [postId, router, params.type]);
 
   // 관측지 이름 자동완성(작성 화면과 같다). 고르면 리뷰가 그 관측지에 연결된다.
   useEffect(() => {
@@ -217,7 +218,7 @@ export default function EditPostPage() {
   return (
     <div className="mx-auto min-h-screen max-w-3xl bg-bg-page p-4 md:p-6">
       <button
-        onClick={() => router.back()}
+        onClick={() => goBack(router, `/community/${params.type}/${postId}`)}
         className="mb-5 flex items-center gap-1 text-sm text-text-tertiary transition-colors hover:text-text-primary"
       >
         <ArrowLeft className="h-4 w-4" /> 돌아가기
@@ -318,8 +319,9 @@ export default function EditPostPage() {
         )}
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-text-secondary">내용</label>
+          <span id="edit-content-label" className="mb-1.5 block text-sm font-medium text-text-secondary">내용</span>
           <LexicalEditor
+            ariaLabelledBy="edit-content-label"
             value={content}
             onChange={setContent}
             onUploadingChange={setEditorUploading}

@@ -38,7 +38,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { uploadImage, uploadFile } from "@/lib/api/files";
-import { ApiError } from "@/lib/api/client";
+import { clientErrorMessage } from "@/lib/api/error-message";
 import { $createImageNode } from "./nodes/image-node";
 import { $createFileNode } from "./nodes/file-node";
 
@@ -117,9 +117,8 @@ export function ToolbarPlugin({
         $insertNodes([node]);
       });
     } catch (err) {
-      toast.error(
-        err instanceof ApiError ? err.body : "이미지 업로드에 실패했습니다.",
-      );
+      // 4xx(용량 초과 등)만 서버 문구를 보여 주고, 401·5xx·프록시 오류·HTML 본문은 기본 문구로 바꾼다.
+      toast.error(clientErrorMessage(err, "이미지 업로드에 실패했습니다."));
     } finally {
       setUploading(false);
     }
@@ -142,9 +141,7 @@ export function ToolbarPlugin({
         $insertNodes([node]);
       });
     } catch (err) {
-      toast.error(
-        err instanceof ApiError ? err.body : "파일 업로드에 실패했습니다.",
-      );
+      toast.error(clientErrorMessage(err, "파일 업로드에 실패했습니다."));
     } finally {
       setUploading(false);
     }

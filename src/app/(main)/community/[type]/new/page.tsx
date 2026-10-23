@@ -20,6 +20,8 @@ import {
 } from "@/lib/community/post-limits";
 import { getSitesByKeyword } from "@/lib/api/observation-sites";
 import { findSiteByExactName } from "@/lib/community/review-site";
+import { communityHref, routeTypeToTab } from "@/lib/community/board-query";
+import { goBack } from "@/lib/navigation/in-app-history";
 import type { ObservationSite } from "@/types/api";
 import { editorStateHasContent } from "@/lib/community/content-text";
 import { toast } from "sonner";
@@ -178,7 +180,7 @@ function NewPostInner() {
   return (
     <div className="mx-auto min-h-screen max-w-3xl bg-bg-page p-4 md:p-6">
       <button
-        onClick={() => router.back()}
+        onClick={() => goBack(router, communityHref(routeTypeToTab(type)))}
         className="mb-5 flex items-center gap-1 text-sm text-text-tertiary transition-colors hover:text-text-primary"
       >
         <ArrowLeft className="h-4 w-4" /> 돌아가기
@@ -225,7 +227,7 @@ function NewPostInner() {
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="rating" className="text-text-secondary">평점 (1~5)</Label>
+              <span className="block text-sm font-medium leading-none text-text-secondary">평점 (1~5)</span>
               <div className="flex items-center gap-1">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <button
@@ -233,6 +235,7 @@ function NewPostInner() {
                     type="button"
                     onClick={() => setRating(i + 1)}
                     aria-label={`${i + 1}점`}
+                    aria-pressed={rating === i + 1}
                     className="transition-transform hover:scale-110"
                   >
                     <Star
@@ -316,8 +319,9 @@ function NewPostInner() {
         )}
 
         <div className="space-y-2">
-          <Label className="text-text-secondary">내용</Label>
+          <Label id="content-label" className="text-text-secondary">내용</Label>
           <LexicalEditor
+            ariaLabelledBy="content-label"
             value={content}
             onChange={setContent}
             onUploadingChange={setEditorUploading}
