@@ -97,6 +97,8 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
       <img
         src={this.__src}
         alt={this.__altText}
+        loading="lazy"
+        decoding="async"
         className="my-2 max-w-full rounded-lg border border-border-default"
       />
     );

@@ -23,6 +23,7 @@ import {
 } from "@/lib/api/education-program";
 import { ApiError } from "@/lib/api/client";
 import { clientErrorMessage } from "@/lib/api/error-message";
+import { goBack } from "@/lib/navigation/in-app-history";
 import { useAuthStore } from "@/stores/auth-store";
 import {
   authorStage,
@@ -893,7 +894,7 @@ function ProgramAuthorInner() {
             <button
               onClick={() => {
                 if (dirtyRef.current && !window.confirm(UNSAVED_LEAVE_MESSAGE)) return;
-                router.back();
+                goBack(router, "/mypage/programs");
               }}
               aria-label="돌아가기"
               className="-ml-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-tertiary transition-colors hover:text-text-primary"

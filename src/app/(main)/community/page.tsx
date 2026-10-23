@@ -16,7 +16,8 @@ import {
 } from "@/lib/community/board-query";
 import { Eye, Heart, MessageSquare, Star, ImageIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 export default function CommunityPage() {
@@ -276,10 +277,15 @@ function GridBoardLayout({
           onKeyDown={(e) => { if (e.key === "Enter") onSearch(searchInput.value); }}
           className="flex-1 border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
         />
-        <Link href={createHref}>
-          <Button className="glow-primary bg-interactive-primary text-white hover:bg-interactive-primary/90">
-            글쓰기
-          </Button>
+        {/* 링크 안에 버튼을 넣지 않는다(탭 정지 두 번·역할 중복). 링크에 버튼 모양만 입힌다. */}
+        <Link
+          href={createHref}
+          className={cn(
+            buttonVariants(),
+            "glow-primary bg-interactive-primary text-white hover:bg-interactive-primary/90",
+          )}
+        >
+          글쓰기
         </Link>
       </div>
 
@@ -413,10 +419,15 @@ function BoardLayout({
           onKeyDown={(e) => { if (e.key === "Enter") onSearch(searchInput.value); }}
           className="flex-1 border-border-default bg-surface-1 text-text-primary placeholder:text-text-tertiary"
         />
-        <Link href={createHref}>
-          <Button className="glow-primary bg-interactive-primary text-white hover:bg-interactive-primary/90">
-            글쓰기
-          </Button>
+        {/* 링크 안에 버튼을 넣지 않는다(탭 정지 두 번·역할 중복). 링크에 버튼 모양만 입힌다. */}
+        <Link
+          href={createHref}
+          className={cn(
+            buttonVariants(),
+            "glow-primary bg-interactive-primary text-white hover:bg-interactive-primary/90",
+          )}
+        >
+          글쓰기
         </Link>
       </div>
 

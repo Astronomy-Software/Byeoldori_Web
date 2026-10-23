@@ -72,11 +72,17 @@ export default function HomePage() {
     return () => clearTimeout(fallbackTimer);
   }, []);
 
-  // 월별 요약
+  // 월별 요약 — 달을 빠르게 넘길 때 늦게 도착한 이전 달 응답이 지금 달을 덮어쓰지 않게 버린다.
   useEffect(() => {
+    let cancelled = false;
     getMonthlySummary(year, month)
-      .then((res) => setMonthSummary(res))
+      .then((res) => {
+        if (!cancelled) setMonthSummary(res);
+      })
       .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [year, month]);
 
   // 홈 전용 API (docs: /community/home/*)

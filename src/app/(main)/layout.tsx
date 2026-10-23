@@ -2,6 +2,13 @@ import { AuthGuard } from "@/components/auth-guard";
 import { NavBar } from "@/components/nav-bar";
 import { GlobalMascot } from "@/components/global-mascot";
 import { InAppHistoryTracker } from "@/components/in-app-history-tracker";
+import type { Metadata } from "next";
+
+// 로그인해야 쓰는 화면들이다. 공개 /starmap의 NavBar 링크로 크롤러가 들어와도
+// 로그인으로 넘어가는 빈 셸이 랜딩과 같은 메타로 색인되지 않게 막는다.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default function MainLayout({
   children,

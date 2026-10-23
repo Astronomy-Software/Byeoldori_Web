@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CalendarCard } from "@/components/calendar-card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import { parseDateParam } from "@/lib/calendar/date-param";
 import { formatPlanTimeRange } from "@/lib/calendar/plan-time";
 import { createLatestRequest } from "@/lib/latest-request";
 import { clientErrorMessage } from "@/lib/api/error-message";
+import { goBack } from "@/lib/navigation/in-app-history";
 
 export default function SchedulePage() {
   return (
@@ -56,6 +57,9 @@ function SchedulePageInner() {
   const [dayRequests] = useState(createLatestRequest);
   const [monthRequests] = useState(createLatestRequest);
   const [showNewPlan, setShowNewPlan] = useState(false);
+  // 응답을 기다리는 동안 '일정 추가'를 다시 누르거나 Enter를 눌러도 같은 일정이 또 만들어지지 않게 한다.
+  const creatingRef = useRef(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   // 새 일정 폼
   const [newTitle, setNewTitle] = useState("");
@@ -122,6 +126,9 @@ function SchedulePageInner() {
 
   async function handleCreatePlan(e: React.FormEvent) {
     e.preventDefault();
+    if (creatingRef.current) return;
+    creatingRef.current = true;
+    setIsCreating(true);
     try {
       await createPlan({
         title: newTitle,
@@ -144,6 +151,9 @@ function SchedulePageInner() {
       // 4xx(종료가 시작보다 빠름·제목 길이 초과 등)는 서버가 준 이유를 그대로 보여 준다.
       toast.error(clientErrorMessage(e, "일정 추가에 실패했습니다."));
       return;
+    } finally {
+      creatingRef.current = false;
+      setIsCreating(false);
     }
     // 저장은 이미 성공했으므로 화면 새로고침 실패를 '추가 실패'로 알리지 않는다.
     if (selectedDate) loadDayPlans(selectedDate);
@@ -179,7 +189,7 @@ function SchedulePageInner() {
     <div className="starfield min-h-screen">
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
         <button
-          onClick={() => router.back()}
+          onClick={() => goBack(router, "/mypage")}
           className="flex items-center gap-1 text-sm text-text-tertiary transition-colors hover:text-text-primary"
         >
           <ArrowLeft className="h-4 w-4" /> 돌아가기
@@ -224,8 +234,8 @@ function SchedulePageInner() {
                   <Label htmlFor="plan-target" className="text-text-secondary">관측 대상</Label>
                   <Input id="plan-target" value={newTarget} onChange={(e) => setNewTarget(e.target.value)} className="border-border-default bg-surface-1 text-text-primary" />
                 </div>
-                <Button type="submit" className="glow-primary w-full bg-interactive-primary text-text-on-primary hover:opacity-90">
-                  일정 추가
+                <Button type="submit" disabled={isCreating} className="glow-primary w-full bg-interactive-primary text-text-on-primary hover:opacity-90">
+                  {isCreating ? "추가 중..." : "일정 추가"}
                 </Button>
               </form>
             </DialogContent>

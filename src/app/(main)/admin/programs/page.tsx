@@ -18,6 +18,7 @@ import {
 } from "@/lib/api/education-program";
 import { collectPages } from "@/lib/api/paginate";
 import { createLatestRequest } from "@/lib/latest-request";
+import { goBack } from "@/lib/navigation/in-app-history";
 
 type Tab = "pending" | "published";
 
@@ -144,7 +145,7 @@ export default function AdminProgramsPage() {
     <div className="starfield min-h-screen">
       <div className="mx-auto max-w-3xl px-4 py-8">
         <button
-          onClick={() => router.back()}
+          onClick={() => goBack(router, "/mypage")}
           className="mb-4 flex items-center gap-1 text-sm text-text-tertiary transition-colors hover:text-text-primary"
         >
           <ArrowLeft className="h-4 w-4" /> 돌아가기

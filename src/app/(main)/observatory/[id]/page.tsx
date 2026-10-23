@@ -17,6 +17,7 @@ import { authorLabel } from "@/lib/community/comments";
 import { hourlyPrecipLabel } from "@/lib/weather/hourly-precip";
 import { groupMidForecastByDate, midPrecipText } from "@/lib/weather/mid-forecast";
 import { goBack } from "@/lib/navigation/in-app-history";
+import { parseSiteId, siteLoadErrorKind, type SiteLoadError } from "@/lib/observatory/site-load";
 import type {
   ObservationSiteDetail,
   UltraForecastItem,
@@ -89,7 +90,8 @@ const REVIEW_SCAN_PAGES = 10;
 export default function ObservatoryDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const id = Number(params.id);
+  // 숫자가 아닌 id(잘못된 공유 링크)는 요청하지 않고 바로 '찾을 수 없음'으로 보여 준다.
+  const id = parseSiteId(params.id);
 
   const [site, setSite] = useState<ObservationSiteDetail | null>(null);
   const [live, setLive] = useState<UltraForecastItem | null>(null);
@@ -102,6 +104,9 @@ export default function ObservatoryDetailPage() {
   const [reviewsStatus, setReviewsStatus] = useState<"loading" | "done" | "partial" | "error">("loading");
   const [address, setAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<SiteLoadError | null>(null);
+  // '다시 시도'를 누르면 올려서 관측지를 다시 불러온다.
+  const [reloadKey, setReloadKey] = useState(0);
 
   const doGeocode = useCallback((lat: number, lng: number) => {
     if (!window.naver?.maps?.Service) return;
@@ -119,8 +124,8 @@ export default function ObservatoryDetailPage() {
   }, []);
 
   useEffect(() => {
-    if (!id) return;
-    setLoading(true);
+    // 다른 id로 이동하면 페이지가 새로 마운트되어 loading=true부터 시작한다.
+    if (id === null) return;
     getSiteById(id)
       .then((data) => {
         setSite(data);
@@ -177,8 +182,17 @@ export default function ObservatoryDetailPage() {
           })
           .catch((err) => console.error("[observatory/detail] 네이버 지도 로드 실패:", err));
       })
-      .catch(() => setLoading(false));
-  }, [id, doGeocode]);
+      .catch((e) => {
+        setLoadError(siteLoadErrorKind(e));
+        setLoading(false);
+      });
+  }, [id, doGeocode, reloadKey]);
+
+  const retryLoad = () => {
+    setLoadError(null);
+    setLoading(true);
+    setReloadKey((k) => k + 1);
+  };
 
   // 시간별 예보: ultra 전체 + ultra 종료 이후의 short만 이어붙임 (과거·중복 항목 제거)
   const ultraList = forecast?.ultraForecastResponse ?? [];
@@ -214,7 +228,7 @@ export default function ObservatoryDetailPage() {
       })),
   ];
 
-  if (loading) {
+  if (id !== null && loading) {
     return (
       <div className="flex h-full items-center justify-center bg-bg-page">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-interactive-primary border-t-transparent" />
@@ -223,9 +237,19 @@ export default function ObservatoryDetailPage() {
   }
 
   if (!site) {
+    const failed = id !== null && loadError === "failed";
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 bg-bg-page p-4">
-        <p className="text-text-secondary">관측지를 찾을 수 없습니다.</p>
+        <p role="alert" className="text-text-secondary">
+          {failed
+            ? "관측지 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+            : "관측지를 찾을 수 없습니다."}
+        </p>
+        {failed && (
+          <button onClick={retryLoad} className="text-sm font-medium text-interactive-link">
+            다시 시도
+          </button>
+        )}
         <button onClick={() => goBack(router, "/observatory")} className="text-sm text-interactive-link">돌아가기</button>
       </div>
     );
