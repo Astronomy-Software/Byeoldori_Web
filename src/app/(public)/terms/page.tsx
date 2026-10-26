@@ -80,7 +80,7 @@ export default function TermsPage() {
         <h2 className="font-semibold">7. 문의</h2>
         <ul className="ml-4 list-disc space-y-1 text-muted-foreground">
           <li>담당자: 서범수</li>
-          <li>이메일: <a href="mailto:beom710@gmail.com" className="underline hover:text-foreground">beom710@gmail.com</a></li>
+          <li>이메일: <a href="mailto:support@byeoldori.com" className="underline hover:text-foreground">support@byeoldori.com</a></li>
           <li>전화: 010-4740-0710</li>
         </ul>
       </section>
