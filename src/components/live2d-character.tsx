@@ -104,7 +104,8 @@ export function Live2DCharacter({
       ref={canvasRef}
       className={
         className ??
-        "pointer-events-none fixed bottom-16 right-0 z-40 h-64 w-48 md:bottom-0 md:h-80 md:w-64"
+        // 모바일: 별지도와 같은 75% 크기로 하단 NavBar(약 4.25rem) 바로 위에 전신 표시. 데스크톱은 그대로
+        "pointer-events-none fixed bottom-[4.25rem] right-0 z-40 h-48 w-36 md:bottom-0 md:h-80 md:w-64"
       }
     />
   );
