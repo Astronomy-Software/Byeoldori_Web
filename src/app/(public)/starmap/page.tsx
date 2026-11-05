@@ -33,8 +33,9 @@ import type {
 } from "@/types/education";
 
 // 별도리 캐릭터 위치. "hidden"은 렌더 자체를 생략하므로 맵에 없다.
-// bottom-right 값은 Live2DCharacter의 기본 className과 동일해야 하위호환이 유지된다.
-const CHARACTER_BASE = "pointer-events-none fixed z-40 h-64 w-48 md:h-80 md:w-64";
+// 모바일은 별지도를 덜 가리도록 기본(h-64 w-48)의 75% 크기로 두고, 데스크톱은 기본과 같다.
+// 캔버스 크기는 Live2D 초기화 시점에 고정되므로 교육 모드의 추가 축소는 크기가 아닌 scale 로 한다.
+const CHARACTER_BASE = "pointer-events-none fixed z-40 h-48 w-36 origin-bottom md:h-80 md:w-64";
 // 수평(x)만 담는다 — 수직(bottom)은 모바일 하단 시트 유무에 따라 런타임에 결정한다.
 const CHARACTER_X: Record<Exclude<CharacterPosition, "hidden">, string> = {
   "bottom-right": "right-0",
@@ -447,14 +448,16 @@ export default function StarMapPage() {
     [stelReady, startProgram],
   );
 
-  // 모바일에서 교육 패널이 하단 시트(높이 50vh)로 열리면 별지도가 최소 절반 보이도록,
-  // 캐릭터·말풍선을 시트 위로 올리거나(말풍선) 숨긴다(캐릭터). 데스크톱(md+)은 기존 그대로.
-  // 모바일 하단에는 NavBar(약 4rem, fixed z-50)가 있어 그 위로 4rem을 더 올린다.
+  // 모바일 하단은 NavBar(약 4.25rem, fixed z-50) 위에 별지도 하단 툴바(3rem)가 오도록 iframe 높이를 줄인다.
+  // 캐릭터는 탐색 중엔 툴바 위, 교육 패널(하단 시트 50vh)이 열리면 시트 위에서 작게(전신 유지) 보이고,
+  // 말풍선은 캐릭터 머리 위에 둔다. 데스크톱(md+)은 기존 그대로.
   const bubbleMobileBottom = eduMode
-    ? "bottom-[calc(50vh+4.75rem)]"
+    ? characterPosition === "hidden"
+      ? "bottom-[calc(50vh+4.75rem)]"
+      : "bottom-[calc(50vh+12.5rem)]"
     : characterPosition === "hidden"
-      ? "bottom-20"
-      : "bottom-[280px]";
+      ? "bottom-[7.75rem]"
+      : "bottom-[17.5rem]";
   const currentStep = activeProgram?.steps[stepIndex];
   const quizStep = currentStep?.type === "quiz" && currentStep.id ? currentStep : null;
   const chooseQuiz = useCallback((quizId: string, choice: number) => {
@@ -463,8 +466,8 @@ export default function StarMapPage() {
   }, []);
 
   const charVertical = eduMode
-    ? "hidden md:block md:bottom-0" // 모바일 하단 시트와 겹치므로 숨김, 데스크톱은 유지
-    : "bottom-16 md:bottom-0";
+    ? "bottom-[calc(50vh+4.25rem)] scale-[0.73] md:bottom-0 md:scale-100" // 시트 위에서 작게, 데스크톱은 유지
+    : "bottom-[7.5rem] md:bottom-0";
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black">
@@ -473,7 +476,7 @@ export default function StarMapPage() {
         key={stelAttempt}
         ref={iframeRef}
         src="/stellarium/index.html"
-        className={`absolute left-0 top-0 h-full border-0 transition-[width] duration-300 ${
+        className={`absolute left-0 top-0 h-[calc(100%-4.25rem)] border-0 transition-[width] duration-300 md:h-full ${
           eduMode ? "w-full md:w-[calc(100%-320px)]" : "w-full"
         }`}
         allow="gyroscope; accelerometer"
@@ -533,10 +536,10 @@ export default function StarMapPage() {
         />
       )}
 
-      {/* 교육 모드 토글 — 모바일에서는 하단 NavBar 위, 하단 시트가 열리면 시트 위로 올린다 */}
+      {/* 교육 모드 토글 — 모바일에서는 별지도 하단 툴바 위, 하단 시트가 열리면 시트 위로 올린다 */}
       <button
         className={`fixed left-4 z-50 rounded-full bg-indigo-600/90 px-4 py-2 text-sm text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-indigo-500 ${
-          eduMode ? "bottom-[calc(50vh+5rem)] md:bottom-4" : "bottom-20 md:bottom-4"
+          eduMode ? "bottom-[calc(50vh+5rem)] md:bottom-4" : "bottom-[7.75rem] md:bottom-4"
         }`}
         onClick={() => setEduMode((v) => !v)}
       >
