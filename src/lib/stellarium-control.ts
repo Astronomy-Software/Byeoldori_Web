@@ -3,16 +3,20 @@
 // Stellarium iframe 직접 제어 레이어 (same-origin iframe.contentWindow 접근)
 // sw_helpers.js의 onReady 이후 window.__stellariumAPI 가 설정되어 있어야 함
 
+// 엔진(wasm)이 만들어 주는 객체는 타입 정의가 없어 속성이 동적이다. any 는 이 별칭 한 곳에만 둔다.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type StelObject = any;
+
 type StelAPI = {
-  stel: any;
-  eduLayer: any;
+  stel: StelObject;
+  eduLayer: StelObject;
   onSelect: ((name: string, types: string[]) => void) | null;
-  lastSelected: any;
+  lastSelected: StelObject;
 };
 
 function getAPI(iframe: HTMLIFrameElement): StelAPI | null {
   try {
-    const win = iframe.contentWindow as any;
+    const win = iframe.contentWindow as (Window & { __stellariumAPI?: StelAPI }) | null;
     return win?.__stellariumAPI ?? null;
   } catch {
     return null;
@@ -63,11 +67,11 @@ function loadImageSize(url: string): Promise<{ w: number; h: number } | null> {
 
 export class StellariumControl {
   private iframe: HTMLIFrameElement;
-  private circleHandles: any[] = [];
-  private geojsonHandles: any[] = [];
-  private photoHandles: any[] = [];
+  private circleHandles: StelObject[] = [];
+  private geojsonHandles: StelObject[] = [];
+  private photoHandles: StelObject[] = [];
   // 저작 화면에서 편집 중인 하늘 이미지 1장. 값이 바뀔 때마다 새로 만들어 교체한다.
-  private previewHandle: any = null;
+  private previewHandle: StelObject = null;
   private previewSeq = 0;
 
   constructor(iframe: HTMLIFrameElement) {
@@ -268,7 +272,7 @@ export class StellariumControl {
     this.previewHandle = null;
   }
 
-  private removeHandle(h: any): void {
+  private removeHandle(h: StelObject): void {
     try {
       this.api?.eduLayer.remove(h);
     } catch {
@@ -276,7 +280,7 @@ export class StellariumControl {
     }
   }
 
-  private async createPhoto(p: SkyImageParams): Promise<any | null> {
+  private async createPhoto(p: SkyImageParams): Promise<StelObject | null> {
     if (!this.api || !p.url || !(p.sizeDeg > 0)) return null;
     const url = toEngineImageUrl(p.url);
     if (url.length > 1000) {

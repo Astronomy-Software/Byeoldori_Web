@@ -13,7 +13,7 @@ export default function TermsPage() {
       <div>
         <h1 className="text-xl font-bold">서비스 이용약관</h1>
         <p className="mt-2 text-muted-foreground">
-          별도리(Byeoldori) 서비스(이하 "서비스")를 이용하기 전에 아래 약관을 읽고 동의해 주세요.
+          별도리(Byeoldori) 서비스(이하 &quot;서비스&quot;)를 이용하기 전에 아래 약관을 읽고 동의해 주세요.
         </p>
       </div>
 
