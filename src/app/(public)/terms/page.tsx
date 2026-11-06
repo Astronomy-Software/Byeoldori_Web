@@ -29,10 +29,13 @@ export default function TermsPage() {
       <section className="space-y-2">
         <h2 className="font-semibold">2. 계정 생성 및 관리</h2>
         <ul className="ml-4 list-disc space-y-1 text-muted-foreground">
-          <li>계정은 Google 소셜 로그인을 통해 생성됩니다.</li>
+          <li>계정은 이메일 회원가입 또는 Google·카카오·네이버 로그인으로 만들 수 있습니다.</li>
           <li>계정 정보는 정확하게 유지할 책임이 이용자에게 있습니다.</li>
           <li>타인의 계정을 무단으로 사용하는 것은 금지됩니다.</li>
-          <li>계정 삭제는 마이페이지에서 직접 요청할 수 있습니다.</li>
+          <li>
+            회원 탈퇴는 마이페이지에서 직접 할 수 있으며, 탈퇴 후에도 작성한 게시글과 댓글은
+            &quot;탈퇴한 사용자&quot;로 표시되어 남습니다.
+          </li>
         </ul>
       </section>
 
@@ -81,11 +84,10 @@ export default function TermsPage() {
         <ul className="ml-4 list-disc space-y-1 text-muted-foreground">
           <li>담당자: 서범수</li>
           <li>이메일: <a href="mailto:support@byeoldori.com" className="underline hover:text-foreground">support@byeoldori.com</a></li>
-          <li>전화: 010-4740-0710</li>
         </ul>
       </section>
 
-      <p className="text-xs text-muted-foreground">시행일: 2026년 5월 1일</p>
+      <p className="text-xs text-muted-foreground">시행일: 2026년 11월 6일 (이전: 2026년 5월 1일)</p>
     </article>
   );
 }
