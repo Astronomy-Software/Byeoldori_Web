@@ -5,7 +5,7 @@ import { characterManager } from "@/lib/character-manager";
 
 function loadCubism4Core(): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (typeof window !== "undefined" && (window as any).Live2DCubismCore) {
+    if (typeof window !== "undefined" && "Live2DCubismCore" in window) {
       resolve();
       return;
     }

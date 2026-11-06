@@ -13,7 +13,7 @@ export default function PrivacyPage() {
       <div>
         <h1 className="text-xl font-bold">개인정보처리방침</h1>
         <p className="mt-2 text-muted-foreground">
-          별도리(Byeoldori) 서비스(이하 "서비스")는 이용자의 개인정보를 중요하게 여기며, 관련 법령을 준수합니다.
+          별도리(Byeoldori) 서비스(이하 &quot;서비스&quot;)는 이용자의 개인정보를 중요하게 여기며, 관련 법령을 준수합니다.
         </p>
       </div>
 
