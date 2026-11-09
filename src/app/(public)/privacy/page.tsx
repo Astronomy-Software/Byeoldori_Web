@@ -22,8 +22,7 @@ export default function PrivacyPage() {
         <p className="text-muted-foreground">서비스는 다음 정보를 수집해 서버에 저장합니다.</p>
         <ul className="ml-4 list-disc space-y-1 text-muted-foreground">
           <li>
-            이메일로 가입할 때: 이메일 주소, 비밀번호(암호화해 저장), 이름, 휴대폰 번호, 닉네임,
-            생년월일(선택)
+            이메일로 가입할 때: 이메일 주소, 비밀번호(암호화해 저장), 이름, 휴대폰 번호, 닉네임
           </li>
           <li>
             Google·카카오·네이버로 로그인할 때: 각 서비스가 제공하는 이메일 주소, 닉네임(이름),
@@ -51,7 +50,7 @@ export default function PrivacyPage() {
         <h2 className="font-semibold">3. 개인정보 보유 및 이용 기간</h2>
         <ul className="ml-4 list-disc space-y-1 text-muted-foreground">
           <li>
-            회원 탈퇴 시 즉시 계정 정보(이메일·이름·휴대폰 번호·생년월일·닉네임·프로필 사진·로그인 연동
+            회원 탈퇴 시 즉시 계정 정보(이메일·이름·휴대폰 번호·닉네임·프로필 사진·로그인 연동
             정보)를 삭제하거나 알아볼 수 없게 바꾸고, 관측 일정·관측 사진·즐겨찾기·알림·퀴즈 기록·로그인
             세션을 삭제합니다.
           </li>

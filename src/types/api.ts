@@ -35,7 +35,7 @@ export interface AuthTokens {
 // apiFetch 자동 unwrap 이후 LoginResponse는 AuthTokens 자체
 export type LoginResponse = AuthTokens;
 
-// SignupRequestDto: nickname/birthdate optional, phone required
+// SignupRequestDto: nickname optional, phone required (생년월일은 수집 중단)
 export interface SignUpRequest {
   email: string;
   password: string;
@@ -77,7 +77,6 @@ export interface UserProfile {
   name: string;
   phone: string;
   nickname?: string | null;
-  birthdate?: string | null;
   emailVerified: boolean;
   lastLoginAt?: string | null;
   roles: string[];
@@ -90,7 +89,6 @@ export interface UserProfile {
 // UserUpdateRequestDto
 export interface UpdateUserProfile {
   nickname?: string;
-  birthdate?: string;
   phone?: string;
 }
 
