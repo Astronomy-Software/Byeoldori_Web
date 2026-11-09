@@ -17,6 +17,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     initAuth();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage 토큰은 마운트 후에만 읽을 수 있다(hydration 완료 표시)
     setChecked(true);
   }, [initAuth]);
 

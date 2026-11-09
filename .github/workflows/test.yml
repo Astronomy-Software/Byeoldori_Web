@@ -23,5 +23,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # 오류만 실패로 본다(경고는 출력만). 기존 오류 18건을 정리한 뒤 다시 쌓이지 않게 PR 에서 막는다.
+      - name: Lint
+        run: npm run lint
+
       - name: Unit tests
         run: npm test

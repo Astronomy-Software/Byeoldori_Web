@@ -48,6 +48,7 @@ export default function HomePage() {
     const FALLBACK = { lat: 36.6284, lon: 127.4572 }; // 충북대 기본값
 
     if (!navigator.geolocation) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- navigator 는 마운트 후에만 확인할 수 있다
       setLocation(FALLBACK);
       return;
     }
@@ -102,6 +103,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 첫 진입 시 목록 로드(같은 함수가 "다시 시도" 버튼에도 쓰인다)
     loadHomePosts();
   }, [loadHomePosts]);
 
