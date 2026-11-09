@@ -19,34 +19,50 @@ export default function PrivacyPage() {
 
       <section className="space-y-2">
         <h2 className="font-semibold">1. 수집하는 개인정보 항목</h2>
-        <p className="text-muted-foreground">
-          서비스는 Google OAuth 로그인 시 다음 정보를 수집합니다.
-        </p>
+        <p className="text-muted-foreground">서비스는 다음 정보를 수집해 서버에 저장합니다.</p>
         <ul className="ml-4 list-disc space-y-1 text-muted-foreground">
-          <li>이메일 주소</li>
-          <li>닉네임(표시 이름)</li>
-          <li>프로필 사진</li>
+          <li>
+            이메일로 가입할 때: 이메일 주소, 비밀번호(암호화해 저장), 이름, 휴대폰 번호, 닉네임,
+            생년월일(선택)
+          </li>
+          <li>
+            Google·카카오·네이버로 로그인할 때: 각 서비스가 제공하는 이메일 주소, 닉네임(이름),
+            프로필 사진, 회원 식별값
+          </li>
+          <li>
+            서비스 이용 중 생기는 정보: 프로필 사진, 관측 일정과 관측 사진, 즐겨찾기한 관측지, 알림,
+            퀴즈 응시 기록, 게시글·댓글·좋아요, 마지막 로그인 시각과 로그인 유지용 세션 정보
+          </li>
         </ul>
-        <p className="text-muted-foreground">
-          위 정보는 Google이 제공하는 값으로, 서비스가 별도로 저장하거나 수집하지 않습니다.
-        </p>
       </section>
 
       <section className="space-y-2">
         <h2 className="font-semibold">2. 개인정보 수집 및 이용 목적</h2>
         <ul className="ml-4 list-disc space-y-1 text-muted-foreground">
-          <li>회원 가입 및 계정 식별</li>
-          <li>서비스 제공(관측지 리뷰, 커뮤니티, 교육 콘텐츠 등)</li>
+          <li>회원 가입 및 계정 식별, 로그인 유지</li>
+          <li>이메일(아이디) 찾기와 비밀번호 재설정 시 본인 확인(이름·휴대폰 번호)</li>
+          <li>가입 인증·비밀번호 재설정 안내 메일 발송</li>
+          <li>서비스 제공(관측 일정, 관측지 리뷰, 커뮤니티, 교육 콘텐츠 등)</li>
           <li>서비스 이용 기록 관리 및 부정 이용 방지</li>
         </ul>
       </section>
 
       <section className="space-y-2">
         <h2 className="font-semibold">3. 개인정보 보유 및 이용 기간</h2>
-        <p className="text-muted-foreground">
-          이용자가 서비스 탈퇴를 요청하는 즉시 수집된 개인정보를 지체 없이 파기합니다.
-          단, 관련 법령에 따라 보존 의무가 있는 경우 해당 기간 동안 보관합니다.
-        </p>
+        <ul className="ml-4 list-disc space-y-1 text-muted-foreground">
+          <li>
+            회원 탈퇴 시 즉시 계정 정보(이메일·이름·휴대폰 번호·생년월일·닉네임·프로필 사진·로그인 연동
+            정보)를 삭제하거나 알아볼 수 없게 바꾸고, 관측 일정·관측 사진·즐겨찾기·알림·퀴즈 기록·로그인
+            세션을 삭제합니다.
+          </li>
+          <li>
+            작성한 게시글과 댓글은 다른 이용자의 대화 맥락을 위해 &quot;탈퇴한 사용자&quot;로 표시되어
+            남습니다. 삭제를 원하시면 탈퇴 전에 직접 지우거나 아래 연락처로 요청해 주세요.
+          </li>
+          <li>장애 복구용 백업은 서버에 7일 동안 보관한 뒤 자동으로 삭제합니다.</li>
+          <li>서버 처리 기록(로그)은 30일 동안 보관한 뒤 자동으로 삭제합니다.</li>
+          <li>관련 법령에 따라 보존 의무가 있는 경우 해당 기간 동안 보관합니다.</li>
+        </ul>
       </section>
 
       <section className="space-y-2">
@@ -63,8 +79,11 @@ export default function PrivacyPage() {
           서비스는 원활한 운영을 위해 아래 업체에 개인정보 처리를 위탁합니다.
         </p>
         <ul className="ml-4 list-disc space-y-1 text-muted-foreground">
-          <li>Google LLC — 소셜 로그인 인증 처리</li>
-          <li>Oracle Cloud Infrastructure — 서버 인프라 운영</li>
+          <li>Google LLC — 소셜 로그인 인증, 인증·안내 메일 발송(Gmail)</li>
+          <li>카카오 — 소셜 로그인 인증</li>
+          <li>네이버 — 소셜 로그인 인증</li>
+          <li>Oracle Cloud Infrastructure — 서버·데이터베이스 운영, 백업 보관</li>
+          <li>Cloudflare — 웹사이트 호스팅·전송, 문의 메일 전달</li>
         </ul>
       </section>
 
@@ -81,11 +100,10 @@ export default function PrivacyPage() {
         <ul className="ml-4 list-disc space-y-1 text-muted-foreground">
           <li>성명: 서범수</li>
           <li>이메일: <a href="mailto:support@byeoldori.com" className="underline hover:text-foreground">support@byeoldori.com</a></li>
-          <li>전화: 010-4740-0710</li>
         </ul>
       </section>
 
-      <p className="text-xs text-muted-foreground">시행일: 2026년 5월 1일</p>
+      <p className="text-xs text-muted-foreground">시행일: 2026년 11월 6일 (이전: 2026년 5월 1일)</p>
     </article>
   );
 }
