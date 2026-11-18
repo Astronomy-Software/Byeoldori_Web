@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { applyProxyClientIp } from "@/lib/api/proxy-client-ip";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
@@ -35,6 +36,8 @@ async function handler(req: NextRequest) {
     const value = req.headers.get(name);
     if (value) headers.set(name, value);
   }
+  // 레이트리밋이 Worker IP 하나로 묶이지 않게 사용자 IP를 넘긴다(비밀은 wrangler secret)
+  applyProxyClientIp(headers, req.headers, process.env.PROXY_SHARED_SECRET);
 
   const body =
     req.method !== "GET" && req.method !== "HEAD"
