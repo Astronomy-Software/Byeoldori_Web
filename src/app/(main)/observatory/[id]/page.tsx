@@ -8,7 +8,7 @@ import {
   Thermometer, Droplets, Wind, Gauge,
   Sun, CloudSun, Cloud, CloudRain, Snowflake, Droplet,
 } from "lucide-react";
-import { getSiteById } from "@/lib/api/observation-sites";
+import { getSiteById, getSiteReviews } from "@/lib/api/observation-sites";
 import { getLiveWeather, getForecastData } from "@/lib/api/weather";
 import { getReviewPosts } from "@/lib/api/community";
 import { collectPages } from "@/lib/api/paginate";
@@ -84,6 +84,9 @@ type HourlyItem = {
   suit: number;
 };
 
+const SITE_REVIEW_PAGE_SIZE = 20;
+// 관측지별 후기 API(/observationsites/{id}/reviews)가 없는 서버(배포 전)일 때만 쓰는 예전 방식:
+// 전체 후기 목록을 최신순으로 넘겨 가며 이 관측지 것만 고른다.
 const REVIEW_SCAN_SIZE = 50;
 const REVIEW_SCAN_PAGES = 10;
 
@@ -99,9 +102,12 @@ export default function ObservatoryDetailPage() {
   const [forecastLoading, setForecastLoading] = useState(false);
   const [forecastError, setForecastError] = useState(false);
   const [reviews, setReviews] = useState<PostSummary[]>([]);
-  // 리뷰 목록 API에 관측지 필터가 없어 최신순으로 넘겨 가며 이 관측지 리뷰만 모은다.
-  // partial = 상한(REVIEW_SCAN_PAGES)까지 봤는데도 reviewCount만큼 못 찾음.
+  // partial = 예전 방식으로 상한(REVIEW_SCAN_PAGES)까지 봤는데도 reviewCount만큼 못 찾음.
   const [reviewsStatus, setReviewsStatus] = useState<"loading" | "done" | "partial" | "error">("loading");
+  // 관측지별 후기 API 로 받았을 때만 채운다(더보기용). 예전 방식이면 null.
+  const [reviewsTotal, setReviewsTotal] = useState<number | null>(null);
+  const [reviewsPage, setReviewsPage] = useState(0);
+  const [loadingMoreReviews, setLoadingMoreReviews] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<SiteLoadError | null>(null);
@@ -146,16 +152,26 @@ export default function ObservatoryDetailPage() {
         }).finally(() => setForecastLoading(false));
 
         if (data.reviewCount > 0) {
-          collectPages((page) => getReviewPosts(page, REVIEW_SCAN_SIZE, "LATEST"), {
-            maxPages: REVIEW_SCAN_PAGES,
-            keep: (p) => p.observationSiteId === id,
-            enough: (kept) => kept.length >= data.reviewCount,
-          })
-            .then(({ items, complete }) => {
-              setReviews(items);
-              setReviewsStatus(complete ? "done" : "partial");
+          const scanAllReviews = () =>
+            collectPages((page) => getReviewPosts(page, REVIEW_SCAN_SIZE, "LATEST"), {
+              maxPages: REVIEW_SCAN_PAGES,
+              keep: (p) => p.observationSiteId === id,
+              enough: (kept) => kept.length >= data.reviewCount,
             })
-            .catch(() => setReviewsStatus("error"));
+              .then(({ items, complete }) => {
+                setReviews(items);
+                setReviewsStatus(complete ? "done" : "partial");
+              })
+              .catch(() => setReviewsStatus("error"));
+          getSiteReviews(id, 0, SITE_REVIEW_PAGE_SIZE)
+            .then((p) => {
+              setReviews(p.content);
+              setReviewsTotal(p.totalElements);
+              setReviewsPage(0);
+              setReviewsStatus("done");
+            })
+            // 관측지별 후기 API 가 아직 없는 서버면 예전 방식으로 모은다
+            .catch(() => scanAllReviews());
         } else {
           setReviews([]);
           setReviewsStatus("done");
@@ -193,6 +209,24 @@ export default function ObservatoryDetailPage() {
     setLoading(true);
     setReloadKey((k) => k + 1);
   };
+
+  const loadMoreReviews = () => {
+    if (id === null || loadingMoreReviews) return;
+    setLoadingMoreReviews(true);
+    getSiteReviews(id, reviewsPage + 1, SITE_REVIEW_PAGE_SIZE)
+      .then((p) => {
+        // 그사이 새 후기가 올라오면 페이지 경계가 밀려 같은 글이 다시 올 수 있어 id 로 거른다
+        setReviews((prev) => {
+          const seen = new Set(prev.map((r) => r.id));
+          return [...prev, ...p.content.filter((r) => !seen.has(r.id))];
+        });
+        setReviewsTotal(p.totalElements);
+        setReviewsPage(p.page);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMoreReviews(false));
+  };
+  const hasMoreReviews = reviewsTotal !== null && reviews.length < reviewsTotal;
 
   // 시간별 예보: ultra 전체 + ultra 종료 이후의 short만 이어붙임 (과거·중복 항목 제거)
   const ultraList = forecast?.ultraForecastResponse ?? [];
@@ -540,7 +574,9 @@ export default function ObservatoryDetailPage() {
           <h2 className="mb-2 text-sm font-semibold text-text-primary">
             이곳에서 진행한 관측 리뷰
             {reviews.length > 0 && (
-              <span className="ml-1.5 font-mono text-xs font-normal text-text-tertiary">{reviews.length}개</span>
+              <span className="ml-1.5 font-mono text-xs font-normal text-text-tertiary">
+                {reviewsTotal ?? reviews.length}개
+              </span>
             )}
           </h2>
           {reviews.length === 0 ? (
@@ -591,6 +627,15 @@ export default function ObservatoryDetailPage() {
                 </Link>
               ))}
             </div>
+          )}
+          {hasMoreReviews && (
+            <button
+              onClick={loadMoreReviews}
+              disabled={loadingMoreReviews}
+              className="mt-3 w-full rounded-xl bg-surface-1 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-2 disabled:opacity-60"
+            >
+              {loadingMoreReviews ? "불러오는 중..." : "더보기"}
+            </button>
           )}
         </section>
       </div>
