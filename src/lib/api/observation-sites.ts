@@ -6,6 +6,8 @@ import type {
   ObservationSitePage,
   ObservationSiteRegisterRequest,
   ObservationSiteUpdateRequest,
+  PageResponse,
+  PostSummary,
 } from "@/types/api";
 
 const SITES_PAGE_SIZE = 100;
@@ -34,6 +36,17 @@ export async function getSiteById(
   id: number,
 ): Promise<ObservationSiteDetail> {
   return apiFetch<ObservationSiteDetail>(`observationsites/${id}`);
+}
+
+// GET /observationsites/{id}/reviews — 이 관측지에 연결된 후기(최신순, 페이지 응답)
+export async function getSiteReviews(
+  id: number,
+  page = 0,
+  size = 20,
+): Promise<PageResponse<PostSummary>> {
+  return apiFetch<PageResponse<PostSummary>>(
+    `observationsites/${id}/reviews?page=${page}&size=${size}`,
+  );
 }
 
 export async function registerSite(
